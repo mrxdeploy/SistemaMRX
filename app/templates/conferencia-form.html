@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+
+{% block title %}Conferência de Recebimento{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <a href="/conferencias" class="btn btn-secondary mb-3">← Voltar</a>
+            <h2>📦 Conferência de Recebimento #<span id="conferencia-id"></span></h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h5>Informações da OS/OC</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th>OS:</th>
+                            <td id="info-os">-</td>
+                        </tr>
+                        <tr>
+                            <th>OC:</th>
+                            <td id="info-oc">-</td>
+                        </tr>
+                        <tr>
+                            <th>Fornecedor:</th>
+                            <td id="info-fornecedor">-</td>
+                        </tr>
+                        <tr>
+                            <th>Peso Previsto:</th>
+                            <td id="info-peso-previsto">-</td>
+                        </tr>
+                        <tr>
+                            <th>Quantidade Prevista:</th>
+                            <td id="info-quantidade-prevista">-</td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td id="info-status">-</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                    <h5>Registrar Conferência</h5>
+                </div>
+                <div class="card-body">
+                    <form id="form-conferencia">
+                        <div class="mb-3">
+                            <label class="form-label">Peso Real (kg) *</label>
+                            <input type="number" class="form-control" id="peso-real" step="0.01" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Quantidade Real</label>
+                            <input type="number" class="form-control" id="quantidade-real" step="1">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Qualidade *</label>
+                            <select class="form-select" id="qualidade" required>
+                                <option value="A">A - Excelente</option>
+                                <option value="B">B - Bom</option>
+                                <option value="C">C - Ruim</option>
+                                <option value="Descartável">Descartável</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Observações</label>
+                            <textarea class="form-control" id="observacoes" rows="3"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Fotos da Pesagem</label>
+                            <input type="file" class="form-control" id="fotos" multiple accept="image/*">
+                            <small class="text-muted">Mínimo 1 foto em caso de divergência</small>
+                        </div>
+
+                        <div id="preview-fotos" class="mb-3"></div>
+
+                        <button type="submit" class="btn btn-primary w-100" id="btn-salvar">
+                            Registrar Conferência
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row" id="area-divergencia" style="display: none;">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning">
+                    <h5>⚠️ Divergência Detectada</h5>
+                </div>
+                <div class="card-body">
+                    <p id="mensagem-divergencia"></p>
+                    <button class="btn btn-warning" onclick="enviarParaAdm()">Enviar para Análise Administrativa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const conferencia_id = window.location.pathname.split('/').pop();
+let conferenciaAtual = null;
+
+async function carregarConferencia() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/conferencia/${conferencia_id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            conferenciaAtual = await response.json();
+            preencherDados();
+        } else {
+            alert('Erro ao carregar conferência');
+            window.location.href = '/conferencias';
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao carregar conferência');
+    }
+}
+
+function preencherDados() {
+    document.getElementById('conferencia-id').textContent = conferenciaAtual.id;
+    document.getElementById('info-os').textContent = conferenciaAtual.os_id;
+    document.getElementById('info-oc').textContent = conferenciaAtual.oc_id;
+    
+    const fornecedor = conferenciaAtual.ordem_servico?.fornecedor_snapshot?.nome || '-';
+    document.getElementById('info-fornecedor').textContent = fornecedor;
+    
+    document.getElementById('info-peso-previsto').textContent = 
+        conferenciaAtual.peso_fornecedor ? conferenciaAtual.peso_fornecedor.toFixed(2) + ' kg' : '-';
+    
+    document.getElementById('info-quantidade-prevista').textContent = 
+        conferenciaAtual.quantidade_prevista || '-';
+    
+    const statusBadge = getStatusBadge(conferenciaAtual.conferencia_status);
+    document.getElementById('info-status').innerHTML = statusBadge;
+    
+    if (conferenciaAtual.peso_real) {
+        document.getElementById('peso-real').value = conferenciaAtual.peso_real;
+    }
+    if (conferenciaAtual.quantidade_real) {
+        document.getElementById('quantidade-real').value = conferenciaAtual.quantidade_real;
+    }
+    if (conferenciaAtual.qualidade) {
+        document.getElementById('qualidade').value = conferenciaAtual.qualidade;
+    }
+    if (conferenciaAtual.observacoes) {
+        document.getElementById('observacoes').value = conferenciaAtual.observacoes;
+    }
+    
+    if (conferenciaAtual.conferencia_status !== 'PENDENTE') {
+        document.getElementById('form-conferencia').querySelectorAll('input, select, textarea, button').forEach(el => {
+            el.disabled = true;
+        });
+    }
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'PENDENTE': '<span class="badge bg-primary">Pendente</span>',
+        'DIVERGENTE': '<span class="badge bg-warning text-dark">Divergente</span>',
+        'AGUARDANDO_ADM': '<span class="badge bg-info">Aguardando ADM</span>',
+        'APROVADA': '<span class="badge bg-success">Aprovada</span>',
+        'REJEITADA': '<span class="badge bg-danger">Rejeitada</span>'
+    };
+    return badges[status] || status;
+}
+
+document.getElementById('form-conferencia').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const pesoReal = parseFloat(document.getElementById('peso-real').value);
+    const quantidadeReal = document.getElementById('quantidade-real').value ? 
+        parseInt(document.getElementById('quantidade-real').value) : null;
+    const qualidade = document.getElementById('qualidade').value;
+    const observacoes = document.getElementById('observacoes').value;
+    
+    const data = {
+        peso_real: pesoReal,
+        quantidade_real: quantidadeReal,
+        qualidade: qualidade,
+        observacoes: observacoes,
+        fotos: []
+    };
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/conferencia/${conferencia_id}/registrar-pesagem`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            alert('Conferência registrada com sucesso!');
+            
+            if (result.conferencia.divergencia) {
+                const perc = result.conferencia.percentual_diferenca?.toFixed(1);
+                document.getElementById('mensagem-divergencia').textContent = 
+                    `Divergência de ${perc}% detectada. Tipo: ${result.conferencia.tipo_divergencia}. Envie para análise administrativa.`;
+                document.getElementById('area-divergencia').style.display = 'block';
+            } else {
+                window.location.href = '/conferencias';
+            }
+        } else {
+            alert('Erro: ' + result.erro);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao registrar conferência');
+    }
+});
+
+async function enviarParaAdm() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/conferencia/${conferencia_id}/enviar-para-adm`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+        });
+        
+        if (response.ok) {
+            alert('Conferência enviada para análise administrativa!');
+            window.location.href = '/conferencias';
+        } else {
+            alert('Erro ao enviar para ADM');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao enviar para ADM');
+    }
+}
+
+carregarConferencia();
+</script>
+{% endblock %}

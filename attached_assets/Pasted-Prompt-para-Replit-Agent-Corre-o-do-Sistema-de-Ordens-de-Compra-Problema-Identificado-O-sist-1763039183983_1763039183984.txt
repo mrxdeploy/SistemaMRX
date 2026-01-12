@@ -1,0 +1,88 @@
+Prompt para Replit Agent - Correção do Sistema de Ordens de Compra
+
+Problema Identificado:
+O sistema não está gerando Ordens de Compra (OC) automaticamente após aprovar uma solicitação. Quando uma solicitação é aprovada em /api/solicitacoes/<id>/aprovar, a OC deveria ser criada automaticamente, mas há erros e inconsistências.
+
+Análise do Código Atual:
+
+Em app/routes/solicitacoes.py, a função aprovar_solicitacao() tenta criar OC automaticamente
+Existe verificação de OC duplicada ANTES da transação, mas pode haver condição de corrida
+O cálculo de valor_total_oc pode resultar em valores incorretos quando item.valor_calculado é None
+A criação de lotes e OC estão na mesma transação, causando conflitos
+Tarefas para Correção:
+
+1. Corrigir a função aprovar_solicitacao em app/routes/solicitacoes.py:
+
+Adicionar tratamento robusto para None em valor_calculado
+Separar a criação de lotes da criação de OC em transações distintas
+Adicionar verificação de OC existente DENTRO da transação para evitar duplicatas
+Melhorar o tratamento de erros com mensagens mais descritivas
+Garantir que a OC seja criada APENAS uma vez
+2. Corrigir a função criar_oc em app/routes/ordens_compra.py:
+
+Validar que a solicitação tem itens antes de criar OC
+Tratar corretamente valores None em item.valor_calculado
+Adicionar log detalhado para debugging
+Garantir que não haja duplicação de OC
+3. Adicionar validação no modelo ItemSolicitacao:
+
+Garantir que valor_calculado nunca seja None (usar 0.0 como padrão)
+Adicionar constraint de banco de dados para evitar valores nulos
+4. Implementar endpoint de diagnóstico:
+
+Criar /api/debug/solicitacao/<id> para verificar:
+Status da solicitação
+Se tem OC associada
+Valores calculados dos itens
+Preços configurados do fornecedor
+5. Criar script de correção retroativa:
+
+Script para identificar solicitações aprovadas sem OC
+Gerar OCs faltantes com valores corretos
+Registrar auditoria adequadamente
+Requisitos Específicos:
+
+# A função aprovar_solicitacao deve:
+# 1. Aprovar a solicitação
+# 2. Criar lotes agrupados por (tipo_lote_id, estrelas_final)
+# 3. Criar UMA ÚNICA OC com valor total correto
+# 4. Registrar auditoria
+# 5. Enviar notificações
+# 6. Fazer commit APENAS no final se tudo der certo
+# Tratamento de valores None:
+valor_total = sum((item.valor_calculado or 0.0) for item in itens)
+# Verificação de duplicata dentro da transação:
+with db.session.begin_nested():
+    oc_existente = OrdemCompra.query.filter_by(
+        solicitacao_id=id
+    ).with_for_update().first()
+    
+    if oc_existente:
+        raise ValueError(f'OC já existe: {oc_existente.id}')
+Validações Necessárias:
+
+Solicitação deve estar com status 'pendente'
+Solicitação deve ter pelo menos 1 item
+Todos os itens devem ter preços configurados
+Não pode haver OC duplicada para a mesma solicitação
+Lotes devem ser criados corretamente antes da OC
+Testes a Realizar:
+
+Aprovar solicitação nova e verificar criação de OC
+Tentar aprovar solicitação já aprovada (deve falhar)
+Aprovar solicitação com itens sem preço (deve falhar com mensagem clara)
+Verificar que OC tem valor correto mesmo com itens None
+Verificar que não há duplicação de OC em requisições simultâneas
+Arquivos a Modificar:
+
+app/routes/solicitacoes.py - função aprovar_solicitacao
+app/routes/ordens_compra.py - função criar_oc
+app/models.py - adicionar validações no modelo ItemSolicitacao
+Resultado Esperado:
+Após aprovação de uma solicitação, o sistema deve:
+
+Criar lotes agrupados corretamente
+Criar EXATAMENTE uma OC com valor total correto
+Registrar auditoria completa
+Enviar notificações apropriadas
+Retornar resposta JSON com dados da OC criada

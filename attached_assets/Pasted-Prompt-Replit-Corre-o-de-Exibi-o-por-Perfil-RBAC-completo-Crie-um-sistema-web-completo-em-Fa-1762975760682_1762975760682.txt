@@ -1,0 +1,125 @@
+Prompt Replit – Correção de Exibição por Perfil (RBAC completo)
+Crie um sistema web completo em **FastAPI (backend)** + **React (frontend)** com base no projeto **MRX_Gestão**, garantindo que **cada tipo de perfil** visualize apenas o conteúdo e as opções que se enquadram em suas permissões, conforme as regras descritas abaixo.
+
+O sistema já possui autenticação JWT e cadastro de perfis.  
+O objetivo deste prompt é corrigir a exibição de telas e rotas para que **nenhum perfil veja elementos indevidos**.
+
+---
+
+## 🔒 CONTEXTO DE PERMISSÕES (baseado em MRX_Gestão.md)
+
+### 👑 Administrador
+- Acesso total a todos os módulos.  
+- Pode criar/editar usuários e perfis, importar tabelas de preço, aprovar exceções e divergências, autorizar descarte e fechar inventário.  
+- Visualiza dashboards, auditoria e logs completos.  
+
+### 🧾 Comprador (PJ)
+- Pode **abrir solicitações de compra** e **cadastrar fornecedores**.  
+- Visualiza apenas suas próprias solicitações, histórico e cotações.  
+- Não pode acessar módulos de estoque, separação, financeiro, auditoria nem gestão de usuários.  
+
+### ⚖️ Conferente / Estoque
+- Acesso apenas às telas de **recebimento**, **pesagem** e **entrada em estoque**.  
+- Pode criar lotes, apontar divergências e finalizar conferências.  
+- Não pode ver solicitações de compra, NF-e, auditoria nem usuários.  
+
+### 🧱 Separação
+- Pode acessar **área de separação de materiais**, gerando sublotes e classificando resíduos para descarte (com autorização ADM).  
+- Não tem acesso a compras, financeiro, BI ou auditoria.  
+
+### 🚛 Motorista
+- Acesso apenas ao **aplicativo móvel ou tela de rotas**.  
+- Visualiza **suas coletas**, **histórico de entregas** e pode enviar comprovantes/fotos.  
+- Nenhum acesso a cadastros, estoque ou dashboards.  
+
+### 💰 Financeiro
+- Acesso apenas ao **módulo de faturamento e contas a pagar/receber**.  
+- Pode emitir NF-e, realizar cancelamentos e controlar pagamentos.  
+- Não pode criar usuários, editar perfis ou visualizar rotas.  
+
+### 📊 Auditoria / BI
+- Acesso somente leitura a **painéis, relatórios e trilhas de auditoria**.  
+- Nenhuma permissão de escrita.  
+- Não pode ver telas operacionais (compras, estoque, motorista, etc.).  
+
+---
+
+## ⚙️ OBJETIVO DO PROMPT
+
+Corrigir o **sistema de controle de acesso do frontend e backend**, para que:
+1. Cada **perfil** carregue **somente as telas e menus que lhe correspondem**.  
+2. Rotas não permitidas sejam **bloqueadas no backend (FastAPI)** e **ocultadas no frontend (React)**.  
+3. O layout e o menu lateral (sidebar/navbar) sejam **gerados dinamicamente** com base nas permissões do token JWT.  
+4. O backend envie o **perfil e claims** no payload JWT (ex: `"perfil": "financeiro"`).  
+5. O frontend use esse payload para renderizar apenas os componentes autorizados.  
+6. O roteamento (React Router) valide permissões antes de montar a página.  
+7. Se um usuário tentar acessar algo proibido, deve ser redirecionado para `/acesso-negado`.  
+
+---
+
+## 🧱 IMPLEMENTAÇÃO ESPERADA
+
+### 🔹 Backend (FastAPI)
+- Atualizar middleware de autorização:
+  - Extrair `perfil` do token JWT.
+  - Validar permissões conforme dicionário de regras.
+  - Bloquear endpoints não compatíveis (`403`).
+- Endpoint `/me` deve retornar:
+  ```json
+  {
+    "id": 1,
+    "nome": "Carlos Eduardo",
+    "email": "admin@mrx.com.br",
+    "perfil": "administrador",
+    "permissoes": ["usuarios.read", "fornecedores.write", "nfe.emitir"]
+  }
+
+🔹 Frontend (React)
+
+Criar contexto AuthContext com informações do usuário (perfil e permissões).
+
+Implementar ProtectedRoute:
+
+<ProtectedRoute allowed={['administrador', 'financeiro']}>
+  <Financeiro />
+</ProtectedRoute>
+
+
+Gerar menus dinamicamente:
+
+const menu = {
+  administrador: ['Usuários', 'Perfis', 'Fornecedores', 'Produtos', 'Financeiro', 'Auditoria'],
+  comprador: ['Minhas Solicitações', 'Cadastrar Fornecedor'],
+  conferente: ['Recebimento', 'Pesagem', 'Lotes'],
+  separacao: ['Separar Materiais', 'Descarte'],
+  motorista: ['Minhas Rotas', 'Histórico de Coletas'],
+  financeiro: ['Faturamento', 'Pagamentos'],
+  auditoria: ['Painéis', 'Logs de Auditoria']
+};
+
+
+Sidebar deve ser renderizada com base em menu[perfilAtual].
+
+🔹 Interface / UI
+
+Cada perfil deve abrir diretamente em sua tela padrão inicial, sem mostrar menus indevidos:
+
+Perfil	Tela inicial
+Administrador	Dashboard geral
+Comprador	Minhas Solicitações
+Conferente	Conferência de Recebimento
+Separação	Área de Separação
+Motorista	Minhas Rotas
+Financeiro	Faturamento
+Auditoria	Painéis e Logs
+
+Adicionar rota de fallback /acesso-negado com mensagem:
+"Você não tem permissão para acessar esta área."
+
+🧩 RESULTADO ESPERADO
+
+✅ Perfis limitados apenas às suas telas e ações.
+✅ Menus e rotas geradas dinamicamente conforme JWT.
+✅ Nenhum usuário vê opções fora do seu escopo.
+✅ Proteção de rotas no backend e frontend.
+✅ Padrão profissional e seguro, seguindo o blueprint MRX_Gestão.

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta Avançada - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Consulta</span>
+            </div>
+            <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                <i class="fas fa-bell"></i>
+                <span class="notification-count" style="display: none;">0</span>
+            </div>
+        </div>
+    </header>
+
+    <nav class="bottom-nav">
+        <a href="/administracao.html" class="bottom-nav-item">
+            <i class="fas fa-cog icon"></i>
+            <span>Admin</span>
+        </a>
+        <a href="/dashboard.html" class="bottom-nav-item">
+            <i class="fas fa-chart-line icon"></i>
+            <span>Dashboard</span>
+        </a>
+        <div class="fab-container">
+            <button class="fab-button" onclick="exportarResultados()" aria-label="Exportar">
+                <i class="fas fa-plus icon"></i>
+            </button>
+        </div>
+        <a href="/consulta.html" class="bottom-nav-item active">
+            <i class="fas fa-search icon"></i>
+            <span>Consulta</span>
+        </a>
+        <a href="/fornecedores.html" class="bottom-nav-item">
+            <i class="fas fa-building icon"></i>
+            <span>Fornecedores</span>
+        </a>
+    </nav>
+
+    <main class="container mt-4">
+        <h1 style="font-size: clamp(1.5rem, 6vw, 2rem); margin-bottom: var(--spacing-lg);">Consulta Avançada</h1>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>Filtros de Busca</h3>
+            </div>
+            <div style="padding: var(--spacing-md);">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--spacing-md);">
+                    <div class="form-group">
+                        <label>Fornecedor</label>
+                        <select id="filtroEmpresa">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Placa</label>
+                        <select id="filtroTipoPlaca">
+                            <option value="">Todos</option>
+                            <option value="leve">Leve</option>
+                            <option value="media">Média</option>
+                            <option value="pesada">Pesada</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="filtroStatus">
+                            <option value="">Todos</option>
+                            <option value="em_analise">Em Análise</option>
+                            <option value="aprovada">Aprovada</option>
+                            <option value="reprovada">Reprovada</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Data Início</label>
+                        <input type="date" id="dataInicio">
+                    </div>
+                    <div class="form-group">
+                        <label>Data Fim</label>
+                        <input type="date" id="dataFim">
+                    </div>
+                    <div class="form-group">
+                        <label>Peso Mínimo (kg)</label>
+                        <input type="number" id="pesoMin" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Peso Máximo (kg)</label>
+                        <input type="number" id="pesoMax" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Ordenar Por</label>
+                        <select id="ordenarPor">
+                            <option value="data_registro">Data</option>
+                            <option value="peso_kg">Peso</option>
+                            <option value="valor">Valor</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-md); flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="buscar()" style="flex: 1;">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                    <button class="btn btn-secondary" onclick="limparFiltros()" style="flex: 1;">
+                        <i class="fas fa-eraser"></i> Limpar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: var(--spacing-lg);">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>Resultados (<span id="totalResultados">0</span>)</h3>
+                <button class="btn btn-secondary" onclick="exportarResultados()">
+                    <i class="fas fa-file-csv"></i> Exportar CSV
+                </button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tag</th>
+                            <th>Fornecedor</th>
+                            <th>Tipo</th>
+                            <th>Peso (kg)</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Data</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaResultados">
+                        <tr><td colspan="7" style="text-align: center; padding: 2rem;">Use os filtros acima para buscar</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="stats-grid" style="margin-top: var(--spacing-lg);">
+            <div class="stat-card">
+                <div class="stat-label">Total de Placas</div>
+                <div class="stat-value" id="statTotalPlacas">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Peso Total</div>
+                <div class="stat-value" id="statPesoTotal">0 kg</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Valor Total</div>
+                <div class="stat-value" id="statValorTotal">R$ 0,00</div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        let resultados = [];
+
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+
+            await carregarEmpresas();
+            await atualizarNotificacoes();
+        }
+
+        async function carregarEmpresas() {
+            const response = await fetchAPI('/consulta/fornecedores');
+            const empresas = await response.json();
+            
+            const select = document.getElementById('filtroEmpresa');
+            empresas.forEach(empresa => {
+                const option = document.createElement('option');
+                option.value = empresa.id;
+                option.textContent = empresa.nome;
+                select.appendChild(option);
+            });
+        }
+
+        async function buscar() {
+            const params = new URLSearchParams();
+            
+            const empresa = document.getElementById('filtroEmpresa').value;
+            const tipoPlaca = document.getElementById('filtroTipoPlaca').value;
+            const status = document.getElementById('filtroStatus').value;
+            const dataInicio = document.getElementById('dataInicio').value;
+            const dataFim = document.getElementById('dataFim').value;
+            const pesoMin = document.getElementById('pesoMin').value;
+            const pesoMax = document.getElementById('pesoMax').value;
+            const ordenarPor = document.getElementById('ordenarPor').value;
+
+            if (empresa) params.append('fornecedor_id', empresa);
+            if (tipoPlaca) params.append('tipo_placa', tipoPlaca);
+            if (status) params.append('status', status);
+            if (dataInicio) params.append('data_inicio', dataInicio);
+            if (dataFim) params.append('data_fim', dataFim);
+            if (pesoMin) params.append('peso_min', pesoMin);
+            if (pesoMax) params.append('peso_max', pesoMax);
+            if (ordenarPor) params.append('ordenar_por', ordenarPor);
+
+            try {
+                const response = await fetchAPI(`/consulta/placas?${params.toString()}`);
+                resultados = await response.json();
+                
+                exibirResultados();
+                atualizarEstatisticas();
+            } catch (error) {
+                showNotification('Erro ao realizar busca', 'error');
+            }
+        }
+
+        function exibirResultados() {
+            const tbody = document.getElementById('tabelaResultados');
+            document.getElementById('totalResultados').textContent = resultados.length;
+
+            if (resultados.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum resultado encontrado</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = resultados.map(placa => `
+                <tr>
+                    <td>${placa.tag || 'N/A'}</td>
+                    <td>${placa.fornecedor?.nome || 'N/A'}</td>
+                    <td>${placa.tipo_placa}</td>
+                    <td>${placa.peso_kg.toFixed(2)}</td>
+                    <td>R$ ${placa.valor.toFixed(2)}</td>
+                    <td><span class="badge ${getStatusBadgeClass(placa.status)}">${placa.status}</span></td>
+                    <td>${new Date(placa.data_registro).toLocaleDateString('pt-BR')}</td>
+                </tr>
+            `).join('');
+        }
+
+        function getStatusBadgeClass(status) {
+            const classes = {
+                'em_analise': 'badge-warning',
+                'aprovada': 'badge-success',
+                'reprovada': 'badge-danger'
+            };
+            return classes[status] || 'badge-secondary';
+        }
+
+        function atualizarEstatisticas() {
+            const totalPlacas = resultados.length;
+            const pesoTotal = resultados.reduce((acc, p) => acc + p.peso_kg, 0);
+            const valorTotal = resultados.reduce((acc, p) => acc + p.valor, 0);
+
+            document.getElementById('statTotalPlacas').textContent = totalPlacas;
+            document.getElementById('statPesoTotal').textContent = `${pesoTotal.toFixed(2)} kg`;
+            document.getElementById('statValorTotal').textContent = `R$ ${valorTotal.toFixed(2)}`;
+        }
+
+        async function exportarResultados() {
+            if (resultados.length === 0) {
+                showNotification('Nenhum resultado para exportar. Faça uma busca primeiro.', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetchAPI('/consulta/exportar/placas', { 
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'text/csv'
+                    }
+                });
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `consulta_placas_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                
+                showNotification('Exportação concluída!', 'success');
+            } catch (error) {
+                showNotification('Erro ao exportar dados', 'error');
+            }
+        }
+
+        function limparFiltros() {
+            document.getElementById('filtroEmpresa').value = '';
+            document.getElementById('filtroTipoPlaca').value = '';
+            document.getElementById('filtroStatus').value = '';
+            document.getElementById('dataInicio').value = '';
+            document.getElementById('dataFim').value = '';
+            document.getElementById('pesoMin').value = '';
+            document.getElementById('pesoMax').value = '';
+            document.getElementById('ordenarPor').value = 'data_registro';
+        }
+
+        carregarPagina();
+    </script>
+</body>
+</html>

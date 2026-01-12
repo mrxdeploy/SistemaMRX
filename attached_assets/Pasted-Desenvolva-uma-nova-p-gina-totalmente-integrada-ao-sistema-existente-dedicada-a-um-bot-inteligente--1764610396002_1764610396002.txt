@@ -1,0 +1,38 @@
+Desenvolva uma nova página totalmente integrada ao sistema existente, dedicada a um bot inteligente. Este bot deve ser capaz de:
+
+Funcionalidades do Bot
+Conectar-se ao banco de dados do sistema: O bot acessa, consulta e utiliza informações salvas pelo usuário, incluindo metas, histórico de investimentos, conquistas, dados cadastrais e registros financeiros.
+
+Consultar cotações de metais em tempo real: Integração dinâmica com APIs de mercado para obter preços atualizados de metais (ouro, prata, cobre, etc.).
+
+Oferecer dicas e recomendações de valores: Sugestões de melhores momentos para compra/venda, análise de tendência dos valores dos metais, e recomendações personalizadas baseadas no perfil do usuário e registros do banco de dados.
+
+Dados e insights sobre a empresa: Trazer análises e relatórios sobre dados da empresa registrados no sistema, como evoluções patrimoniais, simulações, balanços, entre outros.
+
+Usar a API do Perplexity: Para consultas avançadas, recomendações, buscas contextuais e respostas personalizadas, aproveitando o poder da IA do Perplexity.
+
+Interface conversacional amigável: Respostas rápidas, contexto inteligente, opção de diálogo contínuo e histórico das interações.
+
+Requisitos para Integração e UI/UX
+Página responsiva, moderna, clara e fácil de navegar.
+
+Painel lateral fixo ou pop-up para o bot, com campo para perguntas livres e sugestões de uso rápido (ex: “Cotação do ouro hoje”, “Relatório de metas”, “Dica de investimento”).
+
+Exibir resultados de consultas externas (APIs) e internas (banco de dados) de forma clara, com gráficos, cards ou listas.
+
+Botões para copiar/baixar informações geradas pelo bot, como relatórios em PDF ou CSV.
+
+O bot deve indicar sempre a origem dos dados (APIs externas, banco local, IA Perplexity), respeitando direitos autorais/informação confidencial.
+
+Detalhes Técnicos
+Utilizar endpoints seguros para conexão ao banco e às APIs externas.
+
+Garantir tratamento de erros e mensagens de orientação ao usuário.
+
+Permitir expansão futura para suportar novos tipos de consulta, dicas e integrações com outras inteligências artificiais.
+
+Documentar rotas, payloads e exemplos para onboarding de novos desenvolvedores.
+
+Testes unitários e integração para as principais funcionalidades.
+
+Instruções para o Agente: Implemente uma página com foco na experiência conversacional inteligente, explorando ao máximo as integrações disponíveis e procurando oferecer insights práticos, atualizados e personalizados, respeitando boas práticas de segurança e usabilidade.

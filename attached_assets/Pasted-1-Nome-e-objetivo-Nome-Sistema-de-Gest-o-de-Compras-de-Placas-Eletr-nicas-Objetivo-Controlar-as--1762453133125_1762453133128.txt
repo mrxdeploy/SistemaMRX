@@ -1,0 +1,270 @@
+1. Nome e objetivo
+
+Nome: Sistema de Gestão de Compras de Placas Eletrônicas
+Objetivo: Controlar as compras de placas de lixo eletrônico feitas por funcionários em empresas diferentes.
+O sistema deve registrar fotos, localização, tipo de placa, peso e permitir que o administrador aprove cada compra.
+
+2. Tipos de usuários
+Administrador
+
+Pode visualizar, criar, editar e excluir:
+
+Empresas (locais onde se compram as placas).
+
+Funcionários.
+
+Tabelas de preços (por empresa e tipo de placa).
+
+Pode ver todos os relatórios feitos pelos funcionários.
+
+Pode aprovar ou reprovar relatórios.
+
+Possui acesso a um dashboard completo com:
+
+Quantidade de relatórios (pendentes, aprovados e reprovados).
+
+Quantidade total de quilos por tipo de placa (leve, média e pesada).
+
+Valor total gasto.
+
+Ranking de empresas com mais movimentação.
+
+Gráficos mensais de movimentação.
+
+Mapa com geolocalização dos relatórios.
+
+Recebe notificações quando um funcionário envia um novo relatório.
+
+Funcionário
+
+Faz login com e-mail e senha.
+
+Pode ver a lista de empresas cadastradas.
+
+Pode criar relatórios de compra contendo:
+
+Empresa onde está comprando.
+
+Foto da placa.
+
+Tipo de placa (leve, média ou pesada).
+(Deve haver a opção de reconhecimento automático via imagem, mas também pode ser selecionado manualmente.)
+
+Peso (em kg).
+
+Observações.
+
+O sistema deve capturar automaticamente a geolocalização GPS no momento do envio.
+
+Após o envio, o relatório fica pendente de aprovação.
+
+Recebe notificações quando o administrador aprovar ou reprovar o relatório.
+
+3. Estrutura do banco de dados (PostgreSQL)
+
+Crie as tabelas a seguir com relacionamentos adequados e chaves estrangeiras.
+
+Usuarios
+
+id
+
+nome
+
+email
+
+senha_hash
+
+tipo (admin ou funcionario)
+
+Empresas
+
+id
+
+nome
+
+cnpj
+
+endereco
+
+telefone
+
+observacoes
+
+Precos
+
+id
+
+empresa_id (chave estrangeira para Empresas)
+
+tipo_placa (leve, media, pesada)
+
+preco_por_kg
+
+Relatorios
+
+id
+
+funcionario_id (chave estrangeira para Usuarios)
+
+empresa_id (chave estrangeira para Empresas)
+
+tipo_placa (leve, media, pesada)
+
+peso_kg
+
+foto_url
+
+localizacao_lat
+
+localizacao_lng
+
+status (pendente, aprovado, reprovado)
+
+observacoes
+
+data_envio
+
+Notificacoes
+
+id
+
+usuario_id (chave estrangeira para Usuarios)
+
+titulo
+
+mensagem
+
+lida (booleano)
+
+data_envio
+
+4. Funcionalidades principais
+Autenticação e controle de acesso
+
+Login e logout com autenticação JWT.
+
+Middleware para proteger rotas.
+
+Redirecionamento automático conforme o tipo de usuário.
+
+Hash de senha com bcrypt.
+
+Upload e armazenamento de imagens
+
+As fotos dos relatórios devem ser salvas em uma pasta local (uploads) ou integradas com um serviço de nuvem (exemplo: Cloudinary, se possível).
+
+O sistema deve armazenar a URL da imagem no banco.
+
+Geolocalização
+
+No momento do envio do relatório, o sistema deve capturar automaticamente a latitude e longitude do navegador usando navigator.geolocation e salvar no banco.
+
+Dashboard do administrador
+
+O painel do administrador deve mostrar:
+
+Contadores de relatórios (pendentes, aprovados, reprovados).
+
+Soma total de quilos por tipo de placa.
+
+Valor total movimentado (baseado nos preços definidos).
+
+Ranking de empresas com mais relatórios.
+
+Gráfico mensal (usando Chart.js ou Recharts).
+
+Mapa interativo com os locais das compras (usando Leaflet.js ou Google Maps API).
+
+Notificações
+
+O sistema deve permitir enviar e receber notificações para usuários logados.
+
+Quando um funcionário envia um relatório, o administrador recebe uma notificação.
+
+Quando o administrador aprova ou reprova, o funcionário recebe uma notificação.
+
+As notificações devem ser visíveis no frontend e marcadas como lidas após serem abertas.
+
+Use WebSocket ou polling periódico para atualização em tempo real.
+
+PWA (Progressive Web App)
+
+O sistema deve ser configurado como um PWA.
+
+Quando o usuário abrir o site pelo celular, deve aparecer um popup oferecendo a instalação (“Adicionar à tela inicial”).
+
+Após instalado, o sistema deve funcionar offline para leitura de dados recentes (usando cache básico).
+
+O ícone e o nome do app devem aparecer corretamente no celular.
+
+5. Funcionalidades extras
+
+Exportar relatórios em PDF ou planilha CSV.
+
+Filtros por empresa, tipo de placa, status e período.
+
+Histórico completo de relatórios enviados por cada funcionário.
+
+Página de perfil do usuário para alterar senha e informações básicas.
+
+6. Tecnologias obrigatórias
+
+Linguagem backend: Python
+
+Framework backend: Flask
+
+Banco de dados: PostgreSQL
+
+ORM: SQLAlchemy
+
+Frontend: HTML, CSS, JavaScript puro ou com React.js (à escolha)
+
+Gráficos e mapa: Chart.js ou Recharts + Leaflet.js
+
+Deploy: Railway (com configuração pronta no final do projeto)
+
+Autenticação: JWT
+
+Senhas: bcrypt
+
+PWA: Manifest, Service Worker, e popup de instalação
+
+Notificações: Web Push API ou sistema próprio via WebSocket
+
+7. Fluxo do sistema
+
+Usuário acessa a página inicial e faz login.
+
+Se for a primeira vez no celular, aparece um popup oferecendo para instalar o sistema.
+
+O funcionário pode:
+
+Ver empresas.
+
+Criar relatórios com foto, peso e localização.
+
+O administrador recebe uma notificação de novo relatório.
+
+Ele entra na área de relatórios pendentes, analisa e aprova ou reprova.
+
+O funcionário recebe uma notificação com o resultado.
+
+O administrador acompanha tudo pelo dashboard.
+
+8. Requisitos de qualidade
+
+Interface responsiva, clara e simples.
+
+Código bem estruturado, separado por módulos.
+
+Rotas RESTful documentadas.
+
+Sistema pronto para deploy no Railway com variáveis de ambiente (DATABASE_URL, JWT_SECRET, etc.).
+
+Página de erro personalizada para 404 e 500.
+
+Teste básico de login e envio de relatório para garantir funcionamento.
+
+Resumo:
+Crie esse sistema completo, com autenticação, upload de fotos, geolocalização, notificações, dashboard, popup de instalação (PWA) e deploy configurado no Railway.
+Use Python (Flask), PostgreSQL e boas práticas de segurança e organização.

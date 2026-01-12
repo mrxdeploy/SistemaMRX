@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aprovar Solicitações - MRX Systems</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .solicitacoes-lista {
+            max-width: 1200px;
+            margin: 20px auto;
+        }
+        
+        .solicitacao-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .solicitacao-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .badge-pendente {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .item-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .info-box {
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 5px;
+        }
+        
+        .info-box label {
+            display: block;
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+        
+        .info-box strong {
+            font-size: 16px;
+            color: #111827;
+        }
+        
+        .imagem-lote {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 5px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        
+        .classificacao-display {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .classificacao-leve {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .classificacao-medio {
+            background: #fed7aa;
+            color: #9a3412;
+        }
+        
+        .classificacao-pesado {
+            background: #fecaca;
+            color: #991b1b;
+        }
+        
+        .acoes-solicitacao {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn-aprovar {
+            background: #16a34a;
+            color: white;
+        }
+        
+        .btn-rejeitar {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .modal-content textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Aprovar Solicitações de Compra</h1>
+            <button onclick="window.location.href='/dashboard'" class="btn" style="background: #6b7280; color: white;">Voltar</button>
+        </div>
+        
+        <div class="solicitacoes-lista" id="listaSolicitacoes">
+            <div class="empty-state">
+                <p>Carregando solicitações...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modalRejeitar" class="modal">
+        <div class="modal-content">
+            <h3>Rejeitar Solicitação</h3>
+            <label for="motivoRejeicao">Motivo da Rejeição:</label>
+            <textarea id="motivoRejeicao" rows="4" required></textarea>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
+                <button onclick="fecharModal()" class="btn" style="background: #6b7280; color: white;">Cancelar</button>
+                <button onclick="confirmarRejeicao()" class="btn btn-rejeitar">Rejeitar</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let solicitacaoAtual = null;
+        
+        async function carregarSolicitacoes() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/solicitacao-lotes/aguardando-aprovacao', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Erro ao carregar solicitações');
+                
+                const solicitacoes = await response.json();
+                renderizarSolicitacoes(solicitacoes);
+            } catch (error) {
+                document.getElementById('listaSolicitacoes').innerHTML = `
+                    <div class="empty-state">
+                        <p style="color: #dc2626;">Erro ao carregar solicitações</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function renderizarSolicitacoes(solicitacoes) {
+            const container = document.getElementById('listaSolicitacoes');
+            
+            if (solicitacoes.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p> Nenhuma solicitação pendente de aprovação</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = solicitacoes.map(sol => {
+                const item = sol.itens[0];
+                return `
+                    <div class="solicitacao-card">
+                        <div class="solicitacao-header">
+                            <div>
+                                <h3>Solicitação #${sol.id}</h3>
+                                <p style="color: #6b7280; margin: 5px 0;">
+                                    Solicitado por: <strong>${sol.funcionario_nome}</strong><br>
+                                    Data: ${new Date(sol.data_envio).toLocaleString('pt-BR')}
+                                </p>
+                            </div>
+                            <span class="badge badge-pendente">AGUARDANDO APROVAÇÃO</span>
+                        </div>
+                        
+                        <div class="item-info">
+                            <div class="info-box">
+                                <label>Fornecedor</label>
+                                <strong>${sol.fornecedor_nome}</strong>
+                            </div>
+                            <div class="info-box">
+                                <label>Tipo de Lote</label>
+                                <strong>${item.tipo_lote_nome}</strong>
+                            </div>
+                            <div class="info-box">
+                                <label>Peso</label>
+                                <strong>${item.peso_kg} kg</strong>
+                            </div>
+                            <div class="info-box">
+                                <label>Valor Total</label>
+                                <strong>R$ ${sol.total_valor.toFixed(2)}</strong>
+                            </div>
+                        </div>
+                        
+                        ${item.imagem_url ? `
+                            <div>
+                                <label>Imagem do Lote:</label>
+                                <img src="${item.imagem_url}" class="imagem-lote" alt="Lote" onclick="window.open('${item.imagem_url}', '_blank')">
+                            </div>
+                        ` : ''}
+                        
+                        <div style="margin: 15px 0;">
+                            <label>Classificação:</label>
+                            <span class="classificacao-display classificacao-${item.classificacao}">
+                                ${item.classificacao ? item.classificacao.toUpperCase() : 'NÃO INFORMADO'}
+                                - ${''.repeat(item.estrelas_final)}
+                            </span>
+                            ${item.classificacao_sugerida_ia ? `
+                                <span style="color: #6b7280; margin-left: 10px;">
+                                    (IA sugeriu: ${item.classificacao_sugerida_ia.toUpperCase()})
+                                </span>
+                            ` : ''}
+                        </div>
+                        
+                        ${sol.observacoes ? `
+                            <div style="margin: 15px 0;">
+                                <label>Observações:</label>
+                                <p style="background: #f9fafb; padding: 10px; border-radius: 5px; margin: 5px 0;">
+                                    ${sol.observacoes}
+                                </p>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="acoes-solicitacao">
+                            <button onclick="rejeitarSolicitacao(${sol.id})" class="btn btn-rejeitar">
+                                Rejeitar
+                            </button>
+                            <button onclick="aprovarSolicitacao(${sol.id})" class="btn btn-aprovar">
+                                Aprovar
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        async function aprovarSolicitacao(id) {
+            if (!confirm('Confirma a aprovação desta solicitação?')) return;
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`/api/solicitacao-lotes/${id}/aprovar`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Erro ao aprovar solicitação');
+                
+                alert('Solicitação aprovada com sucesso!');
+                carregarSolicitacoes();
+            } catch (error) {
+                alert('Erro ao aprovar: ' + error.message);
+            }
+        }
+        
+        function rejeitarSolicitacao(id) {
+            solicitacaoAtual = id;
+            document.getElementById('modalRejeitar').style.display = 'flex';
+            document.getElementById('motivoRejeicao').value = '';
+        }
+        
+        function fecharModal() {
+            document.getElementById('modalRejeitar').style.display = 'none';
+            solicitacaoAtual = null;
+        }
+        
+        async function confirmarRejeicao() {
+            const motivo = document.getElementById('motivoRejeicao').value.trim();
+            
+            if (!motivo) {
+                alert('Por favor, informe o motivo da rejeição');
+                return;
+            }
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`/api/solicitacao-lotes/${solicitacaoAtual}/rejeitar`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ motivo })
+                });
+                
+                if (!response.ok) throw new Error('Erro ao rejeitar solicitação');
+                
+                alert('Solicitação rejeitada');
+                fecharModal();
+                carregarSolicitacoes();
+            } catch (error) {
+                alert('Erro ao rejeitar: ' + error.message);
+            }
+        }
+        
+        carregarSolicitacoes();
+        setInterval(carregarSolicitacoes, 30000);
+    </script>
+</body>
+</html>

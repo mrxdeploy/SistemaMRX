@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funcionários - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <button class="menu-toggle" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>MRX Systems</span>
+            </div>
+            <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                <i class="fas fa-bell"></i>
+                <span class="notification-count" style="display: none;">0</span>
+            </div>
+        </div>
+        <div class="nav-overlay"></div>
+        <nav class="side-drawer">
+            <ul>
+                <li><a href="/dashboard.html"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                <li><a href="/solicitacoes.html"><i class="fas fa-file-alt"></i> Compra</a></li>
+                <li><a href="/fornecedores.html"><i class="fas fa-building"></i> Empresas</a></li>
+                <li><a href="/funcionarios.html"><i class="fas fa-users"></i> Funcionários</a></li>
+                <li class="user-info">
+                    <span id="userName"></span>
+                    <button class="btn btn-secondary w-full" onclick="logout()">Sair</button>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container mt-4">
+        <div class="flex justify-between items-center mb-3" style="flex-wrap: wrap; gap: var(--spacing-md);">
+            <h1 style="font-size: clamp(1.5rem, 6vw, 2rem);">Gerenciar Funcionários</h1>
+            <button class="btn btn-primary" onclick="abrirModalNovoFuncionario()">+ Novo Funcionário</button>
+        </div>
+
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Tipo</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaFuncionarios">
+                        <tr><td colspan="4" class="loading">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal" id="modalFuncionario">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="tituloModal">Novo Funcionário</h2>
+                <button class="modal-close" onclick="fecharModal()">&times;</button>
+            </div>
+            <form id="formFuncionario">
+                <input type="hidden" id="funcionarioId">
+                <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" id="nome" autocomplete="name" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="email" inputmode="email" autocomplete="email" required>
+                </div>
+                <div class="form-group">
+                    <label>Senha</label>
+                    <input type="password" id="senha" autocomplete="new-password" required>
+                </div>
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select id="tipo" required>
+                        <option value="funcionario">Funcionário</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+
+            const userData = await getCurrentUser();
+            document.getElementById('userName').textContent = userData.nome;
+
+            await carregarFuncionarios();
+            await atualizarNotificacoes();
+        }
+
+        async function carregarFuncionarios() {
+            const response = await fetchAPI('/usuarios');
+            const funcionarios = await response.json();
+
+            const tbody = document.getElementById('tabelaFuncionarios');
+
+            if (funcionarios.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Nenhum funcionário cadastrado</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = funcionarios.map(f => `
+                <tr>
+                    <td>${f.nome}</td>
+                    <td>${f.email}</td>
+                    <td>${f.tipo === 'admin' ? 'Administrador' : 'Funcionário'}</td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="editarFuncionario(${f.id})">Editar</button>
+                        <button class="btn btn-danger" onclick="deletarFuncionario(${f.id}, '${f.nome}')">Excluir</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function abrirModalNovoFuncionario() {
+            document.getElementById('tituloModal').textContent = 'Novo Funcionário';
+            document.getElementById('formFuncionario').reset();
+            document.getElementById('funcionarioId').value = '';
+            document.getElementById('senha').required = true;
+            document.getElementById('modalFuncionario').classList.add('active');
+        }
+
+        async function editarFuncionario(id) {
+            const response = await fetchAPI(`/usuarios/${id}`);
+            const funcionario = await response.json();
+
+            document.getElementById('tituloModal').textContent = 'Editar Funcionário';
+            document.getElementById('funcionarioId').value = funcionario.id;
+            document.getElementById('nome').value = funcionario.nome;
+            document.getElementById('email').value = funcionario.email;
+            document.getElementById('tipo').value = funcionario.tipo;
+            document.getElementById('senha').value = '';
+            document.getElementById('senha').required = false;
+
+            document.getElementById('modalFuncionario').classList.add('active');
+        }
+
+        document.getElementById('formFuncionario').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('funcionarioId').value;
+            const dados = {
+                nome: document.getElementById('nome').value,
+                email: document.getElementById('email').value,
+                tipo: document.getElementById('tipo').value
+            };
+
+            const senha = document.getElementById('senha').value;
+            if (senha) {
+                dados.senha = senha;
+            }
+
+            let response;
+            if (id) {
+                response = await fetchAPI(`/usuarios/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(dados)
+                });
+            } else {
+                response = await fetchAPI('/usuarios', {
+                    method: 'POST',
+                    body: JSON.stringify(dados)
+                });
+            }
+
+            if (response.ok) {
+                showAlert('Funcionário salvo com sucesso!', 'success');
+                fecharModal();
+                await carregarFuncionarios();
+            } else {
+                const data = await response.json();
+                showAlert(data.erro || 'Erro ao salvar funcionário');
+            }
+        });
+
+        async function deletarFuncionario(id, nome) {
+            if (!confirm(`Deseja realmente excluir o funcionário "${nome}"?`)) return;
+
+            const response = await fetchAPI(`/usuarios/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                showAlert('Funcionário excluído com sucesso!', 'success');
+                await carregarFuncionarios();
+            } else {
+                const data = await response.json();
+                showAlert(data.erro || 'Erro ao excluir funcionário');
+            }
+        }
+
+        function fecharModal() {
+            document.getElementById('modalFuncionario').classList.remove('active');
+        }
+
+        carregarPagina();
+    </script>
+</body>
+</html>

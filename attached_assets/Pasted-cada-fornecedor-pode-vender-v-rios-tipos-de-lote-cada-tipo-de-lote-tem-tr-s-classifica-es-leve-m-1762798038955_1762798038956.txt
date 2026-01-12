@@ -1,0 +1,116 @@
+cada fornecedor pode vender vários tipos de lote.
+cada tipo de lote tem três classificações: leve, médio e pesado.
+para cada combinação de fornecedor + tipo de lote + classificação, existe uma quantidade de estrelas (1 a 5) que indica o valor relativo pago por kg.
+essas informações são usadas em cálculos automáticos dentro da solicitação de compra.
+
+exemplo de configuração interna:
+
+fornecedor: empresa x
+tipo de lote: sucata de cobre
+
+leve = 2 estrelas
+
+médio = 3 estrelas
+
+pesado = 5 estrelas
+
+isso significa que, ao solicitar uma compra desse tipo de lote para a empresa x, o sistema saberá automaticamente que:
+
+se o lote for classificado como leve, deve usar o valor relativo equivalente a 2 estrelas;
+
+se for médio, 3 estrelas;
+
+se for pesado, 5 estrelas.
+
+parte técnica — estrutura de dados clara
+
+tabela tipos_lote:
+
+id
+
+nome
+
+descricao
+
+tabela fornecedores:
+
+id
+
+nome
+
+cnpj
+
+email
+
+telefone
+
+tabela fornecedor_tipos_lote:
+
+id
+
+fornecedor_id (foreign key para fornecedores)
+
+tipo_lote_id (foreign key para tipos_lote)
+
+leve_estrelas (inteiro de 1 a 5)
+
+medio_estrelas (inteiro de 1 a 5)
+
+pesado_estrelas (inteiro de 1 a 5)
+
+observações:
+
+essa tabela representa o vínculo entre fornecedor e tipo de lote.
+
+cada registro indica quantas estrelas o fornecedor atribui a cada classificação do lote.
+
+o relacionamento fornecedor_id + tipo_lote_id deve ser único.
+
+exemplo de registro na tabela fornecedor_tipos_lote:
+
+id: 1  
+fornecedor_id: 3  
+tipo_lote_id: 12  
+leve_estrelas: 2  
+medio_estrelas: 3  
+pesado_estrelas: 5
+
+
+isso quer dizer que o fornecedor 3 paga proporcionalmente menos pelo leve, mais pelo médio e ainda mais pelo pesado.
+
+uso prático no sistema
+
+quando o usuário for criar uma solicitação de compra de lote:
+
+seleciona o fornecedor;
+
+o sistema busca todos os tipos de lote vinculados a esse fornecedor na tabela fornecedor_tipos_lote;
+
+o usuário escolhe o tipo de lote;
+
+o sistema exibe os níveis de estrelas associados (2, 3, 5, por exemplo);
+
+ao enviar a foto do lote, a IA analisa se o lote é leve, médio ou pesado;
+
+com base nessa classificação, o sistema identifica o número de estrelas correspondente e calcula o valor total da compra.
+
+cálculo:
+
+valor_total = (valor_base_por_estrela * número_de_estrelas) * peso_kg
+
+
+exemplo:
+
+valor_base_por_estrela = 1.50  
+classificação detectada = médio (3 estrelas)  
+peso_kg = 100  
+valor_total = 1.50 * 3 * 100 = 450.00
+
+
+resumo lógico da ligação de tabelas:
+
+fornecedor → fornecedor_tipos_lote → tipos_lote
+cada fornecedor pode ter vários tipos de lote.
+cada tipo de lote possui três valores de estrelas (leve, médio, pesado).
+as estrelas determinam o valor relativo usado no cálculo de compra.
+a IA sugere a classificação e o sistema aplica automaticamente o valor configurado daquele fornecedor.

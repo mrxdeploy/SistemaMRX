@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Fila de Separação - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Ajustes de responsividade específicos */
+        @media (max-width: 768px) {
+            .container {
+                padding-left: var(--spacing-md);
+                padding-right: var(--spacing-md);
+            }
+
+            h1 {
+                font-size: clamp(1.25rem, 5vw, 1.75rem) !important;
+            }
+
+            .card {
+                padding: 1rem;
+            }
+
+            /* Ajustar grid de estatísticas para mobile */
+            .container > div[style*="grid-template-columns"] {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 0.75rem !important;
+            }
+
+            /* Ajustar font-size dos números de estatísticas */
+            .card > div[style*="font-size: 2rem"] {
+                font-size: 1.5rem !important;
+            }
+
+            .card > div[style*="font-size: 0.875rem"] {
+                font-size: 0.75rem !important;
+            }
+
+            /* Garantir que os cards não fiquem atrás do header ou menu */
+            #listaLotes {
+                margin-bottom: 1rem;
+            }
+
+            /* Ajustar botões em mobile */
+            .btn {
+                font-size: 0.875rem;
+                padding: 0.625rem 1rem;
+            }
+
+            /* Tornar selects mais amigáveis ao toque */
+            select {
+                min-height: 44px;
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container > div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+            }
+
+            .btn {
+                width: 100%;
+                margin-top: 0.5rem;
+            }
+        }
+
+        /* Garantir que o main não fique atrás das navbars */
+        main.container {
+            min-height: calc(100vh - 140px);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Fila de Separação</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Bottom Navigation (Mobile) -->
+    <nav class="bottom-nav" id="navMenuMobile">
+        <!-- Menus serão renderizados dinamicamente pelo RBAC -->
+    </nav>
+
+    <main class="container mt-4" style="padding-top: calc(70px + 1rem); padding-bottom: calc(80px + 1rem);">
+        <h1 style="font-size: clamp(1.5rem, 6vw, 2rem); margin-bottom: 1.5rem;">Fila de Separação</h1>
+
+        <!-- Filtro de Status -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Status</label>
+                <select id="filtroStatus" onchange="carregarFila()">
+                    <option value="AGUARDANDO_SEPARACAO">Aguardando Separação</option>
+                    <option value="EM_SEPARACAO">Em Separação</option>
+                    <option value="FINALIZADA">Finalizadas</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Estatísticas -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--warning-color);" id="statAguardando">0</div>
+                <div style="color: var(--gray-600); font-size: 0.875rem;">Aguardando</div>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--info-color);" id="statEmAndamento">0</div>
+                <div style="color: var(--gray-600); font-size: 0.875rem;">Em Andamento</div>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--success-color);" id="statFinalizadas">0</div>
+                <div style="color: var(--gray-600); font-size: 0.875rem;">Finalizadas</div>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--danger-color);" id="statResiduosPendentes">0</div>
+                <div style="color: var(--gray-600); font-size: 0.875rem;">Resíduos Pendentes</div>
+            </div>
+        </div>
+
+        <!-- Lista de Lotes para Separação -->
+        <div id="listaLotes" style="display: grid; gap: 1rem;">
+            <div class="card" style="text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary-color);"></i>
+                <p style="margin-top: 1rem; color: var(--gray-600);">Carregando fila de separação...</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        let separacoes = [];
+
+        async function carregarFila() {
+            try {
+                const status = document.getElementById('filtroStatus').value;
+                
+                const response = await fetch(`/api/separacao/fila?status=${status}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Erro ao carregar fila');
+                
+                separacoes = await response.json();
+                renderizarFila();
+                await atualizarEstatisticas();
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao carregar fila: ' + error.message);
+            }
+        }
+
+        function renderizarFila() {
+            const container = document.getElementById('listaLotes');
+            
+            if (separacoes.length === 0) {
+                container.innerHTML = `
+                    <div class="card" style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-inbox" style="font-size: 3rem; color: var(--gray-400);"></i>
+                        <p style="margin-top: 1rem; color: var(--gray-600);">Nenhum lote na fila de separação</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = separacoes.map(sep => {
+                const lote = sep.lote_detalhes;
+                const statusClass = {
+                    'AGUARDANDO_SEPARACAO': 'status-pendente',
+                    'EM_SEPARACAO': 'status-em-andamento',
+                    'FINALIZADA': 'status-aprovado'
+                }[sep.status] || '';
+                
+                const podeIniciar = sep.status === 'AGUARDANDO_SEPARACAO';
+                const podeContinuar = sep.status === 'EM_SEPARACAO';
+                
+                // Buscar materiais dos itens do lote
+                let materiaisTexto = lote.tipo_lote_nome || 'Material não identificado';
+                if (lote.itens_info && lote.itens_info.length > 0) {
+                    const materiais = lote.itens_info.map(item => {
+                        // Priorizar material_nome sobre tipo_lote_nome
+                        const nome = item.material_nome || item.tipo_lote_nome || 'Material não identificado';
+                        return `${nome} (${item.peso_kg}kg)`;
+                    }).join(', ');
+                    materiaisTexto = materiais.length > 50 ? materiais.substring(0, 50) + '...' : materiais;
+                }
+                
+                return `
+                    <div class="card" style="border-left: 4px solid var(--primary-color);">
+                        <div style="display: grid; gap: 1rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div>
+                                    <h3 style="margin: 0; font-size: 1.25rem;">${lote.numero_lote}</h3>
+                                    <p style="color: var(--gray-600); margin: 0.5rem 0 0 0;">
+                                        ${lote.fornecedor_nome} - ${materiaisTexto}
+                                    </p>
+                                </div>
+                                <span class="status ${statusClass}">${formatarStatus(sep.status)}</span>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                                <div>
+                                    <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Peso</p>
+                                    <p style="margin: 0.25rem 0 0 0; font-size: 1.25rem; font-weight: bold;">${lote.peso_total_kg?.toFixed(2) || 0} kg</p>
+                                </div>
+                                <div>
+                                    <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Qualidade</p>
+                                    <p style="margin: 0.25rem 0 0 0; font-size: 1.25rem; font-weight: bold;">${lote.qualidade_recebida || '-'}</p>
+                                </div>
+                                <div>
+                                    <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Conferente</p>
+                                    <p style="margin: 0.25rem 0 0 0;">${lote.conferente_nome || '-'}</p>
+                                </div>
+                                <div>
+                                    <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Data Criação</p>
+                                    <p style="margin: 0.25rem 0 0 0;">${formatarData(lote.data_criacao)}</p>
+                                </div>
+                            </div>
+                            
+                            ${sep.status === 'EM_SEPARACAO' && sep.operador_nome ? `
+                                <div style="background: var(--info-bg); padding: 0.75rem; border-radius: 8px;">
+                                    <p style="margin: 0; color: var(--info-color);">
+                                        <i class="fas fa-user"></i> Operador: <strong>${sep.operador_nome}</strong><br>
+                                        <i class="fas fa-clock"></i> Iniciado em: ${formatarData(sep.data_inicio)}
+                                    </p>
+                                </div>
+                            ` : ''}
+                            
+                            ${sep.status === 'FINALIZADA' ? `
+                                <div style="background: var(--success-bg); padding: 0.75rem; border-radius: 8px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                                    <div>
+                                        <p style="margin: 0; color: var(--gray-600); font-size: 0.875rem;">Aproveitamento</p>
+                                        <p style="margin: 0.25rem 0 0 0; font-weight: bold; color: var(--success-color);">
+                                            ${sep.percentual_aproveitamento?.toFixed(1) || 0}%
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p style="margin: 0; color: var(--gray-600); font-size: 0.875rem;">Sublotes</p>
+                                        <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sep.peso_total_sublotes?.toFixed(2) || 0} kg</p>
+                                    </div>
+                                    <div>
+                                        <p style="margin: 0; color: var(--gray-600); font-size: 0.875rem;">Resíduos</p>
+                                        <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sep.peso_total_residuos?.toFixed(2) || 0} kg</p>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                ${podeIniciar ? `
+                                    <button class="btn btn-primary" onclick="iniciarSeparacao(${sep.id})">
+                                        <i class="fas fa-play"></i> Iniciar Separação
+                                    </button>
+                                ` : ''}
+                                ${podeContinuar ? `
+                                    <button class="btn btn-primary" onclick="continuarSeparacao(${sep.id})">
+                                        <i class="fas fa-arrow-right"></i> Continuar Separação
+                                    </button>
+                                ` : ''}
+                                <button class="btn btn-secondary" onclick="verAnexos(${lote.id})">
+                                    <i class="fas fa-paperclip"></i> Ver Anexos
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function atualizarEstatisticas() {
+            try {
+                const response = await fetch('/api/separacao/estatisticas', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                const stats = await response.json();
+                
+                document.getElementById('statAguardando').textContent = stats.aguardando_separacao || 0;
+                document.getElementById('statEmAndamento').textContent = stats.em_separacao || 0;
+                document.getElementById('statFinalizadas').textContent = stats.finalizadas || 0;
+                document.getElementById('statResiduosPendentes').textContent = stats.residuos_pendentes || 0;
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+            }
+        }
+
+        async function iniciarSeparacao(separacaoId) {
+            try {
+                if (!confirm('Deseja iniciar a separação deste lote?')) return;
+                
+                const gps = await obterLocalizacaoGPS();
+                
+                const response = await fetch(`/api/separacao/${separacaoId}/iniciar`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({
+                        gps: gps,
+                        device_id: navigator.userAgent
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao iniciar separação');
+                }
+                
+                alert('Separação iniciada com sucesso!');
+                window.location.href = `/separacao-workflow.html?id=${separacaoId}`;
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao iniciar separação: ' + error.message);
+            }
+        }
+
+        function continuarSeparacao(separacaoId) {
+            window.location.href = `/separacao-workflow.html?id=${separacaoId}`;
+        }
+
+        async function verAnexos(loteId) {
+            try {
+                const response = await fetch(`/api/estoque/lotes/${loteId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                const lote = await response.json();
+                
+                if (!lote.anexos || lote.anexos.length === 0) {
+                    alert('Este lote não possui anexos');
+                    return;
+                }
+                
+                const anexosHTML = lote.anexos.map(anexo => 
+                    `<img src="/${anexo}" style="max-width: 100%; margin: 1rem 0;" onclick="window.open('/${anexo}', '_blank')">`
+                ).join('');
+                
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 600px;">
+                        <span class="close" onclick="this.parentElement.parentElement.remove()">&times;</span>
+                        <h2>Anexos do Lote ${lote.numero_lote}</h2>
+                        ${anexosHTML}
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao carregar anexos');
+            }
+        }
+
+        function obterLocalizacaoGPS() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) {
+                    resolve(null);
+                    return;
+                }
+                
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        resolve({
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            precisao: position.coords.accuracy
+                        });
+                    },
+                    () => resolve(null),
+                    { timeout: 5000 }
+                );
+            });
+        }
+
+        function formatarStatus(status) {
+            const statusMap = {
+                'AGUARDANDO_SEPARACAO': 'Aguardando',
+                'EM_SEPARACAO': 'Em Separação',
+                'FINALIZADA': 'Finalizada'
+            };
+            return statusMap[status] || status;
+        }
+
+        function formatarData(dataStr) {
+            if (!dataStr) return '-';
+            const data = new Date(dataStr);
+            return data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarFila();
+            setInterval(() => {
+                carregarFila();
+            }, 30000);
+        });
+    </script>
+    <script src="/static/js/rbac.js"></script>
+</body>
+</html>

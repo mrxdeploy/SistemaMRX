@@ -1,0 +1,90 @@
+Quero apenas ajustar o layout mobile para que fique exatamente como o design da imagem enviada (layout estilo agenda mobile com menu inferior fixo e botão central destacado).
+
+Não altere a lógica existente nem apague dados ou componentes já criados — apenas ajuste o posicionamento e adicione as novas seções e funções listadas abaixo.
+
+🧭 Ajustes de layout
+
+Transformar a interface em um layout mobile responsivo, idêntico ao modelo:
+
+Cabeçalho fixo na parte superior com o título da tela atual.
+
+Área central rolável com cards empilhados verticalmente.
+
+Menu inferior fixo, com 4 ícones igualmente espaçados:
+
+Notificações (esquerda)
+
+Relatórios ou Dashboard
+
+Scanner (ícone central e principal)
+
+Empresas (direita)
+
+O botão central (scanner) deve ser circular, levemente elevado, e sobreposto ao menu inferior, exatamente como o botão “+” do exemplo.
+
+Ajustar espaçamentos, margens e tamanhos dos elementos para manter o visual equilibrado em telas pequenas.
+O layout deve ocupar toda a altura da tela, sem rolagem lateral.
+
+🧩 Funcionalidades a acrescentar (mantendo tudo que já existe)
+
+Botão central (scanner)
+
+Ao clicar, abrir um modal pedindo para selecionar a empresa à qual o relatório pertence.
+
+Após escolher a empresa, permitir upload ou captura de imagem (simulada por enquanto) de uma placa.
+
+Cada imagem deve ser classificada e vinculada ao relatório da empresa.
+
+Empresas
+
+Cada empresa tem um perfil próprio, acessível pela aba “Empresas” ou ao clicar no nome.
+
+No perfil da empresa, mostrar:
+
+Nome, CNPJ, contato.
+
+Quantidade de relatórios.
+
+Total de placas classificadas.
+
+Valor total relacionado.
+
+Lista dos relatórios com data e resumo.
+
+Dashboard
+
+Exibir contadores e métricas principais:
+
+Total de placas registradas.
+
+Total de relatórios.
+
+Total de empresas.
+
+Valor total processado.
+
+Incluir filtros por empresa e período.
+
+Exibir cards com resumo dos relatórios.
+
+Relatórios
+
+Manter a lista existente, mas exibir cada relatório em cards parecidos com o modelo da imagem, mostrando:
+
+Nome do relatório.
+
+Empresa associada.
+
+Data e número de placas.
+
+Pequeno botão para abrir detalhes.
+
+⚙️ Regras importantes
+
+Não apagar dados, rotas ou componentes existentes.
+
+Apenas ajustar posicionamentos, tamanhos e responsividade.
+
+Manter o comportamento e as informações que já funcionam no app.
+
+Se possível, modularizar o layout em componentes (Header, FooterMenu, ScannerModal, Dashboard, etc.) para facilitar futuras edições.

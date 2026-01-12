@@ -1,0 +1,353 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veículos - MRX Systems</title>
+
+    <style>
+        /* Ajustes de espaçamento para header fixo e bottom nav */
+        body {
+            padding-bottom: 80px; /* Espaço para bottom nav em mobile */
+        }
+
+        main.container {
+            padding-top: 80px; /* Espaço para header fixo */
+            padding-bottom: 100px; /* Espaço para bottom nav */
+        }
+
+        /* Ajustes específicos para desktop */
+        @media (min-width: 1024px) {
+            main.container {
+                padding-top: 90px; /* Header um pouco maior no desktop */
+                padding-bottom: 100px; /* Mantém espaço para bottom nav */
+            }
+        }
+
+        /* Garantir que modais não sejam cortados */
+        .modal {
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+    </style>
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Veículos</span>
+            </div>
+            <button class="btn btn-secondary" onclick="window.location.href='/administracao.html'">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </button>
+        </div>
+    </header>
+
+    <main class="container" style="padding-top: 80px; padding-bottom: 100px;">
+        <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-md); justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg); margin-top: var(--spacing-md);">
+            <h1 style="margin: 0;">Gerenciar Veículos</h1>
+            <button class="btn btn-primary" onclick="abrirModalNovoVeiculo()">
+                <i class="fas fa-plus"></i> Novo Veículo
+            </button>
+        </div>
+
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Placa</th>
+                            <th>Tipo</th>
+                            <th>Marca/Modelo</th>
+                            <th>Ano</th>
+                            <th>Capacidade</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaVeiculos">
+                        <tr><td colspan="7" class="loading">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Novo Veículo -->
+    <div class="modal" id="modalNovoVeiculo">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Novo Veículo</h2>
+                <span class="modal-close" onclick="fecharModalNovoVeiculo()">&times;</span>
+            </div>
+            <form id="formNovoVeiculo">
+                <div class="form-group">
+                    <label>Placa *</label>
+                    <input type="text" id="placaVeiculo" required maxlength="8" placeholder="ABC-1234">
+                </div>
+                <div class="form-group">
+                    <label>RENAVAM</label>
+                    <input type="text" id="renavamVeiculo" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>Tipo *</label>
+                    <select id="tipoVeiculo" required>
+                        <option value="">Selecione...</option>
+                        <option value="Caminhão">Caminhão</option>
+                        <option value="Carreta">Carreta</option>
+                        <option value="Van">Van</option>
+                        <option value="Utilitário">Utilitário</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Capacidade (kg)</label>
+                    <input type="number" id="capacidadeVeiculo" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Marca</label>
+                    <input type="text" id="marcaVeiculo">
+                </div>
+                <div class="form-group">
+                    <label>Modelo</label>
+                    <input type="text" id="modeloVeiculo">
+                </div>
+                <div class="form-group">
+                    <label>Ano</label>
+                    <input type="number" id="anoVeiculo" min="1900" max="2100">
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Criar Veículo</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Editar Veículo -->
+    <div class="modal" id="modalEditarVeiculo">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Editar Veículo</h2>
+                <span class="modal-close" onclick="fecharModalEditarVeiculo()">&times;</span>
+            </div>
+            <form id="formEditarVeiculo">
+                <input type="hidden" id="editVeiculoId">
+                <div class="form-group">
+                    <label>Placa *</label>
+                    <input type="text" id="editPlacaVeiculo" required maxlength="8">
+                </div>
+                <div class="form-group">
+                    <label>RENAVAM</label>
+                    <input type="text" id="editRenavamVeiculo" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label>Tipo *</label>
+                    <select id="editTipoVeiculo" required>
+                        <option value="">Selecione...</option>
+                        <option value="Caminhão">Caminhão</option>
+                        <option value="Carreta">Carreta</option>
+                        <option value="Van">Van</option>
+                        <option value="Utilitário">Utilitário</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Capacidade (kg)</label>
+                    <input type="number" id="editCapacidadeVeiculo" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Marca</label>
+                    <input type="text" id="editMarcaVeiculo">
+                </div>
+                <div class="form-group">
+                    <label>Modelo</label>
+                    <input type="text" id="editModeloVeiculo">
+                </div>
+                <div class="form-group">
+                    <label>Ano</label>
+                    <input type="number" id="editAnoVeiculo" min="1900" max="2100">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="editAtivoVeiculo">
+                        Ativo
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Salvar Alterações</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation (Mobile) -->
+    {% include 'includes/_bottom_nav.html' %}
+
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/layout.js"></script>
+    <script src="/static/js/rbac.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+            
+            await carregarVeiculos();
+        }
+
+        async function carregarVeiculos() {
+            try {
+                const response = await fetchAPI('/veiculos');
+                const veiculos = await response.json();
+                
+                const tbody = document.getElementById('tabelaVeiculos');
+                
+                if (veiculos.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7">Nenhum veículo cadastrado</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = veiculos.map(v => `
+                    <tr>
+                        <td>${v.placa}</td>
+                        <td>${v.tipo}</td>
+                        <td>${v.marca || ''} ${v.modelo || ''}</td>
+                        <td>${v.ano || '-'}</td>
+                        <td>${v.capacidade ? v.capacidade.toFixed(2) + ' kg' : '-'}</td>
+                        <td><span class="badge ${v.ativo ? 'badge-success' : 'badge-danger'}">${v.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                        <td>
+                            <button class="btn btn-small btn-secondary" onclick="editarVeiculo(${v.id})">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                            <button class="btn btn-small ${v.ativo ? 'btn-danger' : 'btn-success'}" onclick="toggleVeiculo(${v.id}, '${v.placa}', ${v.ativo})">
+                                <i class="fas fa-${v.ativo ? 'ban' : 'check'}"></i> ${v.ativo ? 'Desativar' : 'Ativar'}
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Erro ao carregar veículos:', error);
+                showAlert('Erro ao carregar veículos');
+            }
+        }
+
+        function abrirModalNovoVeiculo() {
+            document.getElementById('modalNovoVeiculo').style.display = 'flex';
+        }
+
+        function fecharModalNovoVeiculo() {
+            document.getElementById('modalNovoVeiculo').style.display = 'none';
+            document.getElementById('formNovoVeiculo').reset();
+        }
+
+        document.getElementById('formNovoVeiculo').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const dados = {
+                placa: document.getElementById('placaVeiculo').value,
+                renavam: document.getElementById('renavamVeiculo').value,
+                tipo: document.getElementById('tipoVeiculo').value,
+                capacidade: parseFloat(document.getElementById('capacidadeVeiculo').value) || null,
+                marca: document.getElementById('marcaVeiculo').value,
+                modelo: document.getElementById('modeloVeiculo').value,
+                ano: parseInt(document.getElementById('anoVeiculo').value) || null
+            };
+            
+            try {
+                await fetchAPI('/veiculos', {
+                    method: 'POST',
+                    body: JSON.stringify(dados)
+                });
+                
+                showAlert('Veículo criado com sucesso!');
+                fecharModalNovoVeiculo();
+                await carregarVeiculos();
+            } catch (error) {
+                showAlert('Erro ao criar veículo: ' + error.message);
+            }
+        });
+
+        async function editarVeiculo(id) {
+            try {
+                const response = await fetchAPI(`/veiculos/${id}`);
+                const veiculo = await response.json();
+                
+                document.getElementById('editVeiculoId').value = veiculo.id;
+                document.getElementById('editPlacaVeiculo').value = veiculo.placa;
+                document.getElementById('editRenavamVeiculo').value = veiculo.renavam || '';
+                document.getElementById('editTipoVeiculo').value = veiculo.tipo;
+                document.getElementById('editCapacidadeVeiculo').value = veiculo.capacidade || '';
+                document.getElementById('editMarcaVeiculo').value = veiculo.marca || '';
+                document.getElementById('editModeloVeiculo').value = veiculo.modelo || '';
+                document.getElementById('editAnoVeiculo').value = veiculo.ano || '';
+                document.getElementById('editAtivoVeiculo').checked = veiculo.ativo;
+                
+                document.getElementById('modalEditarVeiculo').style.display = 'flex';
+            } catch (error) {
+                showAlert('Erro ao carregar dados do veículo');
+            }
+        }
+
+        function fecharModalEditarVeiculo() {
+            document.getElementById('modalEditarVeiculo').style.display = 'none';
+            document.getElementById('formEditarVeiculo').reset();
+        }
+
+        document.getElementById('formEditarVeiculo').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById('editVeiculoId').value;
+            const dados = {
+                placa: document.getElementById('editPlacaVeiculo').value,
+                renavam: document.getElementById('editRenavamVeiculo').value,
+                tipo: document.getElementById('editTipoVeiculo').value,
+                capacidade: parseFloat(document.getElementById('editCapacidadeVeiculo').value) || null,
+                marca: document.getElementById('editMarcaVeiculo').value,
+                modelo: document.getElementById('editModeloVeiculo').value,
+                ano: parseInt(document.getElementById('editAnoVeiculo').value) || null,
+                ativo: document.getElementById('editAtivoVeiculo').checked
+            };
+            
+            try {
+                await fetchAPI(`/veiculos/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(dados)
+                });
+                
+                showAlert('Veículo atualizado com sucesso!');
+                fecharModalEditarVeiculo();
+                await carregarVeiculos();
+            } catch (error) {
+                showAlert('Erro ao atualizar veículo: ' + error.message);
+            }
+        });
+
+        async function toggleVeiculo(id, placa, ativo) {
+            const acao = ativo ? 'desativar' : 'ativar';
+            if (!confirm(`Tem certeza que deseja ${acao} o veículo ${placa}?`)) {
+                return;
+            }
+            
+            try {
+                if (ativo) {
+                    await fetchAPI(`/veiculos/${id}`, { method: 'DELETE' });
+                    showAlert('Veículo desativado com sucesso!');
+                } else {
+                    await fetchAPI(`/veiculos/${id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ ativo: true })
+                    });
+                    showAlert('Veículo ativado com sucesso!');
+                }
+                await carregarVeiculos();
+            } catch (error) {
+                showAlert(`Erro ao ${acao} veículo: ` + error.message);
+            }
+        }
+
+        carregarPagina();
+    </script>
+</body>
+</html>

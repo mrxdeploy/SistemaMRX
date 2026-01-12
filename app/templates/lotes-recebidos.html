@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lotes Recebidos - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Lotes Recebidos</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mt-4">
+        <h1 style="font-size: clamp(1.5rem, 6vw, 2rem); margin-bottom: 1.5rem;">Lotes Recebidos</h1>
+
+        <!-- Filtros -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Status</label>
+                    <select id="filtroStatus" onchange="carregarLotes()">
+                        <option value="">Todos</option>
+                        <option value="AGUARDANDO_SEPARACAO">Aguardando Separação</option>
+                        <option value="EM_SEPARACAO">Em Separação</option>
+                        <option value="PROCESSADO">Processado</option>
+                        <option value="APROVADO">Aprovado</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Fornecedor</label>
+                    <select id="filtroFornecedor" onchange="carregarLotes()">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Com Divergência</label>
+                    <select id="filtroDivergencia" onchange="carregarLotes()">
+                        <option value="">Todos</option>
+                        <option value="true">Sim</option>
+                        <option value="false">Não</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estatísticas -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--warning-color);" id="statAguardandoSeparacao">0</div>
+                <div style="color: var(--gray-600); font-size: 0.875rem;">Aguardando Separação</div>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--info-color);" id="statEmSeparacao">0</div>
+                <div style="color: var(--gray-600); font-size: 0.875rem;">Em Separação</div>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--success-color);" id="statProcessados">0</div>
+                <div style="color: var(--gray-600); font-size: 0.875rem;">Processados</div>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--primary-color);" id="statPesoTotal">0 kg</div>
+                <div style="color: var(--gray-600); font-size: 0.875rem;">Peso Total Estoque</div>
+            </div>
+        </div>
+
+        <!-- Tabela de Lotes -->
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Número do Lote</th>
+                            <th>Fornecedor</th>
+                            <th>Materiais</th>
+                            <th>Peso (kg)</th>
+                            <th>Qualidade</th>
+                            <th>Status</th>
+                            <th>Localização</th>
+                            <th>Data Criação</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaLotes">
+                        <tr><td colspan="9" class="loading">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Detalhes do Lote -->
+    <div class="modal" id="modalDetalhes">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <span class="close" onclick="fecharModal()">&times;</span>
+            <h2>Detalhes do Lote</h2>
+            <div id="modalDetalhesConteudo"></div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script src="/static/js/rbac.js"></script>
+    <script>
+        // Função logout local caso não esteja disponível
+        if (typeof logout !== 'function') {
+            function logout() {
+                localStorage.removeItem('token');
+                window.location.href = '/index.html';
+            }
+        }
+        
+        let lotes = [];
+
+        async function carregarLotes() {
+            const tbody = document.getElementById('tabelaLotes');
+            tbody.innerHTML = '<tr><td colspan="9" class="loading">Carregando lotes...</td></tr>';
+            
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    console.error('❌ Token não encontrado');
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--danger-color);">Sessão expirada. Redirecionando...</td></tr>';
+                    setTimeout(() => window.location.href = '/index.html', 1500);
+                    return;
+                }
+                
+                const status = document.getElementById('filtroStatus')?.value || '';
+                const fornecedor = document.getElementById('filtroFornecedor')?.value || '';
+                const divergencia = document.getElementById('filtroDivergencia')?.value || '';
+                
+                let url = '/api/estoque/lotes?';
+                if (status) url += `status=${status}&`;
+                if (fornecedor) url += `fornecedor_id=${fornecedor}&`;
+                if (divergencia) url += `com_divergencia=${divergencia}&`;
+                
+                console.log('🔍 Carregando lotes da URL:', url);
+                console.log('🔑 Token presente:', !!token);
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('📡 Status da resposta:', response.status);
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        console.error('❌ Não autorizado - token inválido');
+                        localStorage.removeItem('token');
+                        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--danger-color);">Sessão expirada. Redirecionando...</td></tr>';
+                        setTimeout(() => window.location.href = '/index.html', 1500);
+                        return;
+                    }
+                    
+                    const errorData = await response.json().catch(() => ({ erro: 'Erro desconhecido' }));
+                    throw new Error(errorData.erro || `Erro HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('✅ Lotes recebidos:', data);
+                console.log('📊 Quantidade de lotes:', Array.isArray(data) ? data.length : 'não é array');
+                
+                lotes = Array.isArray(data) ? data : [];
+                renderizarLotes();
+                atualizarEstatisticas();
+            } catch (error) {
+                console.error('❌ Erro ao carregar lotes:', error);
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--danger-color);">Erro ao carregar lotes: ${error.message}</td></tr>`;
+            }
+        }
+
+        function renderizarLotes() {
+            const tbody = document.getElementById('tabelaLotes');
+            
+            if (lotes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--gray-600);">Nenhum lote encontrado</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = lotes.map(lote => {
+                const statusClass = {
+                    'AGUARDANDO_SEPARACAO': 'status-pendente',
+                    'EM_SEPARACAO': 'status-em-andamento',
+                    'PROCESSADO': 'status-aprovado',
+                    'APROVADO': 'status-aprovado',
+                    'BLOQUEADO': 'status-rejeitado'
+                }[lote.status] || '';
+                
+                const qualidadeClass = {
+                    'A': 'status-aprovado',
+                    'B': 'status-em-andamento',
+                    'C': 'status-rejeitado'
+                }[lote.qualidade_recebida] || '';
+                
+                // Buscar materiais dos itens do lote
+                let materiaisTexto = '-';
+                if (lote.itens_info && lote.itens_info.length > 0) {
+                    const materiais = lote.itens_info.map(item => {
+                        // Priorizar material_nome sobre tipo_lote_nome
+                        const nome = item.material_nome || item.tipo_lote_nome || 'Material não identificado';
+                        return `${nome} (${item.peso_kg}kg)`;
+                    }).join(', ');
+                    materiaisTexto = materiais.length > 50 ? materiais.substring(0, 50) + '...' : materiais;
+                } else if (lote.tipo_lote_nome) {
+                    materiaisTexto = lote.tipo_lote_nome;
+                }
+                
+                return `
+                    <tr>
+                        <td><strong>${lote.numero_lote || '-'}</strong></td>
+                        <td>${lote.fornecedor_nome || '-'}</td>
+                        <td title="${lote.itens_info && lote.itens_info.length > 0 ? lote.itens_info.map(i => `${i.material_nome || i.tipo_lote_nome}: ${i.peso_kg}kg`).join(', ') : materiaisTexto}">${materiaisTexto}</td>
+                        <td><strong>${lote.peso_total_kg?.toFixed(2) || '0'} kg</strong></td>
+                        <td>
+                            <span class="status ${qualidadeClass}">
+                                ${lote.qualidade_recebida || '-'}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status ${statusClass}">
+                                ${formatarStatus(lote.status)}
+                            </span>
+                        </td>
+                        <td>${lote.localizacao_atual || 'PATIO_RECEBIMENTO'}</td>
+                        <td>${formatarData(lote.data_criacao)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="verDetalhes(${lote.id})">
+                                <i class="fas fa-eye"></i> Ver
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function atualizarEstatisticas() {
+            try {
+                const response = await fetch('/api/estoque/estatisticas', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                const stats = await response.json();
+                
+                document.getElementById('statAguardandoSeparacao').textContent = stats.aguardando_separacao || 0;
+                document.getElementById('statEmSeparacao').textContent = stats.em_separacao || 0;
+                document.getElementById('statProcessados').textContent = stats.processados || 0;
+                document.getElementById('statPesoTotal').textContent = `${(stats.peso_total_estoque || 0).toFixed(2)} kg`;
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+            }
+        }
+
+        async function verDetalhes(loteId) {
+            try {
+                const response = await fetch(`/api/estoque/lotes/${loteId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                const lote = await response.json();
+                
+                // Buscar sublotes se o lote foi processado
+                let sublotesHTML = '';
+                if (lote.status === 'PROCESSADO' || lote.status === 'EM_SEPARACAO') {
+                    try {
+                        const sublotesResponse = await fetch(`/api/estoque/lotes?lote_pai_id=${loteId}`, {
+                            headers: {
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            }
+                        });
+                        const sublotes = await sublotesResponse.json();
+                        
+                        if (sublotes && sublotes.length > 0) {
+                            sublotesHTML = `
+                                <div>
+                                    <h3>Sublotes Gerados na Separação (${sublotes.length})</h3>
+                                    <table class="table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Número</th>
+                                                <th>Tipo</th>
+                                                <th>Peso (kg)</th>
+                                                <th>Qualidade</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${sublotes.map(sub => `
+                                                <tr>
+                                                    <td><strong>${sub.numero_lote}</strong></td>
+                                                    <td>${sub.tipo_lote_nome || '-'}</td>
+                                                    <td>${sub.peso_total_kg?.toFixed(2) || 0}</td>
+                                                    <td>${sub.qualidade_recebida || '-'}</td>
+                                                    <td><span class="status ${getStatusClass(sub.status)}">${formatarStatus(sub.status)}</span></td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            `;
+                        }
+                    } catch (error) {
+                        console.error('Erro ao buscar sublotes:', error);
+                    }
+                }
+                
+                // Buscar informações de separação se existir
+                let separacaoHTML = '';
+                if (lote.status === 'PROCESSADO' || lote.status === 'EM_SEPARACAO') {
+                    try {
+                        const separacaoResponse = await fetch(`/api/separacao/fila?status=FINALIZADA`, {
+                            headers: {
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            }
+                        });
+                        const separacoes = await separacaoResponse.json();
+                        const separacao = separacoes.find(sep => sep.lote_id === loteId);
+                        
+                        if (separacao) {
+                            separacaoHTML = `
+                                <div>
+                                    <h3>Informações de Separação</h3>
+                                    <p><strong>Operador:</strong> ${separacao.operador_nome || '-'}</p>
+                                    <p><strong>Data Início:</strong> ${formatarData(separacao.data_inicio)}</p>
+                                    <p><strong>Data Finalização:</strong> ${formatarData(separacao.data_finalizacao)}</p>
+                                    <p><strong>Peso Total Sublotes:</strong> ${separacao.peso_total_sublotes?.toFixed(2) || 0} kg</p>
+                                    <p><strong>Peso Total Resíduos:</strong> ${separacao.peso_total_residuos?.toFixed(2) || 0} kg</p>
+                                    <p><strong>Percentual de Aproveitamento:</strong> <span style="font-size: 1.5rem; color: ${separacao.percentual_aproveitamento >= 80 ? 'var(--success-color)' : separacao.percentual_aproveitamento >= 60 ? 'var(--warning-color)' : 'var(--danger-color)'}; font-weight: bold;">${separacao.percentual_aproveitamento?.toFixed(2) || 0}%</span></p>
+                                    ${separacao.observacoes ? `<p><strong>Observações:</strong> ${separacao.observacoes}</p>` : ''}
+                                </div>
+                            `;
+                        }
+                    } catch (error) {
+                        console.error('Erro ao buscar separação:', error);
+                    }
+                }
+                
+                const anexosHTML = lote.anexos && lote.anexos.length > 0 
+                    ? lote.anexos.map(anexo => `<img src="/${anexo}" style="max-width: 200px; margin: 0.5rem;">`).join('')
+                    : '<p>Sem anexos</p>';
+                
+                const divergenciasHTML = lote.divergencias && lote.divergencias.length > 0
+                    ? lote.divergencias.map(div => `
+                        <div class="alert alert-warning">
+                            <strong>Tipo:</strong> ${div.tipo}<br>
+                            <strong>Diferença:</strong> ${div.percentual_diferenca?.toFixed(2)}%<br>
+                            <strong>Peso Previsto:</strong> ${div.peso_previsto?.toFixed(2)} kg<br>
+                            <strong>Peso Recebido:</strong> ${div.peso_recebido?.toFixed(2)} kg<br>
+                            <strong>Decisão ADM:</strong> ${div.decisao_adm}<br>
+                            <strong>Motivo:</strong> ${div.motivo || '-'}
+                        </div>
+                    `).join('')
+                    : '<p>Sem divergências</p>';
+                
+                const movimentacoesHTML = lote.movimentacoes && lote.movimentacoes.length > 0
+                    ? `<table class="table-sm">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Origem</th>
+                                <th>Destino</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${lote.movimentacoes.map(mov => `
+                                <tr>
+                                    <td>${mov.tipo}</td>
+                                    <td>${mov.localizacao_origem || '-'}</td>
+                                    <td>${mov.localizacao_destino || '-'}</td>
+                                    <td>${formatarData(mov.data_movimentacao)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`
+                    : '<p>Sem movimentações</p>';
+                
+                // Montar tabela de materiais - priorizar material_nome
+                const materiaisHTML = lote.itens_info && lote.itens_info.length > 0
+                    ? `<table class="table-sm">
+                        <thead>
+                            <tr>
+                                <th>Material</th>
+                                <th>Código</th>
+                                <th>Peso</th>
+                                <th>Classificação</th>
+                                <th>Estrelas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${lote.itens_info.map(item => {
+                                // Priorizar informações do material sobre tipo de lote
+                                const nome = item.material_nome || item.tipo_lote_nome || 'Material não identificado';
+                                const codigo = item.material_codigo || '-';
+                                const classificacao = item.classificacao || (item.material_nome ? 'A definir' : '-');
+                                
+                                return `
+                                    <tr>
+                                        <td><strong>${nome}</strong></td>
+                                        <td>${codigo}</td>
+                                        <td>${item.peso_kg?.toFixed(2) || 0} kg</td>
+                                        <td>${classificacao}</td>
+                                        <td>${'⭐'.repeat(item.estrelas_final || 0)}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>`
+                    : '<p>Sem materiais cadastrados</p>';
+                
+                document.getElementById('modalDetalhesConteudo').innerHTML = `
+                    <div style="display: grid; gap: 1.5rem;">
+                        <div>
+                            <h3>Informações Gerais</h3>
+                            <p><strong>Número do Lote:</strong> ${lote.numero_lote}</p>
+                            <p><strong>Fornecedor:</strong> ${lote.fornecedor_nome || '-'}</p>
+                            <p><strong>Tipo de Lote:</strong> ${lote.tipo_lote_nome || '-'}</p>
+                            <p><strong>Peso Bruto:</strong> ${lote.peso_bruto_recebido?.toFixed(2) || '-'} kg</p>
+                            <p><strong>Peso Líquido:</strong> ${lote.peso_liquido?.toFixed(2) || '-'} kg</p>
+                            <p><strong>Qualidade:</strong> ${lote.qualidade_recebida || '-'}</p>
+                            <p><strong>Status:</strong> ${formatarStatus(lote.status)}</p>
+                            <p><strong>Conferente:</strong> ${lote.conferente_nome || '-'}</p>
+                            <p><strong>Data Criação:</strong> ${formatarData(lote.data_criacao)}</p>
+                        </div>
+                        
+                        <div>
+                            <h3>Materiais do Lote</h3>
+                            ${materiaisHTML}
+                        </div>
+                        
+                        ${separacaoHTML}
+                        
+                        ${sublotesHTML}
+                        
+                        <div>
+                            <h3>Divergências</h3>
+                            ${divergenciasHTML}
+                        </div>
+                        
+                        <div>
+                            <h3>Anexos e Evidências</h3>
+                            ${anexosHTML}
+                        </div>
+                        
+                        <div>
+                            <h3>Histórico de Movimentações</h3>
+                            ${movimentacoesHTML}
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('modalDetalhes').style.display = 'block';
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao carregar detalhes do lote');
+            }
+        }
+
+        function getStatusClass(status) {
+            const statusClasses = {
+                'AGUARDANDO_SEPARACAO': 'status-pendente',
+                'EM_SEPARACAO': 'status-em-andamento',
+                'PROCESSADO': 'status-aprovado',
+                'APROVADO': 'status-aprovado',
+                'CRIADO_SEPARACAO': 'status-em-andamento',
+                'BLOQUEADO': 'status-rejeitado'
+            };
+            return statusClasses[status] || '';
+        }
+
+        function fecharModal() {
+            document.getElementById('modalDetalhes').style.display = 'none';
+        }
+
+        function formatarStatus(status) {
+            const statusMap = {
+                'AGUARDANDO_SEPARACAO': 'Aguardando Separação',
+                'EM_SEPARACAO': 'Em Separação',
+                'PROCESSADO': 'Processado',
+                'APROVADO': 'Aprovado',
+                'BLOQUEADO': 'Bloqueado'
+            };
+            return statusMap[status] || status;
+        }
+
+        function formatarData(dataStr) {
+            if (!dataStr) return '-';
+            const data = new Date(dataStr);
+            return data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        async function carregarFornecedores() {
+            try {
+                const response = await fetch('/api/fornecedores', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                const fornecedores = await response.json();
+                const select = document.getElementById('filtroFornecedor');
+                
+                fornecedores.forEach(fornecedor => {
+                    const option = document.createElement('option');
+                    option.value = fornecedor.id;
+                    option.textContent = fornecedor.nome;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar fornecedores:', error);
+            }
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('modalDetalhes');
+            if (event.target == modal) {
+                fecharModal();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🚀 Inicializando página Lotes Recebidos');
+            
+            const token = localStorage.getItem('token');
+            console.log('🔐 Token presente:', !!token);
+            
+            if (!token) {
+                console.error('❌ Token de autenticação não encontrado');
+                document.getElementById('tabelaLotes').innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--danger-color);">Você precisa fazer login para acessar esta página</td></tr>';
+                setTimeout(() => window.location.href = '/index.html', 2000);
+                return;
+            }
+            
+            // Verificar autenticação antes de carregar dados
+            console.log('🔍 Verificando autenticação...');
+            let user = null;
+            
+            // Tentar verificar auth se a função existir
+            if (typeof verificarAuth === 'function') {
+                try {
+                    user = await verificarAuth();
+                    console.log('✅ Usuário autenticado:', user?.nome || user?.email);
+                } catch (error) {
+                    console.error('⚠️ Erro ao verificar auth:', error);
+                }
+            }
+            
+            // Mesmo se verificarAuth falhar, tentar carregar os dados se temos token
+            if (!user && !token) {
+                console.error('❌ Sem usuário e sem token, abortando');
+                return;
+            }
+            
+            console.log('📂 Carregando fornecedores...');
+            try {
+                await carregarFornecedores();
+            } catch (error) {
+                console.error('⚠️ Erro ao carregar fornecedores:', error);
+            }
+            
+            console.log('📦 Carregando lotes...');
+            try {
+                await carregarLotes();
+            } catch (error) {
+                console.error('❌ Erro ao carregar lotes:', error);
+            }
+            
+            // Atualizar a cada 30 segundos
+            setInterval(() => {
+                console.log('🔄 Atualizando lotes automaticamente...');
+                carregarLotes();
+            }, 30000);
+        });
+    </script>
+</body>
+</html>

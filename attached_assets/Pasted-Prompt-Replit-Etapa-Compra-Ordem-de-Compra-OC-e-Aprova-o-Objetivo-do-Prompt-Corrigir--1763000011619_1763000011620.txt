@@ -1,0 +1,150 @@
+Prompt Replit — Etapa: Compra → Ordem de Compra (OC) e Aprovação
+🎯 **Objetivo do Prompt**
+Corrigir e expandir o módulo de **Solicitações de Compra** existente em Flask (rota `/solicitacoes.html`) para implementar totalmente a próxima etapa do fluxo: **Ordem de Compra (OC)** e **Aprovação**, conforme o blueprint técnico do sistema MRX_Gestão.
+
+O sistema já possui:
+- Módulo de Solicitação de Compra funcional (SC),
+- Cadastros de Fornecedores e Produtos/Lotes,
+- Banco de dados ativo,
+- Rota `/solicitacoes.html` com erros na renderização.
+
+Este prompt deve garantir o funcionamento completo da geração, aprovação e rastreabilidade das **Ordens de Compra**.
+
+---
+
+## ⚙️ **Instruções Técnicas Gerais**
+
+### 🧱 1️⃣ Estrutura e Modelagem
+
+Crie (ou ajuste) as seguintes tabelas no banco de dados (SQLAlchemy):
+
+#### 🔹 `solicitacoes_compra` *(já existente, não recriar)*
+Deve conter, no mínimo:
+```python
+id, fornecedor_id, comprador_id, data_criacao, status, observacoes, valor_total
+
+🔹 ordens_compra
+
+Nova tabela vinculada à SC:
+
+id = db.Column(db.Integer, primary_key=True)
+sc_id = db.Column(db.Integer, db.ForeignKey('solicitacoes_compra.id'))
+fornecedor_id = db.Column(db.Integer, db.ForeignKey('fornecedores.id'))
+valor_total = db.Column(db.Float)
+status = db.Column(db.String(50))  # Ex: 'Em análise', 'Aprovada', 'Rejeitada', 'Cancelada'
+aprovado_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+aprovado_em = db.Column(db.DateTime)
+observacao = db.Column(db.Text)
+ip_aprovacao = db.Column(db.String(50))
+gps_aprovacao = db.Column(db.String(100))
+device_info = db.Column(db.String(100))
+criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+
+🔹 auditoria_oc
+
+Tabela de logs:
+
+id, oc_id, usuario_id, acao, data, ip, gps, dispositivo
+
+🔹 2️⃣ Backend (Flask)
+
+Crie um novo blueprint chamado compras_bp com rotas dedicadas a OCs:
+
+@app.route('/ordens_compra', methods=['GET'])
+@login_required
+def listar_ocs():
+    # Retorna todas as OCs visíveis ao usuário, com base no perfil
+    # Administrador e Financeiro veem todas, Comprador só as suas
+
+@app.route('/oc/criar/<int:sc_id>', methods=['POST'])
+@login_required
+def criar_oc(sc_id):
+    # Converte uma SC aprovada em OC
+    # Calcula valor total e cria o registro em ordens_compra
+
+@app.route('/oc/aprovar/<int:oc_id>', methods=['PATCH'])
+@login_required
+def aprovar_oc(oc_id):
+    # Altera status para 'Aprovada', registra aprovador, IP, GPS, device
+
+@app.route('/oc/reprovar/<int:oc_id>', methods=['PATCH'])
+@login_required
+def reprovar_oc(oc_id):
+    # Define status como 'Rejeitada' e grava observação
+
+
+Cada endpoint deve:
+
+Verificar permissões com base no perfil do usuário logado (RBAC).
+
+Administrador e Financeiro podem aprovar/reprovar.
+
+Comprador PJ pode visualizar suas SCs e OCs, mas não aprovar.
+
+Registrar logs de auditoria (IP, GPS, data e dispositivo).
+
+Retornar mensagens JSON claras (success: true, message: "...aprovada com sucesso").
+
+🔹 3️⃣ Frontend (HTML / Jinja / JS)
+
+Ajuste o template /solicitacoes.html:
+
+Corrigir erros existentes de renderização ou loop de SCs.
+
+Adicionar coluna “Ações” na tabela de solicitações:
+
+Exibir botão “Gerar OC” quando a SC estiver aprovada.
+
+Exibir botão “Ver OC” quando já houver uma OC gerada.
+
+Criar modal para aprovação de OCs:
+
+Campos: Observações (opcional), GPS automático e dispositivo.
+
+Botões: ✅ Aprovar / ❌ Reprovar.
+
+Status colorido (verde = aprovada, vermelho = rejeitada, cinza = em análise).
+
+Adicionar tabela “Ordens de Compra”
+
+Campos: Nº, Fornecedor, Valor, Status, Aprovador, Data.
+
+Filtro por status.
+
+Botões de ação (Visualizar / Aprovar / Reprovar).
+
+🔹 4️⃣ Regras de Negócio
+
+A OC só pode ser criada se a SC estiver com status “Aprovada”.
+
+SC → OC é uma relação 1:1.
+
+Valores acima do limite configurado (ex: R$ 10.000) exigem aprovação do perfil Financeiro.
+
+Todo evento (criação, aprovação, reprovação) gera log em auditoria_oc.
+
+Logs devem exibir IP, GPS e device capturados do frontend.
+
+🔹 5️⃣ Interface e UX
+
+Use cores de status consistentes com o restante do sistema MRX:
+
+Verde: aprovado ✅
+
+Vermelho: rejeitado ❌
+
+Amarelo: em análise 🕓
+
+Mantenha design igual ao formulário de Solicitação de Compra (padrão MRX).
+
+Exibir resumo totalizador:
+
+Total de OCs, em análise, aprovadas e rejeitadas.
+
+🧩 Critérios de Aceite
+
+✅ Gerar OC a partir de SC aprovada.
+✅ Aprovar / Reprovar com logs e rastreabilidade.
+✅ Atualizar status visual em /solicitacoes.html.
+✅ Corrigir erros existentes da tela e adicionar tabela de OCs.
+✅ Implementar controle de acesso (Administrador / Financeiro).

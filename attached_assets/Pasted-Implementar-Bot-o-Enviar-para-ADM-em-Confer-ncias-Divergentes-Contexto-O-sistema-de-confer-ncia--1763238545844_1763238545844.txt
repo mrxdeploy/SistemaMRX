@@ -1,0 +1,110 @@
+Implementar Botão "Enviar para ADM" em Conferências Divergentes
+Contexto
+O sistema de conferência de recebimento está funcional, mas quando uma conferência tem status DIVERGENTE, a coluna "Ações" na tabela de conferências fica vazia. O conferente não consegue enviar a divergência para análise administrativa através da interface principal.
+
+Problema Atual
+Na tela /conferencias, quando uma conferência tem conferencia_status = 'DIVERGENTE':
+
+A coluna "Ações" não mostra nenhum botão
+O conferente precisa abrir o formulário de detalhes para enviar para ADM
+Isso gera fricção desnecessária no fluxo de trabalho
+Solução Necessária
+1. Adicionar Botão na Listagem de Conferências
+No arquivo app/templates/conferencias.html, na função getBotaoAcao():
+
+ANTES:
+
+function getBotaoAcao(conf) {
+    if (conf.conferencia_status === 'PENDENTE') {
+        return `<a href="/conferencia-form/${conf.id}" class="btn btn-sm btn-primary">Processar</a>`;
+    } else if (conf.conferencia_status === 'AGUARDANDO_ADM') {
+        return `<a href="/conferencia-decisao-adm/${conf.id}" class="btn btn-sm btn-warning">Decidir</a>`;
+    } else {
+        return `<button class="btn btn-sm btn-secondary" onclick="verDetalhes(${conf.id})">Ver Detalhes</button>`;
+    }
+}
+DEPOIS:
+
+function getBotaoAcao(conf) {
+    if (conf.conferencia_status === 'PENDENTE') {
+        return `<a href="/conferencia-form/${conf.id}" class="btn btn-sm btn-primary">Processar</a>`;
+    } else if (conf.conferencia_status === 'DIVERGENTE') {
+        return `<button class="btn btn-sm btn-warning" onclick="enviarParaAdmDireto(${conf.id})">
+                    <i class="bi bi-exclamation-triangle"></i> Enviar p/ ADM
+                </button>`;
+    } else if (conf.conferencia_status === 'AGUARDANDO_ADM') {
+        return `<a href="/conferencia-decisao-adm/${conf.id}" class="btn btn-sm btn-warning">Decidir</a>`;
+    } else {
+        return `<button class="btn btn-sm btn-secondary" onclick="verDetalhes(${conf.id})">Ver Detalhes</button>`;
+    }
+}
+2. Adicionar Função JavaScript para Enviar Divergência
+No mesmo arquivo app/templates/conferencias.html, adicionar a função:
+
+async function enviarParaAdmDireto(conferenciaId) {
+    if (!confirm('Confirma o envio desta divergência para análise administrativa?')) {
+        return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/${conferenciaId}/enviar-para-adm`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            alert('✅ Divergência enviada para análise administrativa com sucesso!');
+            // Recarregar a lista
+            const filtro = document.getElementById('filtro-status').value;
+            await carregarConferencias(filtro);
+            await carregarEstatisticas();
+        } else {
+            const error = await response.json();
+            alert('❌ Erro: ' + (error.erro || 'Erro ao enviar para ADM'));
+        }
+    } catch (error) {
+        console.error('Erro ao enviar para ADM:', error);
+        alert('❌ Erro ao enviar para análise administrativa');
+    }
+}
+3. Melhorar Feedback Visual na Tabela
+Adicionar ícone de alerta ao lado da badge de divergência para tornar mais visual:
+
+Na função renderizarTabela(), modificar a geração do badge de divergência:
+
+const divergenciaBadge = conf.divergencia ? 
+    `<span class="badge bg-danger">
+        <i class="bi bi-exclamation-triangle-fill"></i> ${conf.percentual_diferenca?.toFixed(1)}%
+    </span>` : 
+    '<span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> OK</span>';
+Resultado Esperado
+Após a implementação:
+
+Na listagem de conferências (/conferencias):
+
+Conferências com status DIVERGENTE mostram botão "Enviar p/ ADM" com ícone de alerta
+Botão tem cor warning (amarelo/laranja) para destacar
+Ao clicar, confirma com o usuário e envia direto para ADM
+Fluxo simplificado:
+
+Conferente vê a divergência na listagem
+Clica direto em "Enviar p/ ADM"
+Status muda para AGUARDANDO_ADM
+Administradores recebem notificação
+Botão muda para "Decidir" (apenas visível para admins)
+UX melhorada:
+
+Menos cliques para enviar divergência
+Feedback visual claro (cores e ícones)
+Confirmação antes de enviar
+Validações Importantes
+✅ Endpoint /api/conferencia/<id>/enviar-para-adm já existe e funciona
+✅ Permissões RBAC: apenas conferentes e admins podem enviar
+✅ Auditoria: já registra a ação com GPS, IP, device_id
+✅ Notificações: já cria notificações para administradores
+Implementar Exatamente
+Modifique apenas o arquivo app/templates/conferencias.html conforme descrito acima, sem alterar nenhuma rota backend (que já está funcionando perfeitamente).

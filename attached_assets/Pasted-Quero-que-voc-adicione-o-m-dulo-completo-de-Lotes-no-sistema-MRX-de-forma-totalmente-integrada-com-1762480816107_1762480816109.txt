@@ -1,0 +1,91 @@
+Quero que você adicione o módulo completo de Lotes no sistema MRX, de forma totalmente integrada com Solicitações, Placas e Entradas, sem alterar ou quebrar as rotas já existentes.
+O objetivo é permitir o agrupamento, controle e histórico de placas por lote, além de relacionar os lotes às solicitações e entradas.
+
+1. Estrutura do Banco de Dados
+
+Criar tabela lotes com os seguintes campos:
+
+Campo	Tipo	Descrição
+id	SERIAL PRIMARY KEY	Identificador único
+codigo_lote	VARCHAR(10)	Código único automático (alfanumérico, 10 caracteres)
+solicitacao_id	INTEGER REFERENCES solicitacoes(id)	Solicitação origem
+empresa_id	INTEGER REFERENCES empresas(id)	Empresa associada
+vendedor_id	INTEGER REFERENCES vendedores(id)	Vendedor responsável
+data_criacao	TIMESTAMP DEFAULT NOW()	Data de criação do lote
+status	VARCHAR(20) DEFAULT 'pendente'	pendente, aprovado, reprovado, em_analise
+peso_total	NUMERIC(10,2)	Soma dos pesos das placas do lote
+valor_total	NUMERIC(10,2)	Soma dos valores das placas
+quantidade_placas	INTEGER	Quantidade total de placas no lote
+observacoes	TEXT	Campo livre para observações
+data_aprovacao	TIMESTAMP	Data em que o lote foi aprovado
+usuario_aprovacao	VARCHAR(100)	Usuário que aprovou
+2. Regras de Negócio
+
+Cada Solicitação confirmada deve gerar automaticamente um Lote.
+
+Todas as Placas vinculadas àquela solicitação são associadas ao lote.
+
+Um lote pode conter várias placas, mas todas da mesma solicitação.
+
+Quando uma entrada é aprovada ou reprovada, o status do lote também deve ser atualizado.
+
+Caso uma solicitação seja editada antes da confirmação, o lote ainda não deve ser criado.
+
+Os lotes devem manter histórico permanente (não excluir, apenas alterar status).
+
+3. Endpoints REST
+
+Base: /api/lotes
+
+Método	Endpoint	Descrição
+GET	/api/lotes	Lista todos os lotes (com filtros por status, empresa, vendedor, data)
+GET	/api/lotes/<id>	Retorna detalhes do lote (incluindo placas e solicitação vinculada)
+POST	/api/lotes	Cria lote manualmente (opcional, apenas para admins)
+PUT	/api/lotes/<id>/aprovar	Altera status do lote para “aprovado”, registra data e usuário
+PUT	/api/lotes/<id>/reprovar	Altera status do lote para “reprovado”
+GET	/api/lotes/<id>/placas	Retorna todas as placas vinculadas ao lote
+GET	/api/lotes/estatisticas	Retorna dados resumidos (quantidade, valores totais, status)
+4. Integração com Outras Partes
+Solicitações
+
+Ao confirmar uma solicitação (PUT /api/solicitacoes/<id>/confirmar), criar automaticamente um lote com as placas dela.
+
+A resposta da rota deve retornar também o codigo_lote criado.
+
+Entradas
+
+Quando uma entrada for aprovada ou reprovada, atualizar o status do lote correspondente.
+Exemplo:
+
+if entrada.status == 'aprovada':
+    lote.status = 'aprovado'
+
+Placas
+
+Adicionar campo lote_id em placas (chave estrangeira para lotes.id).
+
+Sempre que uma placa for inserida em uma solicitação confirmada, ela deve herdar automaticamente o lote_id.
+
+5. Interface HTML / JS
+
+Criar nova tela /lotes.html com:
+
+Lista de todos os lotes (tabela interativa)
+
+Filtros por:
+
+Empresa
+
+Vendedor
+
+Status
+
+Data
+
+Código do lote
+
+Colunas: código, empresa, quantidade, peso total, valor total, status, data de criação
+
+Botões: “Ver Detalhes”, “Aprovar”, “Reprovar”
+
+Ao clicar em “Ver Detalhes”, exibir todas as placas do lote em um modal.

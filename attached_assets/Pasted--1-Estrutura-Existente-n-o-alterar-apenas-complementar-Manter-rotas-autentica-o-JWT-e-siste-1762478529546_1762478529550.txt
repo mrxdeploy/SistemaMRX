@@ -1,0 +1,207 @@
+🔧 1. Estrutura Existente (não alterar, apenas complementar)
+
+Manter rotas, autenticação JWT e sistema de notificações via WebSocket.
+
+Rotas antigas /api/relatorios continuam ativas (retrocompatibilidade).
+
+Banco e migrações já estruturados (empresas, solicitacoes, placas, vendedores, entradas).
+
+Layout escuro, profissional e responsivo deve ser mantido e aprimorado.
+
+🧩 2. Implementar Funcionalidades Pendentes do Diagrama
+(a) Cadastro de Funcionários
+
+Criar módulo /funcionarios.html e endpoints REST:
+
+GET /api/funcionarios – listar funcionários
+
+POST /api/funcionarios – criar
+
+PUT /api/funcionarios/<id> – editar
+
+DELETE /api/funcionarios/<id> – deletar
+
+Campos:
+
+Nome
+
+CPF
+
+Telefone
+
+Cargo
+
+Filtro e busca por nome e cargo.
+Associação com empresa e vendedor (se aplicável).
+
+(b) Cadastro de Fornecedores (Completo)
+
+Adicionar tela /fornecedores.html com formulários completos:
+
+Nome social
+
+CNPJ / CPF
+
+Endereços (coleta e emissão)
+
+Contatos (telefone, e-mail)
+
+Dados bancários
+
+Condição e forma de pagamento
+
+Endpoints:
+
+GET /api/fornecedores
+
+POST /api/fornecedores
+
+PUT /api/fornecedores/<id>
+
+DELETE /api/fornecedores/<id>
+
+Cada fornecedor deve ter histórico de compras e entregas (relacionamento com solicitacoes e entradas).
+
+(c) Sistema de Compras / Despesas
+
+Nova tela /compras.html com integração entre fornecedores e solicitações.
+
+Campos: Fornecedor, Material, Valor, Observação, Tipo (compra/despesa)
+
+Upload de comprovantes (arquivo PDF ou imagem)
+
+Status: pendente, pago, cancelado
+
+Filtros: por fornecedor, tipo e status
+
+Endpoints REST completos (/api/compras)
+
+(d) Classificação de Itens por Lote
+
+Implementar lógica para classificar itens automaticamente por tipo de lote:
+
+Campos: tipo (leve, média, pesada)
+
+Tela /classificacao.html
+
+Permitir criação e edição manual da classificação
+
+Endpoint /api/classificacao para CRUD
+
+Ao aprovar entrada, os lotes devem ser classificados automaticamente com base no peso total das placas.
+
+(e) Validação de Entrada
+
+Tela /validacao.html para validar as solicitações confirmadas antes de entrarem no banco principal:
+
+Mostrar lista de solicitações com placas pendentes
+
+Botões “Aprovar” e “Reprovar”
+
+Endpoint /api/validacao com PUT para alterar status
+
+(f) Consulta Avançada
+
+Tela /consultar.html para filtros dinâmicos de todos os dados (placas, empresas, fornecedores, despesas):
+
+Filtros avançados com múltiplos critérios
+
+Ordenação por data, valor, status, tipo
+
+Exportar resultado para CSV
+
+Endpoint /api/consulta genérico para todas as entidades
+
+(g) Tabelas e Parâmetros Padrão
+
+Tela /tabelas.html
+
+Definir e editar parâmetros padrão do sistema (formas de pagamento, tipos de placa, condições, etc.)
+
+Salvar em tabela configuracoes
+
+Endpoint /api/config
+
+📊 3. Dashboards Profissionais e Interativos
+
+Atualizar a tela /dashboard.html para conter botões que mudam o tipo de dashboard exibido.
+
+Tipos de Dashboard:
+
+Geral – Estatísticas de solicitações, placas e entradas
+
+Financeiro – Compras, despesas, lucro líquido
+
+Operacional – Entradas aprovadas/reprovadas, tempo médio de análise
+
+Fornecedores e Empresas – Top fornecedores, ranking de empresas ativas
+
+Requisitos técnicos:
+
+Cada botão troca o tipo de dashboard sem recarregar a página (uso de AJAX ou JS fetch)
+
+Visualização com gráficos modernos (usar Chart.js ou ApexCharts)
+
+Design escuro, profissional e limpo (seguir estética corporativa)
+
+Responsivo e otimizado para desktop e tablet
+
+Exemplo de botões no topo da tela:
+
+<div class="dashboard-switch">
+  <button class="btn" onclick="loadDashboard('geral')">Geral</button>
+  <button class="btn" onclick="loadDashboard('financeiro')">Financeiro</button>
+  <button class="btn" onclick="loadDashboard('operacional')">Operacional</button>
+  <button class="btn" onclick="loadDashboard('fornecedores')">Empresas / Fornecedores</button>
+</div>
+
+
+Função JS:
+
+function loadDashboard(type) {
+  fetch(`/api/dashboard/${type}`)
+    .then(res => res.json())
+    .then(data => renderDashboard(data));
+}
+
+
+Crie endpoints:
+
+/api/dashboard/geral
+
+/api/dashboard/financeiro
+
+/api/dashboard/operacional
+
+/api/dashboard/fornecedores
+
+Cada endpoint retorna JSON formatado para gráficos.
+
+🗄️ 4. Banco de Dados e Migração
+
+Gerar novo arquivo:
+migrations/002_add_remaining_structures.sql contendo:
+
+Criação das tabelas:
+
+funcionarios
+
+compras
+
+classificacoes
+
+configuracoes
+
+Alterações nas tabelas existentes (se necessário)
+
+Índices de performance
+
+🚀 5. Garantias
+
+Não quebrar nenhuma rota antiga
+
+Testar todos os relacionamentos (chaves estrangeiras e integridade)
+
+Usar tema escuro já aplicado no sistema
+
+Implementar dashboards com visual profissional, dinâmico e visualmente bonito

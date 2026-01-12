@@ -1,0 +1,18 @@
+Tables
+/
+
+lotes
+
+
+
+Column
+id	numero_lote	fornecedor_id	tipo_lote_id	solicitacao_origem_id	oc_id	os_id	conferencia_id	peso_bruto_recebido	peso_liquido	peso_total_kg	valor_total	quantidade_itens	estrelas_media	classificacao_predominante	qualidade_recebida	status	tipo_retirada	localizacao_atual	reservado	reservado_para	reservado_por_id	reservado_em	bloqueado	tipo_bloqueio	bloqueado_por_id	bloqueado_em	motivo_bloqueio	gps_inicio	gps_fim	ip_inicio	device_id	data_criacao	data_fechamento	data_aprovacao	conferente_id	anexos	divergencias	observacoes	auditoria	lote_pai_id	observacoes_qualidade	fotos_qualidade	avaliacao_qualidade	
+1	LOTE-2025-00001	5	2	5	5	4	1	1095.89	1041.1	1095.89	8952.76	4	1.8	media	regular	aprovado	buscar	A2	false	NULL	NULL		false	NULL	NULL		NULL	NULL	NULL	NULL	NULL	2025-11-23 15:37:03			NULL	[]	[]	Lote recebido via OS OS-2025-00004	[]	NULL	NULL	NULL	NULL	
+2	LOTE-2025-00002	5	3	5	5	4	2	973.52	924.84	973.52	8952.76	5	1.8	leve	excelente	finalizado	buscar	B1	false	NULL	NULL		false	NULL	NULL		NULL	NULL	NULL	NULL	NULL	2025-11-23 15:37:03			NULL	[]	[]	Lote recebido via OS OS-2025-00004	[]	NULL	NULL	NULL	NULL	
+3	LOTE-2025-00003	5	4	5	5	4	3	943.23	896.07	943.23	8952.76	5	1.8	pesada	excelente	aprovado	buscar	C1	false	NULL	NULL		false	NULL	NULL		NULL	NULL	NULL	NULL	NULL	2025-11-23 15:37:03			NULL	[]	[]	Lote recebido via OS OS-2025-00004	[]	NULL	NULL	NULL	NULL	
+4	LOTE-2025-00004	5	5	5	5	4	4	1066.32	1013	1066.32	8952.76	3	1.8	media	regular	aprovado	buscar	B2	false	NULL	NULL		false	NULL	NULL		NULL	NULL	NULL	NULL	NULL	2025-11-23 15:37:03			NULL	[]	[]	Lote recebido via OS OS-2025-00004	[]	NULL	NULL	NULL	NULL	
+5	LOTE-2025-00005	5	6	5	5	4	5	1050.37	997.85	1050.37	8952.76	3	1.8	pesada	ruim	finalizado	buscar	B1	false	NULL	NULL		false	NULL	NULL		NULL	NULL	NULL	NULL	NULL	2025-11-23 15:37:03			NULL	[]	[]	Lote recebido via OS OS-2025-00004	[]	NULL	NULL	NULL	NULL	
+6	LOTE-2025-00006	5	1	5	5	4	6	1105.41	1050.14	1105.41	8952.76	3	1.8	leve	ruim	finalizado	buscar	A2	false	NULL	NULL		false	NULL	NULL		NULL	NULL	NULL	NULL	NULL	2025-11-23 15:37:03			NULL	[]	[]	Lote recebido via OS OS-2025-00004	[]	NULL	NULL	NULL	NULL	
+7	LOTE-2025-00007	5	2	5	5	4	7	1010.7	960.16	1010.7	8952.76	5	1.8	media	ruim	recebido	buscar	C1	false	NULL	NULL		false	NULL	NULL		NULL	NULL	NULL	NULL	NULL	2025-11-23 15:37:03			NULL	[]	[]	Lote recebido via OS OS-2025-00004	[]	NULL	NULL	NULL	NULL	
+10	LOTE-2025-00010	5	5	5	5	4	10	968.25	919.84	968.25	8952.76	5	1.8	media	ruim	finalizado	buscar	C1	false	NULL	NULL		false	NULL	NULL		NULL	NULL	NULL	NULL	NULL	2025-11-23 15:37:03			NULL	[]	[]	Lote recebido via OS OS-2025-00004	[]	NULL	NULL	NULL	NULL	
+11	LOTE-2025-00011	5	6	5	5	4	11	1125.49	1069.22	1125.49	8952.76	5	1.8	pesada	ruim	conferido	buscar	B2	false	NULL	NULL		false	NULL	NULL		NULL	NULL	NULL	NULL	NULL	2025-11-23 15:37:03			NULL	[]	[]	Lote recebido via OS OS-2025-00004	[]	NULL	NULL	NULL	NULL	

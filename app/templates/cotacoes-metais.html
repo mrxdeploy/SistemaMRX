@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cotacoes de Metais - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        :root {
+            --gold-color: #FFD700;
+            --silver-color: #C0C0C0;
+            --platinum-color: #E5E4E2;
+            --palladium-color: #CED0DD;
+            --positive-color: #10b981;
+            --negative-color: #ef4444;
+        }
+
+        .metals-dashboard {
+            padding: 1rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .dashboard-header h1 {
+            font-size: 1.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .update-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .update-info.live {
+            color: var(--positive-color);
+        }
+
+        .update-info.live::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--positive-color);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .metal-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid var(--primary-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metal-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        }
+
+        .metal-card.gold { border-left-color: var(--gold-color); }
+        .metal-card.silver { border-left-color: var(--silver-color); }
+        .metal-card.platinum { border-left-color: var(--platinum-color); }
+        .metal-card.palladium { border-left-color: var(--palladium-color); }
+
+        .metal-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .metal-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .metal-symbol {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            background: #f3f4f6;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .metal-price-brl {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+        }
+        
+        .metal-price-brl .currency {
+            font-size: 1rem;
+            color: #10b981;
+        }
+        
+        .metal-price-usd {
+            font-size: 1rem;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+
+        .metal-price-secondary {
+            font-size: 0.875rem;
+            color: #6b7280;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .ewaste-info {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e5e7eb;
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+        
+        .ewaste-info .fonte {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .ewaste-info .fonte i {
+            color: #059669;
+            margin-top: 2px;
+        }
+        
+        .ewaste-info .concentracao {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #9ca3af;
+            font-style: italic;
+        }
+        
+        .concentracao-badge {
+            display: inline-block;
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .concentracao-badge.alta {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .concentracao-badge.media {
+            background: #fef9c3;
+            color: #854d0e;
+        }
+        
+        .concentracao-badge.baixa {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .concentracao-badge.muito-alta {
+            background: #bbf7d0;
+            color: #14532d;
+        }
+
+        .metal-variation {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .metal-variation.positive {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--positive-color);
+        }
+
+        .metal-variation.negative {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--negative-color);
+        }
+
+        .metal-stats {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #f3f4f6;
+            font-size: 0.75rem;
+        }
+
+        .metal-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+        }
+
+        .metal-stat-label {
+            color: #9ca3af;
+        }
+
+        .metal-stat-value {
+            color: #374151;
+            font-weight: 600;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .chart-filters {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+            color: #374151;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .filter-btn.active {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+
+        .calculator-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .calculator-form {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .calculator-items {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .calculator-item {
+            display: grid;
+            grid-template-columns: 1fr 120px 100px 40px;
+            gap: 0.75rem;
+            align-items: center;
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .calculator-item select,
+        .calculator-item input {
+            padding: 0.625rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        .btn-remove-item {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: #fee2e2;
+            color: #dc2626;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-remove-item:hover {
+            background: #fecaca;
+        }
+
+        .calculator-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .calculator-result {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-top: 1rem;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+        }
+
+        .result-row:not(:last-child) {
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .result-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .result-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .result-total {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 0.5rem;
+            padding-top: 0.75rem;
+            border-top: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .alerts-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .alert-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .alert-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .alert-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .alert-badge.above { background: #dcfce7; color: #16a34a; }
+        .alert-badge.below { background: #fee2e2; color: #dc2626; }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .metals-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .metals-table th,
+        .metals-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .metals-table th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.875rem;
+        }
+
+        .metals-table tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .tooltip-trigger {
+            position: relative;
+            cursor: help;
+        }
+
+        .tooltip-trigger::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.5rem 0.75rem;
+            background: #1f2937;
+            color: white;
+            font-size: 0.75rem;
+            border-radius: 6px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+            z-index: 100;
+        }
+
+        .tooltip-trigger:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .export-menu {
+            position: relative;
+        }
+
+        .export-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            padding: 0.5rem;
+            z-index: 50;
+            min-width: 180px;
+            display: none;
+        }
+
+        .export-dropdown.show {
+            display: block;
+        }
+
+        .export-dropdown button {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .export-dropdown button:hover {
+            background: #f3f4f6;
+        }
+
+        @media (max-width: 768px) {
+            .calculator-item {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-wrapper {
+                height: 300px;
+            }
+            
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 767px) {
+            main.container {
+                padding-top: 60px !important;
+                padding-bottom: 80px !important;
+            }
+        }
+        
+        @media (min-width: 768px) {
+            main.container {
+                padding-top: 50px !important;
+            }
+        }
+
+        .modal-alert-form {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 480px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Cotacoes de Metais</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="bottom-nav" id="navMenuMobile"></nav>
+
+    <main class="container mt-4">
+        <div class="metals-dashboard">
+            <div class="dashboard-header">
+                <h1>
+                    <i class="fas fa-coins" style="color: var(--gold-color);"></i>
+                    Painel de Cotacoes
+                </h1>
+                <div class="update-info live" id="updateInfo">
+                    <span id="lastUpdate">Atualizando...</span>
+                    <button class="btn btn-secondary" onclick="refreshData()" style="padding: 0.5rem; min-width: auto;">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="summary-cards" id="metalCards">
+                <div class="metal-card">
+                    <div style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #9ca3af;"></i>
+                        <p style="margin-top: 1rem; color: #6b7280;">Carregando cotacoes...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h2 class="section-title">
+                        <i class="fas fa-chart-line"></i>
+                        Grafico de Cotacoes
+                    </h2>
+                    <div class="chart-filters">
+                        <select id="metalSelect" class="filter-btn" onchange="updateChart()">
+                            <option value="XAU">Ouro (XAU)</option>
+                            <option value="XAG">Prata (XAG)</option>
+                            <option value="XPT">Platina (XPT)</option>
+                            <option value="XPD">Paladio (XPD)</option>
+                        </select>
+                        <button class="filter-btn active" data-period="1" onclick="changePeriod(1, this)">24h</button>
+                        <button class="filter-btn" data-period="7" onclick="changePeriod(7, this)">7 dias</button>
+                        <button class="filter-btn" data-period="30" onclick="changePeriod(30, this)">30 dias</button>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h2 class="section-title">
+                        <i class="fas fa-table"></i>
+                        Tabela de Cotacoes
+                    </h2>
+                    <div class="export-menu">
+                        <button class="btn btn-secondary" onclick="toggleExportMenu()">
+                            <i class="fas fa-download"></i> Exportar
+                        </button>
+                        <div class="export-dropdown" id="exportDropdown">
+                            <button onclick="exportarCSV('cotacoes')">
+                                <i class="fas fa-file-csv"></i> Cotacoes Atuais
+                            </button>
+                            <button onclick="exportarCSV('historico')">
+                                <i class="fas fa-history"></i> Historico
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="metals-table">
+                        <thead>
+                            <tr>
+                                <th>Metal / Fonte E-Waste</th>
+                                <th class="tooltip-trigger" data-tooltip="Preco por quilograma em Reais" style="color: #059669; font-weight: 700;">BRL/kg</th>
+                                <th class="tooltip-trigger" data-tooltip="Preco por onca troy em Dolares">USD/oz</th>
+                                <th class="tooltip-trigger" data-tooltip="Preco por grama em Reais" style="color: #059669;">BRL/g</th>
+                                <th class="tooltip-trigger" data-tooltip="Preco por grama em Dolares">USD/g</th>
+                                <th class="tooltip-trigger" data-tooltip="Variacao percentual">Var %</th>
+                                <th style="color: #059669;">Min (24h)</th>
+                                <th style="color: #059669;">Max (24h)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="metalsTableBody">
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 2rem;">
+                                    <i class="fas fa-spinner fa-spin"></i> Carregando...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="calculator-section">
+                <h2 class="section-title">
+                    <i class="fas fa-calculator"></i>
+                    Calculadora de Combos
+                </h2>
+                <p style="color: #6b7280; margin-bottom: 1rem; font-size: 0.875rem;">
+                    Calcule o valor total de multiplos metais com base nas cotacoes atuais.
+                </p>
+                
+                <div class="calculator-form">
+                    <div class="calculator-items" id="calculatorItems">
+                        <div class="calculator-item" data-index="0">
+                            <select class="metal-select">
+                                <optgroup label="Metais Preciosos">
+                                    <option value="XAU">Ouro (XAU) - Placas, CPUs</option>
+                                    <option value="XAG">Prata (XAG) - Contatos</option>
+                                    <option value="XPT">Platina (XPT) - HDDs</option>
+                                    <option value="XPD">Paladio (XPD) - Capacitores</option>
+                                </optgroup>
+                                <optgroup label="Metais Base E-Waste">
+                                    <option value="XCU">Cobre (XCU) - Fios, PCBs</option>
+                                    <option value="SN">Estanho (SN) - Soldas</option>
+                                    <option value="AL">Aluminio (AL) - Dissipadores</option>
+                                    <option value="NI">Niquel (NI) - Baterias</option>
+                                </optgroup>
+                                <optgroup label="Metais Especiais">
+                                    <option value="CO">Cobalto (CO) - Baterias Li-ion</option>
+                                    <option value="TA">Tantalo (TA) - Capacitores</option>
+                                    <option value="IN">Indio (IN) - Telas LCD</option>
+                                    <option value="GA">Galio (GA) - LEDs, Chips</option>
+                                </optgroup>
+                            </select>
+                            <input type="number" class="quantity-input" placeholder="Quantidade" value="1" min="0" step="0.01">
+                            <select class="unit-select">
+                                <option value="grams">Gramas</option>
+                                <option value="kg">Kg</option>
+                                <option value="oz">Oncas</option>
+                            </select>
+                            <button class="btn-remove-item" onclick="removeCalculatorItem(0)" title="Remover item">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="calculator-actions">
+                        <button class="btn btn-secondary" onclick="addCalculatorItem()">
+                            <i class="fas fa-plus"></i> Adicionar Metal
+                        </button>
+                        <button class="btn btn-primary" onclick="calcularCombo()">
+                            <i class="fas fa-calculator"></i> Calcular
+                        </button>
+                        <button class="btn btn-secondary" onclick="limparCalculadora()">
+                            <i class="fas fa-trash"></i> Limpar
+                        </button>
+                    </div>
+                    
+                    <div class="calculator-result" id="calculatorResult" style="display: none;">
+                        <div id="resultItems"></div>
+                        <div class="result-total">
+                            <div class="result-row">
+                                <span class="result-label">Total em USD:</span>
+                                <span class="result-value" id="totalUSD">$0.00</span>
+                            </div>
+                            <div class="result-row">
+                                <span class="result-label">Total em BRL:</span>
+                                <span class="result-value" id="totalBRL">R$0.00</span>
+                            </div>
+                        </div>
+                        <button class="btn" onclick="exportarComboCSV()" style="margin-top: 1rem; background: rgba(255,255,255,0.2); color: white; width: 100%;">
+                            <i class="fas fa-download"></i> Exportar Resultado
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alerts-section">
+                <div class="chart-header">
+                    <h2 class="section-title">
+                        <i class="fas fa-bell"></i>
+                        Alertas de Preco
+                    </h2>
+                    <button class="btn btn-primary" onclick="abrirModalAlerta()">
+                        <i class="fas fa-plus"></i> Novo Alerta
+                    </button>
+                </div>
+                <p style="color: #6b7280; margin-bottom: 1rem; font-size: 0.875rem;">
+                    Configure alertas para ser notificado quando um metal atingir um determinado preco.
+                </p>
+                <div id="alertsList">
+                    <p style="text-align: center; color: #9ca3af; padding: 2rem;">
+                        Nenhum alerta configurado
+                    </p>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h2 class="section-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Estatisticas do Periodo
+                </h2>
+                <div id="statsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <p style="text-align: center; color: #9ca3af; padding: 2rem; grid-column: 1/-1;">
+                        <i class="fas fa-spinner fa-spin"></i> Carregando estatisticas...
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal" id="modalAlerta">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Novo Alerta de Preco</h2>
+                <span class="modal-close" onclick="fecharModalAlerta()">&times;</span>
+            </div>
+            <form class="modal-alert-form" onsubmit="salvarAlerta(event)">
+                <div class="form-group">
+                    <label>Metal</label>
+                    <select id="alertMetal" required>
+                        <option value="XAU">Ouro (XAU)</option>
+                        <option value="XAG">Prata (XAG)</option>
+                        <option value="XPT">Platina (XPT)</option>
+                        <option value="XPD">Paladio (XPD)</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Condicao</label>
+                        <select id="alertCondition" required>
+                            <option value="above">Acima de</option>
+                            <option value="below">Abaixo de</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Moeda</label>
+                        <select id="alertCurrency" required>
+                            <option value="USD">USD ($)</option>
+                            <option value="BRL">BRL (R$)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Preco</label>
+                    <input type="number" id="alertPrice" step="0.01" min="0" required placeholder="Ex: 2500.00">
+                </div>
+                <button type="submit" class="btn btn-primary w-full">
+                    <i class="fas fa-save"></i> Criar Alerta
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/rbac.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        let priceChart = null;
+        let currentPeriod = 1;
+        let metalsData = null;
+        let historyData = null;
+        let alertas = [];
+        let calculatorItemIndex = 1;
+        let comboResult = null;
+
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+            
+            if (user.tipo !== 'admin') {
+                showAlert('Acesso negado. Apenas administradores podem acessar esta pagina.');
+                window.location.href = '/dashboard.html';
+                return;
+            }
+            
+            await refreshData();
+            await carregarAlertas();
+            await carregarEstatisticas();
+            
+            setInterval(refreshData, 60000);
+        }
+
+        async function refreshData() {
+            try {
+                const response = await fetchAPI('/metais/cotacoes');
+                if (response.ok) {
+                    metalsData = await response.json();
+                    renderMetalCards();
+                    renderMetalsTable();
+                    updateLastUpdate();
+                    await updateChart();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar cotacoes:', error);
+            }
+        }
+
+        function updateLastUpdate() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = 
+                `Atualizado: ${now.toLocaleTimeString('pt-BR')}`;
+        }
+
+        function getConcentracaoBadge(concentracao) {
+            if (!concentracao) return '';
+            const lower = concentracao.toLowerCase();
+            let badgeClass = 'media';
+            let label = 'Media';
+            if (lower.includes('muito alta')) {
+                badgeClass = 'muito-alta';
+                label = 'Muito Alta';
+            } else if (lower.includes('alta')) {
+                badgeClass = 'alta';
+                label = 'Alta';
+            } else if (lower.includes('baixa')) {
+                badgeClass = 'baixa';
+                label = 'Baixa';
+            }
+            return `<span class="concentracao-badge ${badgeClass}">${label}</span>`;
+        }
+        
+        function renderMetalCards() {
+            if (!metalsData || !metalsData.metals) return;
+            
+            const container = document.getElementById('metalCards');
+            const metals = metalsData.metals;
+            
+            container.innerHTML = Object.entries(metals).map(([symbol, data]) => {
+                const variationClass = data.variation >= 0 ? 'positive' : 'negative';
+                const variationIcon = data.variation >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                const metalClass = symbol.toLowerCase().replace('x', '');
+                const fonteEwaste = data.fonte_ewaste || '';
+                const concentracao = data.concentracao || '';
+                const priceKgBrl = data.price_kg_brl || (data.price_gram_brl * 1000);
+                
+                return `
+                    <div class="metal-card ${metalClass}" style="border-left-color: ${data.color || '#059669'}">
+                        <div class="metal-card-header">
+                            <span class="metal-name">${data.name}</span>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                ${getConcentracaoBadge(concentracao)}
+                                <span class="metal-symbol">${symbol}</span>
+                            </div>
+                        </div>
+                        <div class="metal-price-brl">
+                            <span class="currency">R$</span>
+                            ${priceKgBrl.toLocaleString('pt-BR', {minimumFractionDigits: 2})}<span style="font-size: 0.875rem; color: #6b7280;">/kg</span>
+                        </div>
+                        <div class="metal-price-usd">
+                            $${data.price_usd.toLocaleString('en-US', {minimumFractionDigits: 2})}/oz
+                            <span class="metal-variation ${variationClass}" style="margin-left: 0.5rem;">
+                                <i class="fas ${variationIcon}"></i>
+                                ${Math.abs(data.variation).toFixed(2)}%
+                            </span>
+                        </div>
+                        <div class="metal-stats">
+                            <div class="metal-stat">
+                                <span class="metal-stat-label">BRL/g</span>
+                                <span class="metal-stat-value" style="color: #059669; font-weight: 600;">R$${data.price_gram_brl.toFixed(4)}</span>
+                            </div>
+                            <div class="metal-stat">
+                                <span class="metal-stat-label">USD/g</span>
+                                <span class="metal-stat-value">$${data.price_gram_usd.toFixed(4)}</span>
+                            </div>
+                        </div>
+                        ${fonteEwaste ? `
+                        <div class="ewaste-info">
+                            <div class="fonte">
+                                <i class="fas fa-recycle"></i>
+                                <span>${fonteEwaste}</span>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderMetalsTable() {
+            if (!metalsData || !metalsData.metals) return;
+            
+            const tbody = document.getElementById('metalsTableBody');
+            const metals = metalsData.metals;
+            
+            tbody.innerHTML = Object.entries(metals).map(([symbol, data]) => {
+                const variationClass = data.variation >= 0 ? 'positive' : 'negative';
+                const variationIcon = data.variation >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                const priceKgBrl = data.price_kg_brl || (data.price_gram_brl * 1000);
+                
+                const min24h = (priceKgBrl * 0.98).toFixed(2);
+                const max24h = (priceKgBrl * 1.02).toFixed(2);
+                
+                return `
+                    <tr>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <div style="width: 8px; height: 8px; border-radius: 50%; background: ${data.color || '#059669'};"></div>
+                                <strong>${data.name}</strong>
+                                <span style="color: #9ca3af; font-size: 0.75rem;">${symbol}</span>
+                            </div>
+                            ${data.fonte_ewaste ? `<div style="font-size: 0.7rem; color: #9ca3af; margin-left: 1rem;"><i class="fas fa-recycle" style="color: #059669;"></i> ${data.fonte_ewaste.substring(0, 40)}${data.fonte_ewaste.length > 40 ? '...' : ''}</div>` : ''}
+                        </td>
+                        <td style="font-weight: 700; color: #059669; font-size: 1.1rem;">R$ ${priceKgBrl.toLocaleString('pt-BR', {minimumFractionDigits: 2})}/kg</td>
+                        <td style="color: #6b7280;">$${data.price_usd.toLocaleString('en-US', {minimumFractionDigits: 2})}/oz</td>
+                        <td style="color: #059669; font-weight: 600;">R$${data.price_gram_brl.toFixed(4)}</td>
+                        <td style="color: #6b7280;">$${data.price_gram_usd.toFixed(4)}</td>
+                        <td>
+                            <span class="metal-variation ${variationClass}">
+                                <i class="fas ${variationIcon}"></i>
+                                ${Math.abs(data.variation).toFixed(2)}%
+                            </span>
+                        </td>
+                        <td style="color: #059669;">R$${min24h}</td>
+                        <td style="color: #059669;">R$${max24h}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function updateChart() {
+            try {
+                const response = await fetchAPI(`/metais/historico?days=${currentPeriod}`);
+                if (response.ok) {
+                    historyData = await response.json();
+                    renderChart();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar historico:', error);
+            }
+        }
+
+        function renderChart() {
+            const selectedMetal = document.getElementById('metalSelect').value;
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            
+            if (!historyData || !historyData.history) return;
+            
+            const labels = [];
+            const prices = [];
+            
+            const sortedDates = Object.keys(historyData.history).sort();
+            
+            for (const date of sortedDates) {
+                const entries = historyData.history[date];
+                for (const entry of entries) {
+                    if (entry.metals && entry.metals[selectedMetal]) {
+                        labels.push(`${date} ${entry.time}`);
+                        prices.push(entry.metals[selectedMetal]);
+                    }
+                }
+            }
+            
+            if (priceChart) {
+                priceChart.destroy();
+            }
+            
+            const metalInfo = {
+                'XAU': { name: 'Ouro', color: '#FFD700' },
+                'XAG': { name: 'Prata', color: '#C0C0C0' },
+                'XPT': { name: 'Platina', color: '#E5E4E2' },
+                'XPD': { name: 'Paladio', color: '#CED0DD' }
+            };
+            
+            const info = metalInfo[selectedMetal] || { name: selectedMetal, color: '#059669' };
+            
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `${info.name} (USD/oz)`,
+                        data: prices,
+                        borderColor: info.color,
+                        backgroundColor: info.color + '20',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `$${context.raw.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            ticks: {
+                                maxTicksLimit: 10,
+                                callback: function(value, index, values) {
+                                    const label = this.getLabelForValue(value);
+                                    if (currentPeriod === 1) {
+                                        return label.split(' ')[1];
+                                    }
+                                    return label.split(' ')[0];
+                                }
+                            }
+                        },
+                        y: {
+                            display: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function changePeriod(days, btn) {
+            currentPeriod = days;
+            document.querySelectorAll('.chart-filters .filter-btn[data-period]').forEach(b => {
+                b.classList.remove('active');
+            });
+            btn.classList.add('active');
+            updateChart();
+        }
+
+        function addCalculatorItem() {
+            const container = document.getElementById('calculatorItems');
+            const newItem = document.createElement('div');
+            newItem.className = 'calculator-item';
+            newItem.dataset.index = calculatorItemIndex;
+            newItem.innerHTML = `
+                <select class="metal-select">
+                    <optgroup label="Metais Preciosos">
+                        <option value="XAU">Ouro (XAU) - Placas, CPUs</option>
+                        <option value="XAG">Prata (XAG) - Contatos</option>
+                        <option value="XPT">Platina (XPT) - HDDs</option>
+                        <option value="XPD">Paladio (XPD) - Capacitores</option>
+                    </optgroup>
+                    <optgroup label="Metais Base E-Waste">
+                        <option value="XCU">Cobre (XCU) - Fios, PCBs</option>
+                        <option value="SN">Estanho (SN) - Soldas</option>
+                        <option value="AL">Aluminio (AL) - Dissipadores</option>
+                        <option value="NI">Niquel (NI) - Baterias</option>
+                    </optgroup>
+                    <optgroup label="Metais Especiais">
+                        <option value="CO">Cobalto (CO) - Baterias Li-ion</option>
+                        <option value="TA">Tantalo (TA) - Capacitores</option>
+                        <option value="IN">Indio (IN) - Telas LCD</option>
+                        <option value="GA">Galio (GA) - LEDs, Chips</option>
+                    </optgroup>
+                </select>
+                <input type="number" class="quantity-input" placeholder="Quantidade" value="1" min="0" step="0.01">
+                <select class="unit-select">
+                    <option value="grams">Gramas</option>
+                    <option value="kg">Kg</option>
+                    <option value="oz">Oncas</option>
+                </select>
+                <button class="btn-remove-item" onclick="removeCalculatorItem(${calculatorItemIndex})" title="Remover item">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(newItem);
+            calculatorItemIndex++;
+        }
+
+        function removeCalculatorItem(index) {
+            const items = document.querySelectorAll('.calculator-item');
+            if (items.length <= 1) {
+                showAlert('Voce precisa manter pelo menos um item');
+                return;
+            }
+            const item = document.querySelector(`.calculator-item[data-index="${index}"]`);
+            if (item) item.remove();
+        }
+
+        function limparCalculadora() {
+            const container = document.getElementById('calculatorItems');
+            container.innerHTML = `
+                <div class="calculator-item" data-index="0">
+                    <select class="metal-select">
+                        <optgroup label="Metais Preciosos">
+                            <option value="XAU">Ouro (XAU) - Placas, CPUs</option>
+                            <option value="XAG">Prata (XAG) - Contatos</option>
+                            <option value="XPT">Platina (XPT) - HDDs</option>
+                            <option value="XPD">Paladio (XPD) - Capacitores</option>
+                        </optgroup>
+                        <optgroup label="Metais Base E-Waste">
+                            <option value="XCU">Cobre (XCU) - Fios, PCBs</option>
+                            <option value="SN">Estanho (SN) - Soldas</option>
+                            <option value="AL">Aluminio (AL) - Dissipadores</option>
+                            <option value="NI">Niquel (NI) - Baterias</option>
+                        </optgroup>
+                        <optgroup label="Metais Especiais">
+                            <option value="CO">Cobalto (CO) - Baterias Li-ion</option>
+                            <option value="TA">Tantalo (TA) - Capacitores</option>
+                            <option value="IN">Indio (IN) - Telas LCD</option>
+                            <option value="GA">Galio (GA) - LEDs, Chips</option>
+                        </optgroup>
+                    </select>
+                    <input type="number" class="quantity-input" placeholder="Quantidade" value="1" min="0" step="0.01">
+                    <select class="unit-select">
+                        <option value="grams">Gramas</option>
+                        <option value="kg">Kg</option>
+                        <option value="oz">Oncas</option>
+                    </select>
+                    <button class="btn-remove-item" onclick="removeCalculatorItem(0)" title="Remover item">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            calculatorItemIndex = 1;
+            document.getElementById('calculatorResult').style.display = 'none';
+        }
+
+        async function calcularCombo() {
+            const items = [];
+            document.querySelectorAll('.calculator-item').forEach(item => {
+                const metal = item.querySelector('.metal-select').value;
+                const quantity = parseFloat(item.querySelector('.quantity-input').value) || 0;
+                const unit = item.querySelector('.unit-select').value;
+                if (quantity > 0) {
+                    items.push({ metal, quantity, unit });
+                }
+            });
+            
+            if (items.length === 0) {
+                showAlert('Adicione pelo menos um item com quantidade maior que zero');
+                return;
+            }
+            
+            try {
+                const response = await fetchAPI('/metais/calcular', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items })
+                });
+                
+                if (response.ok) {
+                    comboResult = await response.json();
+                    renderComboResult();
+                }
+            } catch (error) {
+                console.error('Erro ao calcular:', error);
+                showAlert('Erro ao calcular combo');
+            }
+        }
+
+        function renderComboResult() {
+            if (!comboResult) return;
+            
+            const resultContainer = document.getElementById('calculatorResult');
+            const itemsContainer = document.getElementById('resultItems');
+            
+            itemsContainer.innerHTML = comboResult.items.map(item => `
+                <div class="result-row">
+                    <span class="result-label">${item.name} (${item.quantity} ${item.unit})</span>
+                    <span class="result-value">$${item.price_usd.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                </div>
+            `).join('');
+            
+            document.getElementById('totalUSD').textContent = 
+                `$${comboResult.total_usd.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            document.getElementById('totalBRL').textContent = 
+                `R$${comboResult.total_brl.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            
+            resultContainer.style.display = 'block';
+        }
+
+        async function exportarComboCSV() {
+            if (!comboResult) return;
+            
+            try {
+                const token = getToken();
+                const response = await fetch('/api/metais/exportar', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ type: 'combo', items: comboResult.items })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const disposition = response.headers.get('Content-Disposition');
+                    let filename = 'combo_export.csv';
+                    if (disposition) {
+                        const match = disposition.match(/filename=(.+)/);
+                        if (match) filename = match[1];
+                    }
+                    downloadBlob(blob, filename);
+                    showSuccess('Arquivo exportado com sucesso!');
+                }
+            } catch (error) {
+                console.error('Erro ao exportar:', error);
+                showAlert('Erro ao exportar arquivo');
+            }
+        }
+
+        function toggleExportMenu() {
+            const dropdown = document.getElementById('exportDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        async function exportarCSV(type) {
+            try {
+                const token = getToken();
+                const response = await fetch('/api/metais/exportar', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ type, days: currentPeriod })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const disposition = response.headers.get('Content-Disposition');
+                    let filename = `metais_${type}.csv`;
+                    if (disposition) {
+                        const match = disposition.match(/filename=(.+)/);
+                        if (match) filename = match[1];
+                    }
+                    downloadBlob(blob, filename);
+                    showSuccess('Arquivo exportado com sucesso!');
+                }
+            } catch (error) {
+                console.error('Erro ao exportar:', error);
+                showAlert('Erro ao exportar arquivo');
+            }
+            
+            document.getElementById('exportDropdown').classList.remove('show');
+        }
+
+        function downloadCSV(content, filename) {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            downloadBlob(blob, filename);
+        }
+        
+        function downloadBlob(blob, filename) {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
+
+        async function carregarAlertas() {
+            try {
+                const response = await fetchAPI('/metais/alertas');
+                if (response.ok) {
+                    alertas = await response.json();
+                    renderAlertas();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar alertas:', error);
+            }
+        }
+
+        function renderAlertas() {
+            const container = document.getElementById('alertsList');
+            
+            if (alertas.length === 0) {
+                container.innerHTML = `
+                    <p style="text-align: center; color: #9ca3af; padding: 2rem;">
+                        Nenhum alerta configurado
+                    </p>
+                `;
+                return;
+            }
+            
+            const metalNames = {
+                'XAU': 'Ouro',
+                'XAG': 'Prata',
+                'XPT': 'Platina',
+                'XPD': 'Paladio'
+            };
+            
+            container.innerHTML = alertas.map(alerta => `
+                <div class="alert-item">
+                    <div class="alert-info">
+                        <span class="alert-badge ${alerta.condition}">${alerta.condition === 'above' ? 'Acima' : 'Abaixo'}</span>
+                        <span><strong>${metalNames[alerta.metal] || alerta.metal}</strong></span>
+                        <span>${alerta.currency === 'USD' ? '$' : 'R$'}${alerta.price.toLocaleString()}</span>
+                    </div>
+                    <button class="btn btn-secondary" style="padding: 0.5rem;" onclick="removerAlerta(${alerta.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function abrirModalAlerta() {
+            document.getElementById('modalAlerta').style.display = 'flex';
+        }
+
+        function fecharModalAlerta() {
+            document.getElementById('modalAlerta').style.display = 'none';
+        }
+
+        async function salvarAlerta(event) {
+            event.preventDefault();
+            
+            const alerta = {
+                metal: document.getElementById('alertMetal').value,
+                condition: document.getElementById('alertCondition').value,
+                currency: document.getElementById('alertCurrency').value,
+                price: parseFloat(document.getElementById('alertPrice').value)
+            };
+            
+            try {
+                const response = await fetchAPI('/metais/alertas', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(alerta)
+                });
+                
+                if (response.ok) {
+                    showSuccess('Alerta criado com sucesso!');
+                    fecharModalAlerta();
+                    carregarAlertas();
+                }
+            } catch (error) {
+                console.error('Erro ao criar alerta:', error);
+            }
+        }
+
+        async function removerAlerta(id) {
+            try {
+                const response = await fetchAPI(`/metais/alertas?id=${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    carregarAlertas();
+                }
+            } catch (error) {
+                console.error('Erro ao remover alerta:', error);
+            }
+        }
+
+        async function carregarEstatisticas() {
+            try {
+                const response = await fetchAPI('/metais/estatisticas?days=7');
+                if (response.ok) {
+                    const data = await response.json();
+                    renderEstatisticas(data.stats);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar estatisticas:', error);
+            }
+        }
+
+        function renderEstatisticas(stats) {
+            const container = document.getElementById('statsContainer');
+            
+            container.innerHTML = Object.entries(stats).map(([symbol, data]) => {
+                const variationClass = data.variation >= 0 ? 'positive' : 'negative';
+                
+                return `
+                    <div class="metal-card">
+                        <h3 style="font-size: 1rem; margin-bottom: 0.75rem;">${data.name}</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.875rem;">
+                            <div>
+                                <span style="color: #9ca3af;">Minimo:</span>
+                                <strong style="color: #dc2626; display: block;">$${data.min.toLocaleString()}</strong>
+                            </div>
+                            <div>
+                                <span style="color: #9ca3af;">Maximo:</span>
+                                <strong style="color: #16a34a; display: block;">$${data.max.toLocaleString()}</strong>
+                            </div>
+                            <div>
+                                <span style="color: #9ca3af;">Media:</span>
+                                <strong style="display: block;">$${data.avg.toLocaleString()}</strong>
+                            </div>
+                            <div>
+                                <span style="color: #9ca3af;">Variacao:</span>
+                                <strong class="metal-variation ${variationClass}" style="display: inline-block; margin-top: 0.25rem;">
+                                    ${data.variation >= 0 ? '+' : ''}${data.variation.toFixed(2)}%
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.export-menu')) {
+                document.getElementById('exportDropdown').classList.remove('show');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', carregarPagina);
+    </script>
+</body>
+</html>

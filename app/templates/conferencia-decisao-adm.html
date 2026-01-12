@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+
+{% block title %}Decisão Administrativa - Conferência{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <a href="/conferencias" class="btn btn-secondary mb-3">← Voltar</a>
+            <h2>⚖️ Decisão Administrativa - Conferência #<span id="conferencia-id"></span></h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header bg-info text-white">
+                    <h5>Informações da Conferência</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th>OS:</th>
+                            <td id="info-os">-</td>
+                        </tr>
+                        <tr>
+                            <th>OC:</th>
+                            <td id="info-oc">-</td>
+                        </tr>
+                        <tr>
+                            <th>Fornecedor:</th>
+                            <td id="info-fornecedor">-</td>
+                        </tr>
+                        <tr>
+                            <th>Conferente:</th>
+                            <td id="info-conferente">-</td>
+                        </tr>
+                        <tr>
+                            <th>Qualidade:</th>
+                            <td id="info-qualidade">-</td>
+                        </tr>
+                        <tr>
+                            <th>Observações:</th>
+                            <td id="info-observacoes">-</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card mb-3 border-warning">
+                <div class="card-header bg-warning">
+                    <h5>⚠️ Análise de Divergência</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th>Previsto</th>
+                                <th>Real</th>
+                                <th>Diferença</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th>Peso (kg)</th>
+                                <td id="peso-previsto">-</td>
+                                <td id="peso-real">-</td>
+                                <td id="diferenca-peso">-</td>
+                            </tr>
+                            <tr>
+                                <th>Quantidade</th>
+                                <td id="quantidade-prevista">-</td>
+                                <td id="quantidade-real">-</td>
+                                <td id="diferenca-quantidade">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="alert alert-warning" role="alert">
+                        <strong>Tipo de Divergência:</strong> <span id="tipo-divergencia">-</span><br>
+                        <strong>Percentual de Diferença:</strong> <span id="percentual-diferenca">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5>📸 Fotos da Pesagem</h5>
+                </div>
+                <div class="card-body">
+                    <div id="galeria-fotos" class="row">
+                        <p class="text-muted">Nenhuma foto disponível</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5>Decisão Administrativa</h5>
+                </div>
+                <div class="card-body">
+                    <form id="form-decisao">
+                        <div class="mb-3">
+                            <label class="form-label">Decisão *</label>
+                            <select class="form-select" id="decisao" required>
+                                <option value="">Selecione...</option>
+                                <option value="ACEITAR">✅ Aceitar</option>
+                                <option value="ACEITAR_COM_DESCONTO">💰 Aceitar com Desconto</option>
+                                <option value="REJEITAR">❌ Rejeitar</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3" id="campo-desconto" style="display: none;">
+                            <label class="form-label">Percentual de Desconto (%)</label>
+                            <input type="number" class="form-control" id="percentual-desconto" min="0" max="100" step="0.1">
+                            <small class="text-muted">Desconto sobre o valor total da OC</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Motivo da Decisão *</label>
+                            <textarea class="form-control" id="motivo" rows="4" required 
+                                placeholder="Descreva o motivo da sua decisão..."></textarea>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <strong>Importante:</strong> Esta decisão será registrada na auditoria e notificará o conferente automaticamente.
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 btn-lg">
+                            Confirmar Decisão
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const conferencia_id = window.location.pathname.split('/').pop();
+let conferenciaAtual = null;
+
+async function carregarConferencia() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/conferencia/${conferencia_id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            conferenciaAtual = await response.json();
+            preencherDados();
+        } else {
+            alert('Erro ao carregar conferência');
+            window.location.href = '/conferencias';
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao carregar conferência');
+    }
+}
+
+function preencherDados() {
+    document.getElementById('conferencia-id').textContent = conferenciaAtual.id;
+    document.getElementById('info-os').textContent = conferenciaAtual.os_id;
+    document.getElementById('info-oc').textContent = conferenciaAtual.oc_id;
+    
+    const fornecedor = conferenciaAtual.ordem_servico?.fornecedor_snapshot?.nome || '-';
+    document.getElementById('info-fornecedor').textContent = fornecedor;
+    
+    document.getElementById('info-conferente').textContent = conferenciaAtual.conferente_nome || '-';
+    document.getElementById('info-qualidade').textContent = conferenciaAtual.qualidade || '-';
+    document.getElementById('info-observacoes').textContent = conferenciaAtual.observacoes || 'Sem observações';
+    
+    document.getElementById('peso-previsto').textContent = 
+        conferenciaAtual.peso_fornecedor ? conferenciaAtual.peso_fornecedor.toFixed(2) + ' kg' : '-';
+    document.getElementById('peso-real').textContent = 
+        conferenciaAtual.peso_real ? conferenciaAtual.peso_real.toFixed(2) + ' kg' : '-';
+    
+    if (conferenciaAtual.peso_fornecedor && conferenciaAtual.peso_real) {
+        const dif = conferenciaAtual.peso_real - conferenciaAtual.peso_fornecedor;
+        const classe = dif >= 0 ? 'text-success' : 'text-danger';
+        document.getElementById('diferenca-peso').innerHTML = 
+            `<span class="${classe}">${dif >= 0 ? '+' : ''}${dif.toFixed(2)} kg</span>`;
+    }
+    
+    document.getElementById('quantidade-prevista').textContent = 
+        conferenciaAtual.quantidade_prevista || '-';
+    document.getElementById('quantidade-real').textContent = 
+        conferenciaAtual.quantidade_real || '-';
+    
+    if (conferenciaAtual.quantidade_prevista && conferenciaAtual.quantidade_real) {
+        const dif = conferenciaAtual.quantidade_real - conferenciaAtual.quantidade_prevista;
+        const classe = dif >= 0 ? 'text-success' : 'text-danger';
+        document.getElementById('diferenca-quantidade').innerHTML = 
+            `<span class="${classe}">${dif >= 0 ? '+' : ''}${dif}</span>`;
+    }
+    
+    document.getElementById('tipo-divergencia').textContent = conferenciaAtual.tipo_divergencia || '-';
+    document.getElementById('percentual-diferenca').innerHTML = 
+        `<strong class="text-danger">${conferenciaAtual.percentual_diferenca?.toFixed(1) || 0}%</strong>`;
+    
+    if (conferenciaAtual.fotos_pesagem && conferenciaAtual.fotos_pesagem.length > 0) {
+        const galeria = document.getElementById('galeria-fotos');
+        galeria.innerHTML = '';
+        conferenciaAtual.fotos_pesagem.forEach(foto => {
+            const col = document.createElement('div');
+            col.className = 'col-md-4 mb-2';
+            col.innerHTML = `<img src="/${foto}" class="img-fluid rounded" style="max-height: 200px;">`;
+            galeria.appendChild(col);
+        });
+    }
+}
+
+document.getElementById('decisao').addEventListener('change', (e) => {
+    const campoDesconto = document.getElementById('campo-desconto');
+    if (e.target.value === 'ACEITAR_COM_DESCONTO') {
+        campoDesconto.style.display = 'block';
+        document.getElementById('percentual-desconto').required = true;
+    } else {
+        campoDesconto.style.display = 'none';
+        document.getElementById('percentual-desconto').required = false;
+    }
+});
+
+document.getElementById('form-decisao').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const decisao = document.getElementById('decisao').value;
+    const motivo = document.getElementById('motivo').value;
+    const percentualDesconto = document.getElementById('percentual-desconto').value;
+    
+    const data = {
+        decisao: decisao,
+        motivo: motivo
+    };
+    
+    if (decisao === 'ACEITAR_COM_DESCONTO' && percentualDesconto) {
+        data.percentual_desconto = parseFloat(percentualDesconto);
+    }
+    
+    const confirmacao = confirm(`Confirma a decisão: ${decisao}?\n\nEsta ação não poderá ser desfeita.`);
+    if (!confirmacao) return;
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/conferencia/${conferencia_id}/decisao-adm`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            alert('Decisão registrada com sucesso!');
+            window.location.href = '/conferencias';
+        } else {
+            alert('Erro: ' + result.erro);
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao registrar decisão');
+    }
+});
+
+carregarConferencia();
+</script>
+{% endblock %}

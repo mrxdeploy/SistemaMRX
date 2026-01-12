@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tipos de Lote - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Tipos de Lote</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="bottom-nav">
+        <a href="/administracao.html" class="bottom-nav-item">
+            <i class="fas fa-cog icon"></i>
+            <span>Administração</span>
+        </a>
+        <a href="/dashboard.html" class="bottom-nav-item">
+            <i class="fas fa-chart-line icon"></i>
+            <span>Dashboard</span>
+        </a>
+        <div class="fab-container">
+            <button class="fab-button" onclick="window.location.href='/funcionario.html'" aria-label="Nova Solicitação">
+                <i class="fas fa-plus icon"></i>
+            </button>
+        </div>
+        <a href="/solicitacoes.html" class="bottom-nav-item">
+            <i class="fas fa-file-alt icon"></i>
+            <span>Compra</span>
+        </a>
+        <a href="/fornecedores.html" class="bottom-nav-item">
+            <i class="fas fa-building icon"></i>
+            <span>Fornecedores</span>
+        </a>
+    </nav>
+
+    <main class="container mt-4">
+        <div class="flex justify-between items-center mb-3" style="flex-wrap: wrap; gap: var(--spacing-md);">
+            <h1 style="font-size: clamp(1.5rem, 6vw, 2rem);">Gerenciar Tipos de Lote</h1>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="btn btn-secondary" onclick="document.getElementById('fileExcel').click()">
+                    <i class="fas fa-file-excel"></i> Importar Excel
+                </button>
+                <button class="btn btn-secondary" onclick="exportarExcel()">
+                    <i class="fas fa-file-download"></i> Exportar Excel
+                </button>
+                <button class="btn btn-primary" onclick="abrirModalNovoTipo()">+ Novo Tipo</button>
+            </div>
+        </div>
+
+        <input type="file" id="fileExcel" accept=".xlsx,.xls" style="display: none;" onchange="importarExcel()">
+
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nome</th>
+                            <th>Preços Configurados</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaTipos">
+                        <tr><td colspan="4" class="loading">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Tipo de Lote -->
+    <div class="modal" id="modalTipo">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="tituloModalTipo">Novo Tipo de Lote</h2>
+                <button class="modal-close" onclick="fecharModalTipo()">&times;</button>
+            </div>
+            <form id="formTipo">
+                <input type="hidden" id="tipoId">
+                
+                <div class="form-group">
+                    <label>Nome <span style="color: red;">*</span></label>
+                    <input type="text" id="nome" required placeholder="Ex: Placa Mãe" oninput="gerarCodigoAutomatico()">
+                </div>
+
+                <div class="form-group">
+                    <label>Código <small style="color: #666;">(gerado automaticamente)</small></label>
+                    <input type="text" id="codigo" placeholder="Ex: PM001" readonly style="background: #f3f4f6;">
+                </div>
+
+                <div class="form-group" style="display: none;">
+                    <label>Classificação (Obsoleto)</label>
+                    <select id="classificacao">
+                        <option value="">Não utilizado</option>
+                    </select>
+                    <small style="color: #666;">Este campo não é mais necessário. As classificações são configuradas por fornecedor.</small>
+                </div>
+
+                <div id="camposPrecosPadrao" style="background: #f0fdf4; padding: 1.5rem; border-radius: 8px; margin-top: 1rem; border-left: 4px solid #10b981;">
+                    <h4 style="margin: 0 0 1rem 0; color: #047857; display: flex; align-items: center; gap: 0.5rem;">
+                         Preços por Classificação
+                    </h4>
+                    <p style="margin: 0 0 1rem 0; font-size: 0.9rem; color: #6b7280;">
+                        Configure os 3 preços por kg para cada classificação de lote. <strong>Obrigatório!</strong>
+                    </p>
+                    
+                    <div style="display: grid; gap: 1rem;">
+                        <div style="display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 1rem;">
+                            <label style="margin: 0; font-weight: 500; color: #059669;">Leve</label>
+                            <div style="display: flex; align-items: center;">
+                                <span style="margin-right: 0.5rem;">R$</span>
+                                <input type="number" id="precoLeve" step="0.01" min="0" placeholder="0.00" required style="flex: 1; padding: 0.5rem;">
+                                <span style="margin-left: 0.5rem;">/kg</span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 1rem;">
+                            <label style="margin: 0; font-weight: 500; color: #f59e0b;"> Médio</label>
+                            <div style="display: flex; align-items: center;">
+                                <span style="margin-right: 0.5rem;">R$</span>
+                                <input type="number" id="precoMedio" step="0.01" min="0" placeholder="0.00" required style="flex: 1; padding: 0.5rem;">
+                                <span style="margin-left: 0.5rem;">/kg</span>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 1rem;">
+                            <label style="margin: 0; font-weight: 500; color: #ef4444;"> Pesado</label>
+                            <div style="display: flex; align-items: center;">
+                                <span style="margin-right: 0.5rem;">R$</span>
+                                <input type="number" id="precoPesado" step="0.01" min="0" placeholder="0.00" required style="flex: 1; padding: 0.5rem;">
+                                <span style="margin-left: 0.5rem;">/kg</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>Descrição</label>
+                    <textarea id="descricao" rows="3" placeholder="Descrição detalhada do tipo de lote"></textarea>
+                </div>
+
+                <div id="secaoEstrelasFornecedores" style="margin-top: 1.5rem; background: #fef3c7; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                    <h4 style="margin: 0 0 0.5rem 0; color: #92400e; display: flex; align-items: center; gap: 0.5rem;">
+                         Estrelas por Fornecedor
+                    </h4>
+                    <p style="margin: 0 0 1rem 0; font-size: 0.9rem; color: #78350f;">
+                        Configure quantas estrelas cada fornecedor atribui para as classificações Leve, Médio e Pesado.
+                    </p>
+                    <div id="listaFornecedoresEstrelas" style="max-height: 300px; overflow-y: auto;">
+                        <p style="color: #666; text-align: center;">Carregando fornecedores...</p>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharModalTipo()" style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Modal Estrelas por Fornecedor -->
+    <div class="modal" id="modalEstrelasFornecedor">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>Configurar Estrelas por Fornecedor</h2>
+                <button class="modal-close" onclick="fecharModalEstrelasFornecedor()">&times;</button>
+            </div>
+            
+            <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                <h4 style="margin: 0 0 0.5rem 0; color: #0369a1;">
+                    <i class="fas fa-box"></i> <span id="nomeTipoEstrelas"></span>
+                </h4>
+                <p style="margin: 0; color: #666; font-size: 0.9rem;">
+                    Configure quantas estrelas cada fornecedor atribui para classificações Leve, Médio e Pesado deste tipo de lote.
+                </p>
+            </div>
+
+            <input type="hidden" id="tipoIdEstrelas">
+            
+            <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="btn btn-sm btn-info" onclick="baixarModeloEstrelasExcel()">
+                    <i class="fas fa-download"></i> Baixar Modelo
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="document.getElementById('fileExcelEstrelasModal').click()">
+                    <i class="fas fa-file-upload"></i> Importar Excel
+                </button>
+                <input type="file" id="fileExcelEstrelasModal" accept=".xlsx,.xls" style="display: none;" onchange="importarEstrelasExcel()">
+            </div>
+
+            <div id="listaFornecedoresEstrelas" style="max-height: 500px; overflow-y: auto;">
+                <p style="text-align: center; padding: 2rem; color: #666;">Carregando fornecedores...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/auth.js"></script>
+    <script>
+        let tiposLote = [];
+        let fornecedoresCache = [];
+
+        function mostrarMensagem(mensagem, tipo = 'success') {
+            alert(mensagem);
+        }
+
+        async function carregarTipos() {
+            try {
+                const response = await fetch('/api/tipos-lote', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Erro ao carregar tipos de lote');
+
+                tiposLote = await response.json();
+                renderizarTabela();
+            } catch (error) {
+                console.error('Erro:', error);
+                mostrarMensagem('Erro ao carregar tipos de lote', 'error');
+            }
+        }
+
+        async function renderizarTabela() {
+            const tbody = document.getElementById('tabelaTipos');
+            
+            if (tiposLote.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem;">Nenhum tipo de lote cadastrado</td></tr>';
+                return;
+            }
+
+            const tiposComPrecos = await Promise.all(tiposLote.map(async tipo => {
+                try {
+                    const response = await fetch(`/api/tipos-lote/${tipo.id}/precos-classificacao`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    });
+                    if (response.ok) {
+                        const precos = await response.json();
+                        tipo.precos = precos;
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar preços:', error);
+                }
+                return tipo;
+            }));
+
+            tbody.innerHTML = tiposComPrecos.map(tipo => {
+                const precos = tipo.precos || {};
+                const leve = precos.leve_preco ? `R$ ${precos.leve_preco.toFixed(2)}` : '-';
+                const medio = precos.medio_preco ? `R$ ${precos.medio_preco.toFixed(2)}` : '-';
+                const pesado = precos.pesado_preco ? `R$ ${precos.pesado_preco.toFixed(2)}` : '-';
+                
+                return `
+                <tr>
+                    <td><strong>${tipo.codigo || '-'}</strong></td>
+                    <td>${tipo.nome}</td>
+                    <td style="font-size: 0.85rem;">
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <span>Leve: <strong>${leve}</strong></span>
+                            <span>Médio: <strong>${medio}</strong></span>
+                            <span>Pesado: <strong>${pesado}</strong></span>
+                        </div>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="editarTipo(${tipo.id})" title="Editar tipo e preços">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deletarTipo(${tipo.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        async function carregarFornecedoresParaTipo(tipoId) {
+            const listaDiv = document.getElementById('listaFornecedoresEstrelas');
+            listaDiv.innerHTML = '<p style="text-align: center; color: #666;">Carregando fornecedores...</p>';
+
+            try {
+                const fornecedoresResp = await fetch('/api/fornecedores', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                
+                if (!fornecedoresResp.ok) throw new Error('Erro ao carregar fornecedores');
+                
+                const fornecedores = await fornecedoresResp.json();
+                fornecedoresCache = fornecedores;
+
+                let classificacoes = [];
+                if (tipoId) {
+                    const classResp = await fetch(`/api/fornecedor-tipo-lote-classificacoes?tipo_lote_id=${tipoId}`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    });
+                    if (classResp.ok) {
+                        classificacoes = await classResp.json();
+                    }
+                }
+
+                listaDiv.innerHTML = fornecedores.map(f => {
+                    const classif = classificacoes.find(c => c.fornecedor_id === f.id) || {};
+                    return `
+                        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;" data-fornecedor-id="${f.id}">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                <strong style="color: #111827;">${f.nome}</strong>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                    <input type="checkbox" class="fornecedor-ativo" data-fornecedor-id="${f.id}" ${classif.ativo !== false ? 'checked' : ''}>
+                                    <span style="font-size: 0.875rem; color: #6b7280;">Ativo</span>
+                                </label>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 0.25rem;">Leve ()</label>
+                                    <input type="number" class="estrela-leve" data-fornecedor-id="${f.id}" min="1" max="5" value="${classif.leve_estrelas || 1}" style="width: 100%; padding: 0.375rem; border: 1px solid #d1d5db; border-radius: 4px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 0.25rem;">Médio ()</label>
+                                    <input type="number" class="estrela-medio" data-fornecedor-id="${f.id}" min="1" max="5" value="${classif.medio_estrelas || 1}" style="width: 100%; padding: 0.375rem; border: 1px solid #d1d5db; border-radius: 4px;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 0.25rem;">Pesado ()</label>
+                                    <input type="number" class="estrela-pesado" data-fornecedor-id="${f.id}" min="1" max="5" value="${classif.pesado_estrelas || 1}" style="width: 100%; padding: 0.375rem; border: 1px solid #d1d5db; border-radius: 4px;">
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Erro ao carregar fornecedores:', error);
+                listaDiv.innerHTML = '<p style="text-align: center; color: #dc2626;">Erro ao carregar fornecedores</p>';
+            }
+        }
+
+        async function abrirModalNovoTipo() {
+            document.getElementById('tituloModalTipo').textContent = 'Novo Tipo de Lote';
+            document.getElementById('formTipo').reset();
+            document.getElementById('tipoId').value = '';
+            document.getElementById('precoLeve').value = '';
+            document.getElementById('precoMedio').value = '';
+            document.getElementById('precoPesado').value = '';
+            await carregarFornecedoresParaTipo(null);
+            document.getElementById('modalTipo').style.display = 'flex';
+        }
+
+        function fecharModalTipo() {
+            document.getElementById('modalTipo').style.display = 'none';
+        }
+
+        async function editarTipo(id) {
+            const tipo = tiposLote.find(t => t.id === id);
+            if (!tipo) return;
+
+            document.getElementById('tituloModalTipo').textContent = 'Editar Tipo de Lote';
+            document.getElementById('tipoId').value = tipo.id;
+            document.getElementById('nome').value = tipo.nome;
+            document.getElementById('codigo').value = tipo.codigo || '';
+            document.getElementById('classificacao').value = tipo.classificacao;
+            document.getElementById('descricao').value = tipo.descricao || '';
+            
+            document.getElementById('precoLeve').value = '';
+            document.getElementById('precoMedio').value = '';
+            document.getElementById('precoPesado').value = '';
+            
+            try {
+                const response = await fetch(`/api/tipos-lote/${id}/precos-classificacao`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const precos = await response.json();
+                    if (precos.leve_preco) document.getElementById('precoLeve').value = precos.leve_preco;
+                    if (precos.medio_preco) document.getElementById('precoMedio').value = precos.medio_preco;
+                    if (precos.pesado_preco) document.getElementById('precoPesado').value = precos.pesado_preco;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar preços:', error);
+            }
+            
+            await carregarFornecedoresParaTipo(id);
+            document.getElementById('modalTipo').style.display = 'flex';
+        }
+
+        document.getElementById('formTipo').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const tipoId = document.getElementById('tipoId').value;
+            const dados = {
+                nome: document.getElementById('nome').value,
+                codigo: document.getElementById('codigo').value,
+                classificacao: document.getElementById('classificacao').value,
+                descricao: document.getElementById('descricao').value
+            };
+
+            try {
+                const url = tipoId ? `/api/tipos-lote/${tipoId}` : '/api/tipos-lote';
+                const method = tipoId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(dados)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao salvar');
+                }
+
+                const resultado = await response.json();
+                const finalTipoId = tipoId || resultado.id;
+
+                const precoLeve = document.getElementById('precoLeve').value;
+                const precoMedio = document.getElementById('precoMedio').value;
+                const precoPesado = document.getElementById('precoPesado').value;
+
+                if (precoLeve || precoMedio || precoPesado) {
+                    const precosData = {};
+                    if (precoLeve) precosData.leve_preco = parseFloat(precoLeve);
+                    if (precoMedio) precosData.medio_preco = parseFloat(precoMedio);
+                    if (precoPesado) precosData.pesado_preco = parseFloat(precoPesado);
+
+                    const precosResp = await fetch(`/api/tipos-lote/${finalTipoId}/precos-classificacao`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify(precosData)
+                    });
+
+                    if (!precosResp.ok) {
+                        console.error('Erro ao salvar preços de classificação');
+                    }
+                }
+
+                const fornecedoresDivs = document.querySelectorAll('#listaFornecedoresEstrelas > div[data-fornecedor-id]');
+                for (const div of fornecedoresDivs) {
+                    const fornecedorId = div.getAttribute('data-fornecedor-id');
+                    const ativo = div.querySelector('.fornecedor-ativo').checked;
+                    const leveEstrelas = div.querySelector('.estrela-leve').value;
+                    const medioEstrelas = div.querySelector('.estrela-medio').value;
+                    const pesadoEstrelas = div.querySelector('.estrela-pesado').value;
+
+                    const classificacaoData = {
+                        fornecedor_id: parseInt(fornecedorId),
+                        tipo_lote_id: parseInt(finalTipoId),
+                        leve_estrelas: parseInt(leveEstrelas),
+                        medio_estrelas: parseInt(medioEstrelas),
+                        pesado_estrelas: parseInt(pesadoEstrelas),
+                        ativo: ativo
+                    };
+
+                    const classifResp = await fetch('/api/fornecedor-tipo-lote-classificacoes', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify(classificacaoData)
+                    });
+
+                    if (!classifResp.ok && classifResp.status !== 409) {
+                        console.error(`Erro ao salvar classificação do fornecedor ${fornecedorId}`);
+                    }
+                }
+
+                mostrarMensagem(tipoId ? 'Tipo e classificações atualizados com sucesso!' : 'Tipo e classificações criados com sucesso!');
+                fecharModalTipo();
+                carregarTipos();
+            } catch (error) {
+                mostrarMensagem(error.message, 'error');
+            }
+        });
+
+        async function deletarTipo(id) {
+            if (!confirm('Tem certeza que deseja deletar este tipo de lote?')) return;
+
+            try {
+                const response = await fetch(`/api/tipos-lote/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao deletar');
+                }
+
+                mostrarMensagem('Tipo deletado com sucesso!');
+                carregarTipos();
+            } catch (error) {
+                mostrarMensagem(error.message, 'error');
+            }
+        }
+
+        // Funções antigas de modal de preços removidas - agora configurado direto no modal do tipo
+
+        async function importarExcel() {
+            const fileInput = document.getElementById('fileExcel');
+            const file = fileInput.files[0];
+
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('arquivo', file);
+
+            try {
+                const response = await fetch('/api/tipos-lote/importar-excel', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.erro || 'Erro ao importar');
+                }
+
+                let mensagem = `Importação concluída!\n`;
+                mensagem += ` ${result.tipos_criados} tipo(s) criado(s)\n`;
+                mensagem += ` ${result.tipos_atualizados} tipo(s) atualizado(s)\n`;
+                if (result.estrelas_criadas || result.estrelas_atualizadas) {
+                    mensagem += ` ${result.estrelas_criadas || 0} estrela(s) criada(s)\n`;
+                    mensagem += ` ${result.estrelas_atualizadas || 0} estrela(s) atualizada(s)`;
+                }
+                
+                if (result.erros && result.erros.length > 0) {
+                    mensagem += `\n\n ${result.erros.length} erro(s):\n`;
+                    mensagem += result.erros.slice(0, 5).join('\n');
+                    if (result.erros.length > 5) {
+                        mensagem += `\n... e mais ${result.erros.length - 5} erro(s)`;
+                    }
+                }
+
+                alert(mensagem);
+                carregarTipos();
+            } catch (error) {
+                mostrarMensagem(error.message, 'error');
+            } finally {
+                fileInput.value = '';
+            }
+        }
+
+        async function exportarExcel() {
+            try {
+                const response = await fetch('/api/tipos-lote/exportar-excel', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Erro ao exportar');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `tipos_lote_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                mostrarMensagem('Excel exportado com sucesso!');
+            } catch (error) {
+                mostrarMensagem(error.message, 'error');
+            }
+        }
+
+        // ===== FUNÇÕES PARA ESTRELAS POR FORNECEDOR =====
+        
+        async function abrirModalEstrelasFornecedor(tipoId) {
+            const tipo = tiposLote.find(t => t.id === tipoId);
+            if (!tipo) return;
+
+            document.getElementById('tipoIdEstrelas').value = tipoId;
+            document.getElementById('nomeTipoEstrelas').textContent = tipo.nome;
+            document.getElementById('modalEstrelasFornecedor').style.display = 'flex';
+            
+            await carregarFornecedoresParaClassificacao(tipoId);
+        }
+
+        function fecharModalEstrelasFornecedor() {
+            document.getElementById('modalEstrelasFornecedor').style.display = 'none';
+        }
+
+        async function carregarFornecedoresParaClassificacao(tipoId) {
+            const container = document.getElementById('listaFornecedoresEstrelas');
+            container.innerHTML = '<p style="text-align: center; padding: 2rem;">Carregando...</p>';
+
+            try {
+                if (fornecedoresCache.length === 0) {
+                    const respFornecedores = await fetch('/api/fornecedores', {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    });
+                    fornecedoresCache = await respFornecedores.json();
+                }
+
+                const respClassificacoes = await fetch(`/api/fornecedor-tipo-lote-classificacoes?tipo_lote_id=${tipoId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const classificacoes = await respClassificacoes.json();
+
+                const classificacoesMap = {};
+                classificacoes.forEach(c => {
+                    classificacoesMap[c.fornecedor_id] = c;
+                });
+
+                if (fornecedoresCache.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; padding: 2rem; color: #666;">Nenhum fornecedor cadastrado</p>';
+                    return;
+                }
+
+                container.innerHTML = fornecedoresCache.map(fornecedor => {
+                    const classificacao = classificacoesMap[fornecedor.id];
+                    const leve = classificacao?.leve_estrelas || 1;
+                    const medio = classificacao?.medio_estrelas || 3;
+                    const pesado = classificacao?.pesado_estrelas || 5;
+                    const ativo = classificacao?.ativo !== false;
+                    const classifId = classificacao?.id || null;
+
+                    return `
+                        <div class="card" style="margin-bottom: 1rem; padding: 1rem;" data-fornecedor-id="${fornecedor.id}">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <h4 style="margin: 0; color: #059669;">
+                                    <i class="fas fa-building"></i> ${fornecedor.nome}
+                                </h4>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                                    <input type="checkbox" ${ativo ? 'checked' : ''} 
+                                           onchange="toggleAtivo(${fornecedor.id}, ${tipoId}, this.checked, ${classifId})">
+                                    <span>Ativo</span>
+                                </label>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+                                        Leve
+                                    </label>
+                                    <select class="form-control" id="leve_${fornecedor.id}" style="width: 100%;">
+                                        ${[1,2,3,4,5].map(n => `<option value="${n}" ${leve === n ? 'selected' : ''}>${''.repeat(n)} ${n}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+                                         Médio
+                                    </label>
+                                    <select class="form-control" id="medio_${fornecedor.id}" style="width: 100%;">
+                                        ${[1,2,3,4,5].map(n => `<option value="${n}" ${medio === n ? 'selected' : ''}>${''.repeat(n)} ${n}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+                                         Pesado
+                                    </label>
+                                    <select class="form-control" id="pesado_${fornecedor.id}" style="width: 100%;">
+                                        ${[1,2,3,4,5].map(n => `<option value="${n}" ${pesado === n ? 'selected' : ''}>${''.repeat(n)} ${n}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" style="margin-top: 1rem; width: 100%;" 
+                                    onclick="salvarClassificacaoEstrelas(${fornecedor.id}, ${tipoId}, ${classifId})">
+                                <i class="fas fa-save"></i> Salvar Classificação
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Erro:', error);
+                container.innerHTML = '<p style="text-align: center; padding: 2rem; color: #ef4444;">Erro ao carregar fornecedores</p>';
+            }
+        }
+
+        async function toggleAtivo(fornecedorId, tipoId, ativo, classifId) {
+            if (!classifId) {
+                mostrarMensagem('Salve a classificação primeiro antes de alterar o status', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/fornecedor-tipo-lote-classificacoes/${classifId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ ativo })
+                });
+
+                if (!response.ok) throw new Error('Erro ao atualizar status');
+                
+                mostrarMensagem('Status atualizado com sucesso!');
+            } catch (error) {
+                mostrarMensagem(error.message, 'error');
+            }
+        }
+
+        async function salvarClassificacaoEstrelas(fornecedorId, tipoId, classifId) {
+            const leve = parseInt(document.getElementById(`leve_${fornecedorId}`).value);
+            const medio = parseInt(document.getElementById(`medio_${fornecedorId}`).value);
+            const pesado = parseInt(document.getElementById(`pesado_${fornecedorId}`).value);
+
+            const dados = {
+                fornecedor_id: fornecedorId,
+                tipo_lote_id: tipoId,
+                leve_estrelas: leve,
+                medio_estrelas: medio,
+                pesado_estrelas: pesado,
+                ativo: true
+            };
+
+            try {
+                const url = classifId 
+                    ? `/api/fornecedor-tipo-lote-classificacoes/${classifId}`
+                    : '/api/fornecedor-tipo-lote-classificacoes';
+                const method = classifId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(dados)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao salvar');
+                }
+
+                mostrarMensagem('Classificação salva com sucesso!');
+                await carregarFornecedoresParaClassificacao(tipoId);
+            } catch (error) {
+                mostrarMensagem(error.message, 'error');
+            }
+        }
+
+        async function baixarModeloEstrelasExcel() {
+            try {
+                const response = await fetch('/api/fornecedor-tipo-lote-classificacoes/modelo-excel', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                if (!response.ok) throw new Error('Erro ao baixar modelo');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `modelo_classificacoes_estrelas_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                mostrarMensagem(error.message, 'error');
+            }
+        }
+
+        async function importarEstrelasExcel() {
+            const fileInput = document.getElementById('fileExcelEstrelas') || document.getElementById('fileExcelEstrelasModal');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                mostrarMensagem('Nenhum arquivo selecionado', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('arquivo', file);
+
+            try {
+                const response = await fetch('/api/fornecedor-tipo-lote-classificacoes/importar-excel', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.erro || 'Erro ao importar');
+                }
+
+                let mensagem = `Importação de Estrelas Concluída!\n\n`;
+                mensagem += ` ${result.criados} classificação(ões) criada(s)\n`;
+                mensagem += ` ${result.atualizados} classificação(ões) atualizada(s)`;
+                
+                if (result.erros && result.erros.length > 0) {
+                    mensagem += `\n\n ${result.total_erros} erro(s):\n`;
+                    mensagem += result.erros.slice(0, 5).join('\n');
+                    if (result.erros.length > 5) {
+                        mensagem += `\n... e mais ${result.erros.length - 5} erro(s)`;
+                    }
+                }
+
+                alert(mensagem);
+                
+                const tipoId = document.getElementById('tipoIdEstrelas').value;
+                if (tipoId) {
+                    await carregarFornecedoresParaClassificacao(tipoId);
+                }
+            } catch (error) {
+                mostrarMensagem(error.message, 'error');
+            } finally {
+                fileInput.value = '';
+            }
+        }
+
+        async function exportarEstrelasExcel() {
+            try {
+                const response = await fetch('/api/fornecedor-tipo-lote-classificacoes/exportar-excel', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                if (!response.ok) throw new Error('Erro ao exportar');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `classificacoes_estrelas_${new Date().toISOString().replace(/[:.]/g, '-')}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                mostrarMensagem(error.message, 'error');
+            }
+        }
+
+        function atualizarCamposPrecos() {
+            // Função obsoleta - mantida para compatibilidade com cache antigo do browser
+            // O campo de classificação agora está oculto
+        }
+
+        function gerarCodigoAutomatico() {
+            const tipoId = document.getElementById('tipoId').value;
+            if (tipoId) return; // Não gerar código ao editar
+            
+            const nome = document.getElementById('nome').value.trim();
+            if (!nome) {
+                document.getElementById('codigo').value = '';
+                return;
+            }
+            
+            // Pegar as primeiras letras de cada palavra
+            const palavras = nome.split(' ');
+            let codigo = '';
+            
+            palavras.forEach(palavra => {
+                if (palavra.length > 0) {
+                    codigo += palavra[0].toUpperCase();
+                }
+            });
+            
+            // Adicionar número sequencial baseado no total de tipos
+            const numeroSequencial = String(tiposLote.length + 1).padStart(3, '0');
+            codigo = codigo.substring(0, 4) + numeroSequencial;
+            
+            document.getElementById('codigo').value = codigo;
+        }
+
+        carregarTipos();
+    </script>
+</body>
+</html>

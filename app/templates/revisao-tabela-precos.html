@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revisao de Tabela de Precos - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .page-header {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+        
+        .page-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .page-header .subtitle {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid #e5e7eb;
+        }
+        
+        .stat-card.total { border-left-color: #3b82f6; }
+        .stat-card.acima { border-left-color: #ef4444; }
+        .stat-card.media { border-left-color: #22c55e; }
+        .stat-card.abaixo { border-left-color: #f59e0b; }
+        
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .actions-bar {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn-aprovar {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+        
+        .btn-aprovar:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        }
+        
+        .btn-rejeitar {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+        
+        .btn-rejeitar:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+        
+        .btn-voltar {
+            background: #f3f4f6;
+            color: #374151;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            background: #f8fafc;
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .table-title {
+            font-weight: 600;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+        }
+        
+        .search-box input {
+            border: none;
+            outline: none;
+            font-size: 0.9rem;
+            width: 200px;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .items-table th {
+            background: #f8fafc;
+            padding: 0.875rem 1rem;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .items-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #f3f4f6;
+            vertical-align: middle;
+        }
+        
+        .items-table tr:hover {
+            background: #f8fafc;
+        }
+        
+        .material-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .material-nome {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .material-codigo {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+        
+        .preco-cell {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        
+        .comparacao-cell {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .media-valor {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+        
+        .diferenca-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .diferenca-badge.acima {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .diferenca-badge.abaixo {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        
+        .diferenca-badge.media {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+        
+        .estrelas-cell {
+            display: flex;
+            gap: 0.125rem;
+        }
+        
+        .estrela {
+            color: #fbbf24;
+            font-size: 0.875rem;
+        }
+        
+        .estrela.vazia {
+            color: #e5e7eb;
+        }
+        
+        .valor-35 {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 0.25rem;
+        }
+        
+        .btn-edit {
+            background: #f3f4f6;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+        
+        .btn-edit:hover {
+            background: #059669;
+            color: white;
+        }
+        
+        .editable-price {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .price-input {
+            width: 100px;
+            padding: 0.375rem 0.5rem;
+            border: 2px solid #059669;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .price-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-header h2 {
+            font-size: 1.25rem;
+            color: #1f2937;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #9ca3af;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.375rem;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.625rem 0.75rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .info-box {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .info-box.warning {
+            background: #fef3c7;
+            border-color: #fcd34d;
+        }
+        
+        .info-box p {
+            font-size: 0.875rem;
+            color: #166534;
+            margin: 0;
+        }
+        
+        .info-box.warning p {
+            color: #92400e;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        
+        .loading-overlay.active {
+            display: flex;
+        }
+        
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #059669;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #9ca3af;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .items-table {
+                display: block;
+                overflow-x: auto;
+            }
+            
+            .actions-bar {
+                flex-direction: column;
+            }
+            
+            .btn-aprovar, .btn-rejeitar, .btn-voltar {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Revisao de Tabela</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <main class="container" style="padding-top: 80px; padding-bottom: 2rem;">
+        <div class="page-header">
+            <h1 id="fornecedorNome">Carregando...</h1>
+            <p class="subtitle" id="fornecedorInfo">-</p>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card total">
+                <div class="stat-value" id="totalItens">0</div>
+                <div class="stat-label">Total de Itens</div>
+            </div>
+            <div class="stat-card acima">
+                <div class="stat-value" id="itensAcima">0</div>
+                <div class="stat-label">Acima da Media</div>
+            </div>
+            <div class="stat-card media">
+                <div class="stat-value" id="itensMedia">0</div>
+                <div class="stat-label">Na Media</div>
+            </div>
+            <div class="stat-card abaixo">
+                <div class="stat-value" id="itensAbaixo">0</div>
+                <div class="stat-label">Abaixo da Media</div>
+            </div>
+        </div>
+
+        <div class="actions-bar">
+            <button class="btn-voltar" onclick="window.location.href='/administracao.html'">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </button>
+            <button class="btn-aprovar" onclick="aprovarTabela()">
+                <i class="fas fa-check-circle"></i> Aprovar Tudo
+            </button>
+            <button class="btn-rejeitar" onclick="abrirModalRejeitar()">
+                <i class="fas fa-times-circle"></i> Enviar para Nova Analise
+            </button>
+        </div>
+
+        <div class="table-container">
+            <div class="table-header">
+                <div class="table-title">
+                    <i class="fas fa-table"></i>
+                    <span>Itens da Tabela de Precos</span>
+                </div>
+                <div class="search-box">
+                    <i class="fas fa-search" style="color: #9ca3af;"></i>
+                    <input type="text" id="searchInput" placeholder="Buscar material..." oninput="filtrarItens()">
+                </div>
+            </div>
+            
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Material</th>
+                        <th>Preco Fornecedor</th>
+                        <th>Valores por Estrela</th>
+                        <th>Diferenca da Estrela Proxima</th>
+                        <th>Acoes</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelaItens">
+                    <tr>
+                        <td colspan="6" class="loading">Carregando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div class="modal" id="modalEditar">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Editar Preco</h2>
+                <button class="modal-close" onclick="fecharModalEditar()">&times;</button>
+            </div>
+            <div class="info-box">
+                <p><strong>Material:</strong> <span id="editMaterialNome">-</span></p>
+            </div>
+            <form id="formEditar" onsubmit="salvarEdicao(event)">
+                <input type="hidden" id="editPrecoId">
+                <div class="form-group">
+                    <label>Preco Atual (R$)</label>
+                    <input type="text" id="editPrecoAtual" readonly style="background: #f3f4f6;">
+                </div>
+                <div class="form-group">
+                    <label>Novo Preco (R$)</label>
+                    <input type="number" id="editNovoPreco" step="0.01" min="0" required>
+                </div>
+                <div class="info-box warning">
+                    <p><i class="fas fa-info-circle"></i> Ao alterar o preco, o comprador responsavel sera notificado automaticamente.</p>
+                </div>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharModalEditar()" style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="modalRejeitar">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Enviar para Nova Analise</h2>
+                <button class="modal-close" onclick="fecharModalRejeitar()">&times;</button>
+            </div>
+            <div class="info-box warning">
+                <p><i class="fas fa-exclamation-triangle"></i> Esta acao ira rejeitar a tabela de precos e notificar o comprador para reenvio.</p>
+            </div>
+            <form id="formRejeitar" onsubmit="rejeitarTabela(event)">
+                <div class="form-group">
+                    <label>Motivo da Rejeicao</label>
+                    <textarea id="motivoRejeicao" placeholder="Descreva o motivo pelo qual a tabela precisa ser revisada..." required></textarea>
+                </div>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharModalRejeitar()" style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn-rejeitar" style="flex: 1; justify-content: center;">
+                        <i class="fas fa-times-circle"></i> Rejeitar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/rbac.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        let fornecedorId = null;
+        let itensData = [];
+
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+            
+            if (user.tipo !== 'admin') {
+                showAlert('Acesso negado. Apenas administradores podem acessar esta pagina.');
+                window.location.href = '/dashboard.html';
+                return;
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            fornecedorId = urlParams.get('fornecedor_id');
+            
+            if (!fornecedorId) {
+                showAlert('Fornecedor nao especificado');
+                window.location.href = '/administracao.html';
+                return;
+            }
+
+            await carregarDados();
+            await atualizarNotificacoes();
+        }
+
+        async function carregarDados() {
+            showLoading(true);
+            try {
+                const response = await fetchAPI(`/fornecedor-tabela-precos/admin/revisao/${fornecedorId}`);
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao carregar dados');
+                }
+                
+                const data = await response.json();
+                
+                document.getElementById('fornecedorNome').textContent = data.fornecedor.nome;
+                document.getElementById('fornecedorInfo').textContent = 
+                    `${data.fornecedor.cnpj || data.fornecedor.cpf || 'Sem documento'} | Comprador: ${data.fornecedor.comprador_responsavel_nome || 'Nao atribuido'}`;
+                
+                document.getElementById('totalItens').textContent = data.resumo.total_itens;
+                document.getElementById('itensAcima').textContent = data.resumo.itens_acima_media;
+                document.getElementById('itensMedia').textContent = data.resumo.itens_na_media;
+                document.getElementById('itensAbaixo').textContent = data.resumo.itens_abaixo_media;
+                
+                itensData = data.itens;
+                renderizarItens(itensData);
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert(error.message || 'Erro ao carregar dados');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderizarItens(itens) {
+            const tbody = document.getElementById('tabelaItens');
+            
+            if (!itens || itens.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <p>Nenhum item encontrado</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = itens.map(item => {
+                const precoFornecedor = item.preco_fornecedor || 0;
+                const precosEstrela = item.precos_por_estrela || {};
+                
+                const preco1 = precosEstrela[1] || 0;
+                const preco2 = precosEstrela[2] || 0;
+                const preco3 = precosEstrela[3] || 0;
+                
+                let estrelaMaisProxima = 0;
+                let valorMaisProximo = 0;
+                let menorDiferenca = Infinity;
+                
+                [1, 2, 3].forEach(nivel => {
+                    const precoEstrela = precosEstrela[nivel];
+                    if (precoEstrela && precoEstrela > 0) {
+                        const diff = Math.abs(precoFornecedor - precoEstrela);
+                        if (diff < menorDiferenca) {
+                            menorDiferenca = diff;
+                            estrelaMaisProxima = nivel;
+                            valorMaisProximo = precoEstrela;
+                        }
+                    }
+                });
+                
+                let estrelas = '';
+                for (let i = 1; i <= 3; i++) {
+                    if (i <= estrelaMaisProxima) {
+                        estrelas += `<i class="fas fa-star estrela"></i>`;
+                    } else {
+                        estrelas += `<i class="fas fa-star estrela vazia"></i>`;
+                    }
+                }
+                
+                let diferencaPercentual = 0;
+                let diferencaClass = 'media';
+                let statusTexto = 'na estrela';
+                
+                if (valorMaisProximo > 0) {
+                    diferencaPercentual = ((precoFornecedor - valorMaisProximo) / valorMaisProximo) * 100;
+                    if (diferencaPercentual > 0) {
+                        diferencaClass = 'acima';
+                        statusTexto = 'acima da estrela';
+                    } else if (diferencaPercentual < 0) {
+                        diferencaClass = 'abaixo';
+                        statusTexto = 'abaixo da estrela';
+                    }
+                }
+                
+                const diferencaIcon = diferencaPercentual > 0 ? 'fa-arrow-up' : 
+                                     diferencaPercentual < 0 ? 'fa-arrow-down' : 'fa-minus';
+                
+                const materialNomeEscaped = (item.material_nome || '').replace(/'/g, "\\'");
+                
+                return `
+                    <tr data-id="${item.id}">
+                        <td>
+                            <div class="material-info">
+                                <span class="material-nome">${item.material_nome || '-'}</span>
+                                <span class="material-codigo">${item.material_codigo || ''} ${item.material_classificacao ? '| ' + item.material_classificacao : ''}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="preco-cell">R$ ${precoFornecedor.toFixed(2)}</span>
+                        </td>
+                        <td>
+                            <div class="comparacao-cell">
+                                <div style="display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem;">
+                                    <span style="color: ${estrelaMaisProxima === 1 ? '#059669; font-weight: 600;' : '#6b7280'}; display: flex; align-items: center; gap: 0.25rem;">
+                                        <i class="fas fa-star" style="color: #fbbf24; font-size: 0.7rem;"></i> R$ ${preco1.toFixed(2)}
+                                        ${estrelaMaisProxima === 1 ? '<span style="background: #059669; color: white; font-size: 0.6rem; padding: 0.1rem 0.3rem; border-radius: 4px; margin-left: 0.25rem;">Referência</span>' : ''}
+                                    </span>
+                                    <span style="color: ${estrelaMaisProxima === 2 ? '#059669; font-weight: 600;' : '#6b7280'}; display: flex; align-items: center; gap: 0.25rem;">
+                                        <i class="fas fa-star" style="color: #fbbf24; font-size: 0.7rem;"></i><i class="fas fa-star" style="color: #fbbf24; font-size: 0.7rem;"></i> R$ ${preco2.toFixed(2)}
+                                        ${estrelaMaisProxima === 2 ? '<span style="background: #059669; color: white; font-size: 0.6rem; padding: 0.1rem 0.3rem; border-radius: 4px; margin-left: 0.25rem;">Referência</span>' : ''}
+                                    </span>
+                                    <span style="color: ${estrelaMaisProxima === 3 ? '#059669; font-weight: 600;' : '#6b7280'}; display: flex; align-items: center; gap: 0.25rem;">
+                                        <i class="fas fa-star" style="color: #fbbf24; font-size: 0.7rem;"></i><i class="fas fa-star" style="color: #fbbf24; font-size: 0.7rem;"></i><i class="fas fa-star" style="color: #fbbf24; font-size: 0.7rem;"></i> R$ ${preco3.toFixed(2)}
+                                        ${estrelaMaisProxima === 3 ? '<span style="background: #059669; color: white; font-size: 0.6rem; padding: 0.1rem 0.3rem; border-radius: 4px; margin-left: 0.25rem;">Referência</span>' : ''}
+                                    </span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem;">
+                                <span style="font-size: 0.75rem; color: #6b7280; font-weight: 500;">Estrela ${estrelaMaisProxima}:</span>
+                                <span class="diferenca-badge ${diferencaClass}">
+                                    <i class="fas ${diferencaIcon}"></i>
+                                    ${Math.abs(diferencaPercentual).toFixed(2)}% diferença
+                                </span>
+                                <div class="valor-35">${statusTexto}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <button class="btn-edit" onclick="abrirModalEditar(${item.id}, '${materialNomeEscaped}', ${precoFornecedor})" title="Editar preco">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filtrarItens() {
+            const busca = document.getElementById('searchInput').value.toLowerCase();
+            const filtrados = itensData.filter(item => 
+                (item.material_nome && item.material_nome.toLowerCase().includes(busca)) ||
+                (item.material_codigo && item.material_codigo.toLowerCase().includes(busca))
+            );
+            renderizarItens(filtrados);
+        }
+
+        function abrirModalEditar(id, nome, preco) {
+            document.getElementById('editPrecoId').value = id;
+            document.getElementById('editMaterialNome').textContent = nome;
+            document.getElementById('editPrecoAtual').value = `R$ ${preco.toFixed(2)}`;
+            document.getElementById('editNovoPreco').value = preco.toFixed(2);
+            document.getElementById('modalEditar').classList.add('active');
+        }
+
+        function fecharModalEditar() {
+            document.getElementById('modalEditar').classList.remove('active');
+        }
+
+        async function salvarEdicao(event) {
+            event.preventDefault();
+            
+            const precoId = document.getElementById('editPrecoId').value;
+            const novoPreco = parseFloat(document.getElementById('editNovoPreco').value);
+            
+            if (isNaN(novoPreco) || novoPreco < 0) {
+                showAlert('Por favor, insira um preco valido');
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetchAPI(`/fornecedor-tabela-precos/admin/${precoId}/editar`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ preco_fornecedor: novoPreco })
+                });
+                
+                if (!response) {
+                    return;
+                }
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao salvar');
+                }
+                
+                const result = await response.json();
+                showAlert(`Preco alterado com sucesso! ${result.alteracao.material}: R$ ${result.alteracao.anterior.toFixed(2)} -> R$ ${result.alteracao.novo.toFixed(2)}`);
+                fecharModalEditar();
+                await carregarDados();
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert(error.message || 'Erro ao salvar alteracao');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function abrirModalRejeitar() {
+            document.getElementById('motivoRejeicao').value = '';
+            document.getElementById('modalRejeitar').classList.add('active');
+        }
+
+        function fecharModalRejeitar() {
+            document.getElementById('modalRejeitar').classList.remove('active');
+        }
+
+        async function aprovarTabela() {
+            if (!confirm('Deseja aprovar toda a tabela de precos deste fornecedor? Ele podera ser utilizado em solicitacoes apos a aprovacao.')) {
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetchAPI(`/fornecedor-tabela-precos/admin/fornecedor/${fornecedorId}/aprovar-tabela`, {
+                    method: 'PUT'
+                });
+                
+                if (!response) {
+                    return;
+                }
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao aprovar');
+                }
+                
+                const result = await response.json();
+                showAlert(result.mensagem);
+                
+                setTimeout(() => {
+                    window.location.href = '/administracao.html';
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert(error.message || 'Erro ao aprovar tabela');
+                showLoading(false);
+            }
+        }
+
+        async function rejeitarTabela(event) {
+            event.preventDefault();
+            
+            const motivo = document.getElementById('motivoRejeicao').value.trim();
+            if (!motivo) {
+                showAlert('Por favor, informe o motivo da rejeicao');
+                return;
+            }
+            
+            showLoading(true);
+            try {
+                const response = await fetchAPI(`/fornecedor-tabela-precos/admin/fornecedor/${fornecedorId}/rejeitar-tabela`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ motivo: motivo })
+                });
+                
+                if (!response) {
+                    return;
+                }
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao rejeitar');
+                }
+                
+                const result = await response.json();
+                showAlert(result.mensagem);
+                fecharModalRejeitar();
+                
+                setTimeout(() => {
+                    window.location.href = '/administracao.html';
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert(error.message || 'Erro ao rejeitar tabela');
+                showLoading(false);
+            }
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').classList.toggle('active', show);
+        }
+
+        document.addEventListener('DOMContentLoaded', carregarPagina);
+    </script>
+</body>
+</html>

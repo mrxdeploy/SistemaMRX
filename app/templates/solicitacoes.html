@@ -1,0 +1,2104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedidos de Compra - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Pedidos de Compra</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Bottom Navigation (Mobile) -->
+    <nav class="bottom-nav" id="navMenuMobile">
+        <!-- Menus serão renderizados dinamicamente pelo RBAC -->
+    </nav>
+
+    <main class="container" style="padding-top: 80px; padding-bottom: 100px;">
+        <!-- Tab Selector -->
+        <div class="tab-selector">
+            <button class="tab-btn active" onclick="changeTab('solicitacoes')" data-tab="solicitacoes">
+                <i class="fas fa-file-alt"></i> Pedidos de Compra
+            </button>
+            <button class="tab-btn" onclick="changeTab('ordens-compra')" data-tab="ordens-compra">
+                <i class="fas fa-shopping-cart"></i> Ordens de Compra
+            </button>
+        </div>
+
+        <!-- Seção de Solicitações -->
+        <div id="secaoSolicitacoes" class="tab-content active">
+            <div class="flex justify-between items-center mb-3" style="flex-wrap: wrap; gap: var(--spacing-md);">
+                <h1 style="font-size: clamp(1.5rem, 6vw, 2rem);">Gerenciar Pedidos de Compra</h1>
+            </div>
+
+            <div class="card mb-3">
+                <div class="flex gap-2" style="flex-wrap: wrap;">
+                    <button class="btn btn-primary btn-small" onclick="filtrarStatus('')">Todos</button>
+                    <button class="btn btn-warning btn-small" onclick="filtrarStatus('pendente')">Pendentes</button>
+                    <button class="btn btn-success btn-small" onclick="filtrarStatus('aprovada')">Aprovadas</button>
+                    <button class="btn btn-danger btn-small" onclick="filtrarStatus('rejeitada')">Rejeitadas</button>
+                </div>
+            </div>
+
+            <div id="listaSolicitacoes" class="solicitacoes-grid">
+                <div class="loading-card">
+                    <div class="spinner-border"></div>
+                    <p>Carregando pedidos de compra...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção de Ordens de Compra -->
+        <div id="secaoOrdensCompra" class="tab-content" style="display: none;">
+            <div class="flex justify-between items-center mb-3" style="flex-wrap: wrap; gap: var(--spacing-md);">
+                <h1 style="font-size: clamp(1.5rem, 6vw, 2rem);">Ordens de Compra</h1>
+            </div>
+
+            <div class="card mb-3">
+                <div class="flex gap-2" style="flex-wrap: wrap;">
+                    <button class="btn btn-primary btn-small" onclick="filtrarOCStatus('')">Todos</button>
+                    <button class="btn btn-warning btn-small" onclick="filtrarOCStatus('em_analise')">Em Análise</button>
+                    <button class="btn btn-success btn-small" onclick="filtrarOCStatus('aprovada')">Aprovadas</button>
+                    <button class="btn btn-danger btn-small" onclick="filtrarOCStatus('rejeitada')">Rejeitadas</button>
+                </div>
+            </div>
+
+            <div id="listaOCs" class="ocs-grid">
+                <div class="loading-card">
+                    <div class="spinner-border"></div>
+                    <p>Carregando ordens de compra...</p>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            /* Tab Selector - Padrão Dashboard */
+            .tab-selector {
+                display: flex;
+                gap: 10px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+                padding: 16px 0;
+                margin-bottom: 24px;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(5, 150, 105, 0.3) transparent;
+            }
+
+            .tab-selector::-webkit-scrollbar {
+                height: 4px;
+            }
+
+            .tab-selector::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            .tab-selector::-webkit-scrollbar-thumb {
+                background: rgba(5, 150, 105, 0.3);
+                border-radius: 2px;
+            }
+
+            .tab-btn {
+                flex: 0 0 auto;
+                padding: 10px 20px;
+                border: 2px solid #e5e7eb;
+                background: white;
+                border-radius: 24px;
+                font-weight: 600;
+                font-size: 14px;
+                color: #6b7280;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                -webkit-tap-highlight-color: transparent;
+                white-space: nowrap;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .tab-btn:hover {
+                border-color: var(--primary-color);
+                color: var(--primary-color);
+            }
+
+            .tab-btn:active {
+                transform: scale(0.95);
+            }
+
+            .tab-btn.active {
+                background: var(--primary-color);
+                color: white;
+                border-color: var(--primary-color);
+                box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+            }
+
+            .tab-btn i {
+                font-size: 16px;
+            }
+
+            /* Tab Content */
+            .tab-content {
+                display: none;
+            }
+
+            .tab-content.active {
+                display: block;
+            }
+
+            /* Grid responsivo para Solicitações */
+            .solicitacoes-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 16px;
+                margin-bottom: 24px;
+            }
+
+            @media (min-width: 768px) {
+                .solicitacoes-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+
+            @media (min-width: 1200px) {
+                .solicitacoes-grid {
+                    grid-template-columns: repeat(3, 1fr);
+                }
+            }
+
+            /* Grid responsivo para Ordens de Compra */
+            .ocs-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 16px;
+                margin-bottom: 24px;
+            }
+
+            @media (min-width: 768px) {
+                .ocs-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+
+            @media (min-width: 1200px) {
+                .ocs-grid {
+                    grid-template-columns: repeat(3, 1fr);
+                }
+            }
+
+            /* Card de Pedido de Compra */
+            .solicitacao-card {
+                background: white;
+                border-radius: 12px;
+                padding: 20px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                border: 1px solid #e5e7eb;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .solicitacao-card:hover {
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+                transform: translateY(-2px);
+            }
+
+            .solicitacao-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 4px;
+                background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            }
+
+            /* Card de Ordem de Compra */
+            .oc-card {
+                background: white;
+                border-radius: 12px;
+                padding: 20px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                border: 1px solid #e5e7eb;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .oc-card:hover {
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+                transform: translateY(-2px);
+            }
+
+            .oc-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 4px;
+                background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+            }
+
+            /* Header do Card */
+            .card-header-section {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+
+            .card-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+
+            .solicitacao-icon {
+                background: linear-gradient(135deg, #3b82f6, #60a5fa);
+            }
+
+            .oc-icon {
+                background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+            }
+
+            .card-icon i {
+                color: white;
+                font-size: 24px;
+            }
+
+            .card-title-section {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .card-id {
+                font-size: 20px;
+                font-weight: 700;
+                color: #111827;
+                margin: 0 0 4px 0;
+            }
+
+            .card-date {
+                font-size: 13px;
+                color: #6b7280;
+            }
+
+            /* Informações do Card */
+            .card-info-grid {
+                display: grid;
+                gap: 10px;
+                margin-bottom: 16px;
+            }
+
+            .info-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 14px;
+                color: #374151;
+            }
+
+            .info-row i {
+                color: #3b82f6;
+                width: 18px;
+                font-size: 14px;
+                flex-shrink: 0;
+            }
+
+            .info-label {
+                font-weight: 600;
+                color: #6b7280;
+                min-width: 90px;
+            }
+
+            .info-value {
+                color: #111827;
+                word-break: break-word;
+            }
+
+            /* Status Badge */
+            .status-section {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 12px;
+                background: #f9fafb;
+                border-radius: 8px;
+                margin-bottom: 16px;
+            }
+
+            .status-badge {
+                padding: 6px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .badge-pendente {
+                background: #fef3c7;
+                color: #92400e;
+            }
+
+            .badge-aprovada {
+                background: #d1fae5;
+                color: #065f46;
+            }
+
+            .badge-rejeitada {
+                background: #fee2e2;
+                color: #991b1b;
+            }
+
+            /* Valor em destaque */
+            .valor-destaque {
+                font-size: 18px;
+                font-weight: 700;
+                color: #059669;
+            }
+
+            /* Ações do Card */
+            .card-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                padding-top: 16px;
+                border-top: 1px solid #f3f4f6;
+            }
+
+            .card-actions .btn {
+                flex: 1;
+                min-width: fit-content;
+                font-size: 13px;
+                padding: 8px 12px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+            }
+
+            /* Loading e Empty States */
+            .loading-card {
+                grid-column: 1 / -1;
+                text-align: center;
+                padding: 40px;
+                color: #6b7280;
+            }
+
+            .spinner-border {
+                border: 3px solid #f3f4f6;
+                border-top: 3px solid #3b82f6;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 16px;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            .empty-state {
+                grid-column: 1 / -1;
+                text-align: center;
+                padding: 60px 20px;
+                color: #6b7280;
+            }
+
+            .empty-state i {
+                font-size: 48px;
+                color: #d1d5db;
+                margin-bottom: 16px;
+            }
+
+            .empty-state h3 {
+                font-size: 18px;
+                color: #374151;
+                margin-bottom: 8px;
+            }
+        </style>
+    </main>
+
+    <!-- Modal Nova Compra -->
+    <div class="modal" id="modalNovaSolicitacao">
+        <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2>Nova Compra</h2>
+                <button class="modal-close" onclick="fecharModalSolicitacao()">&times;</button>
+            </div>
+            <form id="formSolicitacao">
+                <div class="form-group">
+                    <label>Fornecedor *</label>
+                    <select id="fornecedorSolicitacao" required onchange="carregarPrecosFornecedor()">
+                        <option value="">Selecione um fornecedor...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo de Retirada</label>
+                    <select id="tipoRetirada">
+                        <option value="buscar">Buscar no fornecedor</option>
+                        <option value="entregar">Fornecedor entrega</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Modalidade de Frete</label>
+                    <select id="modalidadeFrete">
+                        <option value="FOB">FOB (Free On Board - Comprador paga o frete)</option>
+                        <option value="CIF">CIF (Cost, Insurance and Freight - Vendedor paga o frete)</option>
+                    </select>
+                    <small style="color: #666; display: block; margin-top: 0.25rem;">FOB: cliente busca | CIF: fornecedor entrega</small>
+                </div>
+
+                <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <h4 style="margin: 0 0 0.75rem 0; color: #0369a1;"> Localização</h4>
+
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Rua</label>
+                            <input type="text" id="rua" placeholder="Nome da rua">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Número</label>
+                            <input type="text" id="numero" placeholder="Nº">
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>CEP</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="cep" placeholder="00000-000" style="flex: 1;" maxlength="9" oninput="formatarCEPSolicitacao(this)">
+                            <button type="button" class="btn btn-secondary" onclick="buscarCEPSolicitacao()">
+                                <i class="fas fa-search"></i> Buscar
+                            </button>
+                        </div>
+                        <small style="color: #666; margin-top: 0.25rem; display: block;">Os campos são preenchidos automaticamente ao selecionar o fornecedor, mas podem ser editados</small>
+                    </div>
+
+                    <button type="button" class="btn btn-secondary w-full" onclick="capturarLocalizacao()">
+                        <i class="fas fa-map-marker-alt"></i> Capturar GPS
+                    </button>
+                    <div id="gpsInfo" style="margin-top: 0.5rem; padding: 0.75rem; background: #e8f5e9; border-radius: 5px; display: none; font-size: 0.9rem; color: #2e7d32;"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>Observações</label>
+                    <textarea id="observacoes" rows="2" placeholder="Observações gerais do pedido"></textarea>
+                </div>
+
+                <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #e5e7eb;">
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;"> Itens do Pedido</h3>
+                    <button type="button" class="btn btn-primary" onclick="adicionarItem()">+ Adicionar Item</button>
+                </div>
+
+                <div id="listaItens">
+                    <p style="text-align: center; color: #999; padding: 2rem;">Nenhum item adicionado ainda</p>
+                </div>
+
+                <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span><strong>Total de itens:</strong></span>
+                        <span id="totalItens">0</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span><strong>Peso total:</strong></span>
+                        <span id="pesoTotal">0.00 kg</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span><strong>Valor total:</strong></span>
+                        <span style="font-size: 1.2rem; color: var(--primary-color);" id="valorTotal">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full mt-3" id="btnEnviarSolicitacao"> Enviar Pedido</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Detalhes -->
+    <div class="modal" id="modalDetalhes">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <h2>Detalhes do Pedido de Compra</h2>
+                <button class="modal-close" onclick="fecharModalDetalhes()">&times;</button>
+            </div>
+            <div id="detalhesConteudo" style="flex: 1; overflow-y: auto; padding-right: 5px;"></div>
+            <div id="footerDetalhes" style="padding: 1.5rem 0 0 0; border-top: 1px solid #e5e7eb; margin-top: 1rem;">
+                <button id="btnExportarPDF" class="btn btn-secondary w-full" style="cursor: pointer !important; z-index: 10000; position: relative;">
+                    <i class="fas fa-file-pdf"></i> Exportar para PDF
+                </button>
+            </div>
+            <div id="acoesAdmin" style="margin-top: 1rem; display: flex; gap: 1rem;"></div>
+        </div>
+    </div>
+
+    <!-- Modal Aprovação/Reprovação OC -->
+    <div class="modal" id="modalAprovarOC">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="tituloModalOC">Aprovar Ordem de Compra</h2>
+                <button class="modal-close" onclick="fecharModalAprovarOC()">&times;</button>
+            </div>
+            <div id="conteudoOC" style="margin-bottom: 1.5rem;"></div>
+
+            <div class="form-group">
+                <label>Observações</label>
+                <textarea id="observacaoOC" rows="3" placeholder="Observações sobre a aprovação/reprovação"></textarea>
+            </div>
+
+            <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                <h4 style="margin: 0 0 0.75rem 0; color: #0369a1;"> Captura Automática</h4>
+                <div id="metadadosOC" style="font-size: 0.9rem; color: #666;">
+                    <p><strong>GPS:</strong> <span id="gpsOC">Capturando...</span></p>
+                    <p><strong>IP:</strong> <span id="ipOC">Detectando...</span></p>
+                    <p><strong>Dispositivo:</strong> <span id="dispositivoOC">-</span></p>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-success" onclick="confirmarAcaoOC('aprovar')" style="flex: 1;">
+                    <i class="fas fa-check"></i> Aprovar
+                </button>
+                <button class="btn btn-danger" onclick="confirmarAcaoOC('reprovar')" style="flex: 1;">
+                    <i class="fas fa-times"></i> Reprovar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/rbac.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        let usuarioAtual = null;
+        let solicitacaoAtual = null;
+        let ocAtual = null;
+        let gpsAtual = null;
+        let itensSolicitacao = [];
+        let todosFornecedores = [];
+        let todosTiposLote = [];
+        let precosFornecedorSelecionado = {};
+
+        // Função para alternar entre abas
+        function changeTab(tabName) {
+            // Remove active de todos os botões
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Remove active de todos os conteúdos
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+                content.style.display = 'none';
+            });
+
+            // Adiciona active ao botão clicado
+            const clickedBtn = document.querySelector(`[data-tab="${tabName}"]`);
+            if (clickedBtn) {
+                clickedBtn.classList.add('active');
+            }
+
+            // Mostra o conteúdo correspondente
+            if (tabName === 'solicitacoes') {
+                const secao = document.getElementById('secaoSolicitacoes');
+                if (secao) {
+                    secao.classList.add('active');
+                    secao.style.display = 'block';
+                }
+            } else if (tabName === 'ordens-compra') {
+                const secao = document.getElementById('secaoOrdensCompra');
+                if (secao) {
+                    secao.classList.add('active');
+                    secao.style.display = 'block';
+                }
+            }
+        }
+
+        function getUrlParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+
+            usuarioAtual = user;
+
+            await carregarFornecedores();
+            await carregarTiposLote();
+            await carregarSolicitacoes();
+            await carregarOCs();
+            await atualizarNotificacoes();
+            
+            const tabParam = getUrlParam('tab');
+            if (tabParam) {
+                changeTab(tabParam);
+            }
+            
+            const statusParam = getUrlParam('status');
+            if (statusParam) {
+                if (tabParam === 'ordens-compra') {
+                    filtrarOCStatus(statusParam);
+                } else {
+                    filtrarStatus(statusParam);
+                }
+            }
+        }
+
+        async function carregarFornecedores() {
+            try {
+                // Carregar apenas fornecedores com tabela de preços APROVADA
+                const response = await fetchAPI('/fornecedor-tabela-precos/fornecedores-aprovados');
+                if (response && response.ok) {
+                    todosFornecedores = await response.json();
+                    const select = document.getElementById('fornecedorSolicitacao');
+                    if (todosFornecedores.length === 0) {
+                        select.innerHTML = '<option value="">Nenhum fornecedor com tabela aprovada...</option>';
+                    } else {
+                        select.innerHTML = '<option value="">Selecione um fornecedor...</option>' +
+                            todosFornecedores.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
+                    }
+                } else {
+                    console.error('Erro ao carregar fornecedores aprovados');
+                    const select = document.getElementById('fornecedorSolicitacao');
+                    select.innerHTML = '<option value="">Erro ao carregar fornecedores...</option>';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar fornecedores:', error);
+                const select = document.getElementById('fornecedorSolicitacao');
+                select.innerHTML = '<option value="">Erro ao carregar fornecedores...</option>';
+            }
+        }
+
+        async function carregarTiposLote() {
+            try {
+                const response = await fetchAPI('/tipos-lote');
+                if (response && response.ok) {
+                    todosTiposLote = await response.json();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar tipos de lote:', error);
+            }
+        }
+
+        async function carregarPrecosFornecedor() {
+            const fornecedorId = document.getElementById('fornecedorSolicitacao').value;
+
+            console.log('🔍 carregarPrecosFornecedor chamada. Fornecedor ID:', fornecedorId);
+
+            if (!fornecedorId) {
+                console.log('⚠️ Nenhum fornecedor selecionado');
+                precosFornecedorSelecionado = {};
+                todosTiposLote = [];
+                // Limpar campos de localização se existirem
+                try {
+                    const ruaEl = document.getElementById('rua');
+                    const numeroEl = document.getElementById('numero');
+                    const cepEl = document.getElementById('cep');
+                    if (ruaEl) ruaEl.value = '';
+                    if (numeroEl) numeroEl.value = '';
+                    if (cepEl) cepEl.value = '';
+                } catch (e) {
+                    console.warn('Erro ao limpar campos de localização:', e);
+                }
+                return;
+            }
+
+            // Auto-preencher endereço do fornecedor
+            // Busca na lista de fornecedores já carregados (não precisa de nova requisição)
+            try {
+                console.log('📍 Buscando dados de localização para fornecedor ID:', fornecedorId);
+                
+                // Buscar fornecedor na lista já carregada
+                const fornecedor = todosFornecedores.find(f => f.id === parseInt(fornecedorId));
+                
+                if (!fornecedor) {
+                    console.warn('⚠️ Fornecedor não encontrado na lista carregada');
+                } else {
+                    console.log('📍 Dados do fornecedor para localização:', fornecedor);
+                    
+                    // Preencher campos de localização se existirem
+                    const ruaEl = document.getElementById('rua');
+                    const numeroEl = document.getElementById('numero');
+                    const cepEl = document.getElementById('cep');
+                    
+                    if (ruaEl && numeroEl && cepEl) {
+                        // Priorizar outro_endereco se existir, senão usar endereço principal
+                        const rua = fornecedor.outro_rua || fornecedor.rua || '';
+                        const numero = fornecedor.outro_numero || fornecedor.numero || '';
+                        const cep = fornecedor.outro_cep || fornecedor.cep || '';
+                        
+                        ruaEl.value = rua;
+                        numeroEl.value = numero;
+                        cepEl.value = cep;
+                        
+                        console.log('✅ Campos de localização preenchidos:', { rua, numero, cep });
+                    } else {
+                        console.warn('⚠️ Campos de localização não encontrados no DOM');
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Erro ao preencher endereço:', error);
+                // Não bloqueia o fluxo - continua para carregar preços
+            }
+
+            // Carregar preços e materiais do fornecedor
+            try {
+                const url = `/solicitacoes/fornecedor/${fornecedorId}/materiais`;
+                console.log('📡 Fazendo chamada para:', url);
+
+                const response = await fetchAPI(url);
+
+                console.log('📥 Resposta recebida:', response);
+
+                if (response && response.ok) {
+                    const dados = await response.json();
+
+                    console.log('✅ Dados recebidos:', dados);
+                    console.log('📊 Total de materiais:', dados.materiais?.length || 0);
+
+                    if (!dados.materiais || dados.materiais.length === 0) {
+                        showAlert('Este fornecedor não tem preços configurados', 'warning');
+                        precosFornecedorSelecionado = {};
+                        todosTiposLote = [];
+                        return;
+                    }
+
+                    precosFornecedorSelecionado = {};
+                    todosTiposLote = dados.materiais;
+
+                    dados.materiais.forEach(material => {
+                        console.log(`  Processando material: ${material.nome} (ID: ${material.id})`);
+                        console.log(`  Preço: R$ ${material.preco_unitario}/kg`);
+
+                        precosFornecedorSelecionado[material.id] = {
+                            preco_por_kg: material.preco_unitario,
+                            codigo: material.codigo,
+                            nome: material.nome
+                        };
+                    });
+
+                    console.log('💰 Estrutura final de preços:', precosFornecedorSelecionado);
+                    console.log('📦 Total de materiais com preço:', Object.keys(precosFornecedorSelecionado).length);
+                } else {
+                    console.error('❌ Resposta não OK:', response ? response.status : 'null');
+                    if (response) {
+                        const errorData = await response.json();
+                        console.error('Erro do servidor:', errorData);
+                        showAlert(errorData.erro || 'Erro ao carregar materiais do fornecedor', 'error');
+                    }
+                    precosFornecedorSelecionado = {};
+                    todosTiposLote = [];
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar materiais:', error);
+                console.error('Stack trace:', error.stack);
+                showAlert('Erro ao carregar materiais do fornecedor', 'error');
+                precosFornecedorSelecionado = {};
+                todosTiposLote = [];
+            }
+        }
+
+        async function carregarSolicitacoes(status = '') {
+            try {
+                let url = '/solicitacoes';
+                if (status) url += `?status=${status}`;
+
+                const response = await fetchAPI(url);
+                const container = document.getElementById('listaSolicitacoes');
+
+                if (!response) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                            <h3 style="color: #ef4444;">Erro de conexão com o servidor</h3>
+                            <p>Verifique sua conexão e tente novamente</p>
+                        </div>
+                    `;
+                    return;
+                }
+                if (!response.ok) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                            <h3 style="color: #ef4444;">Erro ao carregar pedidos de compra</h3>
+                            <p>Tente recarregar a página</p>
+                        </div>
+                    `;
+                    return;
+                }
+                const solicitacoes = await response.json();
+
+                if (solicitacoes.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-file-alt"></i>
+                            <h3>Nenhum pedido de compra encontrado</h3>
+                            <p>Os pedidos de compra criados aparecerão aqui</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = solicitacoes.map(s => {
+                    const statusClass = s.status === 'aprovada' ? 'badge-aprovada' : 
+                                       s.status === 'rejeitada' ? 'badge-rejeitada' : 
+                                       'badge-pendente';
+                    const statusLabel = s.status.toUpperCase();
+
+                    return `
+                        <div class="solicitacao-card">
+                            <div class="card-header-section">
+                                <div class="card-icon solicitacao-icon">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <div class="card-title-section">
+                                    <h3 class="card-id">Pedido de Compra #${s.id}</h3>
+                                    <div class="card-date">${formatDate(s.data_envio)}</div>
+                                </div>
+                            </div>
+
+                            <div class="card-info-grid">
+                                <div class="info-row">
+                                    <i class="fas fa-user"></i>
+                                    <span class="info-value">${s.funcionario_nome}</span>
+                                </div>
+                                <div class="info-row">
+                                    <i class="fas fa-building"></i>
+                                    <span class="info-value">${s.fornecedor_nome}</span>
+                                </div>
+                                <div class="info-row">
+                                    <i class="fas fa-boxes"></i>
+                                    <span class="info-value">${s.total_itens || 0} ${s.total_itens === 1 ? 'item' : 'itens'}</span>
+                                </div>
+                                <div class="info-row">
+                                    <i class="fas fa-weight"></i>
+                                    <span class="info-value">${s.total_peso_kg ? s.total_peso_kg.toFixed(2) : '0.00'} kg</span>
+                                </div>
+                            </div>
+
+                            <div class="status-section">
+                                <span class="status-badge ${statusClass}">${statusLabel}</span>
+                                <span class="valor-destaque">R$ ${s.total_valor ? s.total_valor.toFixed(2) : '0.00'}</span>
+                            </div>
+
+                            <div class="card-actions">
+                                <button class="btn btn-primary" onclick="verDetalhes(${s.id})">
+                                    <i class="fas fa-eye"></i> Ver Detalhes
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Erro ao carregar pedidos de compra:', error);
+                const container = document.getElementById('listaSolicitacoes');
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                        <h3 style="color: #ef4444;">Erro ao carregar pedidos de compra</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function filtrarStatus(status) {
+            carregarSolicitacoes(status);
+        }
+
+        function abrirModalNovaSolicitacao() {
+            itensSolicitacao = [];
+            document.getElementById('formSolicitacao').reset();
+            document.getElementById('listaItens').innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">Nenhum item adicionado ainda</p>';
+            precosFornecedorSelecionado = {};
+            atualizarResumo();
+            document.getElementById('modalNovaSolicitacao').classList.add('active');
+        }
+
+        function fecharModalSolicitacao() {
+            document.getElementById('modalNovaSolicitacao').classList.remove('active');
+        }
+
+        let itemIdCounter = 0;
+
+        function adicionarItem() {
+            const fornecedorId = document.getElementById('fornecedorSolicitacao').value;
+            if (!fornecedorId) {
+                showAlert('Selecione um fornecedor primeiro', 'error');
+                return;
+            }
+
+            if (Object.keys(precosFornecedorSelecionado).length === 0) {
+                showAlert('Este fornecedor não tem preços configurados', 'error');
+                return;
+            }
+
+            const itemId = ++itemIdCounter;
+            const item = {
+                id: itemId,
+                material_id: null,
+                peso_kg: 0,
+                observacoes: '',
+                valor_calculado: 0,
+                preco_customizado: false,
+                preco_oferecido: null
+            };
+
+            itensSolicitacao.push(item);
+            renderizarItens();
+            atualizarResumo();
+        }
+
+        function renderizarItens() {
+            const container = document.getElementById('listaItens');
+
+            if (itensSolicitacao.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">Nenhum item adicionado ainda</p>';
+                return;
+            }
+
+            container.innerHTML = itensSolicitacao.map(item => `
+                <div class="card" style="margin-bottom: 1rem; background: #fafafa;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h4 style="margin: 0;">Item #${item.id}</h4>
+                        <button type="button" class="btn btn-danger" onclick="removerItem(${item.id})" style="font-size: 0.85rem; padding: 0.3rem 0.6rem;">
+                            <i class="fas fa-trash"></i> Remover
+                        </button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Material *</label>
+                            <select onchange="atualizarItemCampo(${item.id}, 'material_id', parseInt(this.value))" required>
+                                <option value="">Selecione...</option>
+                                ${todosTiposLote.map(m => {
+                                    const precoInfo = precosFornecedorSelecionado[m.id];
+                                    const preco = precoInfo ? precoInfo.preco_por_kg : 0;
+                                    return `
+                                        <option value="${m.id}" ${item.material_id == m.id ? 'selected' : ''}>
+                                            ${m.codigo} - ${m.nome} (R$ ${preco.toFixed(2)}/kg)
+                                        </option>
+                                    `;
+                                }).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Peso (kg) *</label>
+                            <input type="number" step="0.01" value="${item.peso_kg}" 
+                                onchange="atualizarItemCampo(${item.id}, 'peso_kg', parseFloat(this.value))" required>
+                        </div>
+                    </div>
+
+                    <!-- Preço Customizado -->
+                    <div style="background: #fff3e0; padding: 1rem; border-radius: 8px; margin-bottom: 0.75rem; border-left: 4px solid #ff9800;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <input type="checkbox" id="preco_custom_${item.id}" 
+                                ${item.preco_customizado ? 'checked' : ''}
+                                onchange="atualizarItemCampo(${item.id}, 'preco_customizado', this.checked)"
+                                style="cursor: pointer; width: 18px; height: 18px;">
+                            <label for="preco_custom_${item.id}" style="cursor: pointer; margin: 0; font-weight: 600;">
+                                💰 Preço Diferente
+                            </label>
+                        </div>
+                        
+                        ${item.preco_customizado ? `
+                            <div class="form-group" style="margin-bottom: 0; margin-top: 0.75rem;">
+                                <label>Preço Oferecido (R$/kg) *</label>
+                                <input type="number" step="0.01" min="0.01" value="${item.preco_oferecido || ''}" 
+                                    onchange="atualizarItemCampo(${item.id}, 'preco_oferecido', parseFloat(this.value))"
+                                    placeholder="Digite o preço oferecido (mínimo R$ 0,01)"
+                                    style="background: white;"
+                                    required>
+                                <small style="color: #666; display: block; margin-top: 0.25rem;">
+                                    ${item.material_id && precosFornecedorSelecionado[item.material_id] ? `
+                                        Preço da tabela: R$ ${precosFornecedorSelecionado[item.material_id].preco_por_kg.toFixed(2)}/kg
+                                    ` : 'Selecione um material para ver o preço da tabela'}
+                                </small>
+                            </div>
+                        ` : `
+                            <small style="color: #666;">Marque para oferecer um preço diferente do padrão da tabela</small>
+                        `}
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label>Observações do Item</label>
+                        <textarea rows="2" placeholder="Observações específicas deste item"
+                            onchange="atualizarItemCampo(${item.id}, 'observacoes', this.value)">${item.observacoes || ''}</textarea>
+                    </div>
+
+                    <div style="background: #e8f5e9; padding: 0.75rem; border-radius: 6px; text-align: center;">
+                        <strong style="color: #2e7d32;">Valor: R$ ${item.valor_calculado.toFixed(2)}</strong>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function atualizarItemCampo(itemId, campo, valor) {
+            const item = itensSolicitacao.find(i => i.id === itemId);
+            if (!item) return;
+
+            item[campo] = valor;
+
+            // Se desmarcar preço customizado, limpar o preço oferecido
+            if (campo === 'preco_customizado' && !valor) {
+                item.preco_oferecido = null;
+            }
+
+            if (campo === 'material_id' || campo === 'peso_kg' || campo === 'preco_customizado' || campo === 'preco_oferecido') {
+                calcularValorItem(item);
+            }
+
+            renderizarItens();
+            atualizarResumo();
+        }
+
+        function calcularValorItem(item) {
+            if (!item.material_id || !item.peso_kg || item.peso_kg <= 0) {
+                item.valor_calculado = 0;
+                return;
+            }
+
+            const precoInfo = precosFornecedorSelecionado[item.material_id];
+
+            if (!precoInfo || !precoInfo.preco_por_kg) {
+                item.valor_calculado = 0;
+                console.warn(`Preço não encontrado para material ID ${item.material_id}`);
+                return;
+            }
+
+            // Se usar preço customizado e tiver preço oferecido, usar ele
+            if (item.preco_customizado && item.preco_oferecido && item.preco_oferecido > 0) {
+                item.valor_calculado = item.peso_kg * item.preco_oferecido;
+            } else {
+                // Usar preço da tabela do fornecedor
+                item.valor_calculado = item.peso_kg * precoInfo.preco_por_kg;
+            }
+        }
+
+        function removerItem(itemId) {
+            itensSolicitacao = itensSolicitacao.filter(i => i.id !== itemId);
+            renderizarItens();
+            atualizarResumo();
+        }
+
+        function atualizarResumo() {
+            const totalItens = itensSolicitacao.length;
+            const pesoTotal = itensSolicitacao.reduce((sum, item) => sum + (item.peso_kg || 0), 0);
+            const valorTotal = itensSolicitacao.reduce((sum, item) => sum + (item.valor_calculado || 0), 0);
+
+            document.getElementById('totalItens').textContent = totalItens;
+            document.getElementById('pesoTotal').textContent = pesoTotal.toFixed(2) + ' kg';
+            document.getElementById('valorTotal').textContent = 'R$ ' + valorTotal.toFixed(2);
+        }
+
+        function formatarCEPSolicitacao(input) {
+            let valor = input.value.replace(/\D/g, '');
+            if (valor.length > 5) {
+                valor = valor.substring(0, 5) + '-' + valor.substring(5, 8);
+            }
+            input.value = valor;
+        }
+
+        async function buscarCEPSolicitacao() {
+            const cepInput = document.getElementById('cep');
+            if (!cepInput) {
+                console.error('Campo CEP não encontrado');
+                return;
+            }
+            
+            const cep = cepInput.value.replace(/\D/g, '');
+            
+            if (!cep || cep.length !== 8) {
+                showAlert('Digite um CEP válido com 8 dígitos', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetchAPI(`/fornecedores/buscar-cep/${cep}`);
+                
+                if (response && response.ok) {
+                    const data = await response.json();
+                    
+                    // Preencher campos de endereço disponíveis (verificando existência)
+                    const ruaEl = document.getElementById('rua');
+                    const cepEl = document.getElementById('cep');
+                    
+                    if (ruaEl) ruaEl.value = data.rua || '';
+                    if (cepEl) cepEl.value = data.cep || '';
+                    
+                    showAlert('✅ Endereço preenchido com sucesso!', 'success');
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'CEP não encontrado', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao buscar CEP:', error);
+                showAlert('Erro ao buscar CEP. Verifique sua conexão.', 'error');
+            }
+        }
+
+        async function capturarLocalizacao() {
+            if (!navigator.geolocation) {
+                showAlert('Geolocalização não suportada neste navegador', 'error');
+                return;
+            }
+
+            showAlert('Capturando localização GPS...', 'info');
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+
+                    // Armazenar coordenadas GPS
+                    document.getElementById('gpsInfo').dataset.lat = lat;
+                    document.getElementById('gpsInfo').dataset.lng = lng;
+                    document.getElementById('gpsInfo').style.display = 'block';
+
+                    // Mostrar coordenadas imediatamente
+                    document.getElementById('gpsInfo').innerHTML = `
+                        <i class="fas fa-spinner fa-spin"></i> GPS capturado! Buscando endereço...<br>
+                        Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}
+                    `;
+
+                    // Tentar buscar endereço usando OpenStreetMap Nominatim (sem autenticação)
+                    try {
+                        const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
+                        
+                        const response = await fetch(nominatimUrl, {
+                            headers: {
+                                'User-Agent': 'MRX-System/1.0'
+                            }
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            
+                            if (data && data.address) {
+                                const addr = data.address;
+                                const rua = addr.road || addr.street || addr.pedestrian || '';
+                                const numero = addr.house_number || '';
+                                const cep = addr.postcode || '';
+
+                                // Preencher campos (mas manter editáveis)
+                                if (rua) document.getElementById('rua').value = rua;
+                                if (numero) document.getElementById('numero').value = numero;
+                                if (cep) document.getElementById('cep').value = cep;
+
+                                const enderecoCompleto = data.display_name || `${rua}, ${numero}`;
+
+                                document.getElementById('gpsInfo').innerHTML = `
+                                    <i class="fas fa-check-circle"></i> Localização capturada!<br>
+                                    ${enderecoCompleto}<br>
+                                    <small style="color: #666; margin-top: 0.5rem; display: block;">Você pode editar os campos se necessário</small>
+                                `;
+
+                                showAlert('Localização e endereço capturados com sucesso!', 'success');
+                            } else {
+                                // Sem endereço, mas GPS ok
+                                document.getElementById('gpsInfo').innerHTML = `
+                                    <i class="fas fa-check-circle"></i> GPS capturado!<br>
+                                    Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}<br>
+                                    <small style="color: #666;">Preencha o endereço manualmente</small>
+                                `;
+                                showAlert('GPS capturado! Preencha o endereço manualmente.', 'success');
+                            }
+                        } else {
+                            throw new Error('Erro ao buscar endereço');
+                        }
+                    } catch (error) {
+                        console.error('Erro ao buscar endereço:', error);
+                        
+                        // Mesmo com erro no geocoding, mantemos o GPS
+                        document.getElementById('gpsInfo').innerHTML = `
+                            <i class="fas fa-check-circle"></i> GPS capturado!<br>
+                            Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}<br>
+                            <small style="color: #666;">Não foi possível buscar o endereço automaticamente. Preencha manualmente.</small>
+                        `;
+                        showAlert('GPS capturado! Preencha o endereço manualmente.', 'success');
+                    }
+                },
+                (error) => {
+                    console.error('Erro ao capturar GPS:', error);
+                    let errorMsg = 'Erro ao capturar localização';
+                    
+                    if (error.code === 1) {
+                        errorMsg = 'Permissão de localização negada. Ative a permissão no navegador.';
+                    } else if (error.code === 2) {
+                        errorMsg = 'Posição indisponível. Verifique se o GPS está ativo.';
+                    } else if (error.code === 3) {
+                        errorMsg = 'Timeout ao obter localização. Tente novamente.';
+                    }
+                    
+                    showAlert(errorMsg, 'error');
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        document.getElementById('formSolicitacao').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (itensSolicitacao.length === 0) {
+                showAlert('Adicione pelo menos um item ao pedido', 'error');
+                return;
+            }
+
+            const itensValidos = itensSolicitacao.filter(i => i.material_id && i.peso_kg > 0);
+            if (itensValidos.length === 0) {
+                showAlert('Preencha os dados de todos os itens (material e peso)', 'error');
+                return;
+            }
+
+            const gpsInfo = document.getElementById('gpsInfo');
+
+            const itensParaEnvio = itensValidos.map(item => ({
+                material_id: parseInt(item.material_id),
+                peso_kg: parseFloat(item.peso_kg),
+                observacoes: item.observacoes || '',
+                preco_customizado: item.preco_customizado || false,
+                preco_oferecido: item.preco_customizado && item.preco_oferecido ? parseFloat(item.preco_oferecido) : null
+            }));
+
+            console.log(' DEBUG - Enviando itens:', itensParaEnvio);
+            console.log(' DEBUG - Itens originais:', itensSolicitacao);
+
+            const data = {
+                fornecedor_id: parseInt(document.getElementById('fornecedorSolicitacao').value),
+                tipo_retirada: document.getElementById('tipoRetirada').value,
+                modalidade_frete: document.getElementById('modalidadeFrete').value,
+                observacoes: document.getElementById('observacoes').value || '',
+                rua: document.getElementById('rua').value || '',
+                numero: document.getElementById('numero').value || '',
+                cep: document.getElementById('cep').value || '',
+                localizacao_lat: gpsInfo.dataset.lat ? parseFloat(gpsInfo.dataset.lat) : null,
+                localizacao_lng: gpsInfo.dataset.lng ? parseFloat(gpsInfo.dataset.lng) : null,
+                endereco_completo: '',
+                itens: itensParaEnvio
+            };
+
+            if (data.rua && data.numero) {
+                data.endereco_completo = `${data.rua}, ${data.numero}${data.cep ? ' - CEP: ' + data.cep : ''}`;
+            }
+
+            try {
+                const btn = document.getElementById('btnEnviarSolicitacao');
+                btn.disabled = true;
+                btn.textContent = '⏳ Enviando...';
+
+                const response = await fetchAPI('/solicitacoes', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+
+                if (response && response.ok) {
+                    showAlert('Pedido de Compra enviado com sucesso!', 'success');
+                    fecharModalSolicitacao();
+                    await carregarSolicitacoes();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao enviar pedido', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao enviar pedido:', error);
+                showAlert('Erro ao enviar pedido', 'error');
+            } finally {
+                const btn = document.getElementById('btnEnviarSolicitacao');
+                btn.disabled = false;
+                btn.textContent = ' Enviar Pedido';
+            }
+        });
+
+        function exportarPDF() {
+            console.log("Iniciando exportação de PDF...");
+            if (!solicitacaoAtual) {
+                console.error("Erro: solicitacaoAtual não definida");
+                return;
+            }
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Configurações de Cores do Sistema
+                const primaryColor = [5, 150, 105]; // Emerald-600 (Padrão MRX)
+                
+                // Cabeçalho Estilizado
+                doc.setFillColor(243, 244, 246);
+                doc.rect(0, 0, 210, 40, 'F');
+                
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(22);
+                doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                doc.text("MRX SYSTEMS", 14, 25);
+                
+                doc.setFontSize(10);
+                doc.setTextColor(107, 114, 128);
+                doc.text("Relatório de Pedido de Compra", 14, 32);
+                
+                // Selo de Status
+                const status = solicitacaoAtual.status.toUpperCase();
+                let statusColor = [146, 64, 14]; // Pendente (Amber-800)
+                if (status === 'APROVADA') statusColor = [6, 95, 70]; // Aprovada (Emerald-800)
+                if (status === 'REJEITADA') statusColor = [153, 27, 27]; // Rejeitada (Red-800)
+                
+                doc.setFillColor(255, 255, 255);
+                doc.roundedRect(140, 15, 55, 15, 2, 2, 'FD');
+                doc.setFontSize(9);
+                doc.setTextColor(107, 114, 128);
+                doc.text("STATUS DO PEDIDO", 145, 21);
+                doc.setFontSize(11);
+                doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+                doc.text(status, 145, 27);
+
+                // Informações Gerais
+                doc.setFontSize(14);
+                doc.setTextColor(31, 41, 55);
+                doc.text("Informações Gerais", 14, 55);
+                doc.setDrawColor(229, 231, 235);
+                doc.line(14, 57, 196, 57);
+
+                const infoGeral = [
+                    ["ID do Pedido:", `#${solicitacaoAtual.id}`, "Data de Envio:", formatDate(solicitacaoAtual.data_envio)],
+                    ["Funcionário:", solicitacaoAtual.funcionario_nome || "-", "Retirada:", solicitacaoAtual.tipo_retirada === 'buscar' ? 'Buscar no fornecedor' : 'Fornecedor entrega'],
+                    ["Fornecedor:", solicitacaoAtual.fornecedor_nome || "-", "Frete:", solicitacaoAtual.modalidade_frete || "FOB"],
+                    ["Endereço:", solicitacaoAtual.endereco_completo || "Não informado", "GPS:", solicitacaoAtual.localizacao_lat ? `${solicitacaoAtual.localizacao_lat.toFixed(6)}, ${solicitacaoAtual.localizacao_lng.toFixed(6)}` : "Não capturado"]
+                ];
+
+                doc.autoTable({
+                    startY: 62,
+                    body: infoGeral,
+                    theme: 'plain',
+                    styles: { fontSize: 9, cellPadding: 2 },
+                    columnStyles: {
+                        0: { fontStyle: 'bold', textColor: [107, 114, 128], cellWidth: 35 },
+                        1: { textColor: [31, 41, 55], cellWidth: 60 },
+                        2: { fontStyle: 'bold', textColor: [107, 114, 128], cellWidth: 35 },
+                        3: { textColor: [31, 41, 55] }
+                    }
+                });
+
+                // Observações
+                let currentY = doc.lastAutoTable.finalY + 15;
+                if (solicitacaoAtual.observacoes) {
+                    doc.setFontSize(14);
+                    doc.setTextColor(31, 41, 55);
+                    doc.text("Observações", 14, currentY);
+                    doc.line(14, currentY + 2, 196, currentY + 2);
+                    
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "normal");
+                    doc.setTextColor(55, 65, 81);
+                    const splitObs = doc.splitTextToSize(solicitacaoAtual.observacoes, 180);
+                    doc.text(splitObs, 14, currentY + 10);
+                    currentY += (splitObs.length * 5) + 10;
+                }
+
+                // Tabela de Itens
+                doc.setFontSize(14);
+                doc.setTextColor(31, 41, 55);
+                doc.text(`Itens do Pedido (${solicitacaoAtual.itens.length})`, 14, currentY);
+                doc.line(14, currentY + 2, 196, currentY + 2);
+
+                const tableData = solicitacaoAtual.itens.map(item => [
+                    item.material_nome || item.tipo_lote_nome || 'N/A',
+                    item.material_codigo || "-",
+                    item.classificacao ? item.classificacao.toUpperCase() : "-",
+                    `${item.peso_kg} kg`,
+                    `R$ ${item.preco_por_kg_snapshot ? item.preco_por_kg_snapshot.toFixed(2) : '0.00'}`,
+                    `R$ ${item.valor_calculado.toFixed(2)}`,
+                    item.lote_numero || "-"
+                ]);
+
+                doc.autoTable({
+                    startY: currentY + 7,
+                    head: [['Material', 'Código', 'Classif.', 'Peso', 'Preço/kg', 'Total', 'Lote']],
+                    body: tableData,
+                    theme: 'striped',
+                    headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
+                    styles: { fontSize: 9, cellPadding: 3 },
+                    columnStyles: {
+                        5: { fontStyle: 'bold', halign: 'right' },
+                        3: { halign: 'center' }
+                    }
+                });
+
+                // Resumo Financeiro
+                currentY = doc.lastAutoTable.finalY + 15;
+                if (currentY > 240) { doc.addPage(); currentY = 20; }
+
+                doc.setFillColor(249, 250, 251);
+                doc.rect(120, currentY, 76, 35, 'F');
+                doc.setDrawColor(229, 231, 235);
+                doc.rect(120, currentY, 76, 35, 'S');
+
+                doc.setFontSize(10);
+                doc.setTextColor(107, 114, 128);
+                doc.text("Total de Itens:", 125, currentY + 10);
+                doc.setTextColor(31, 41, 55);
+                doc.text(`${solicitacaoAtual.total_itens}`, 190, currentY + 10, { align: 'right' });
+
+                doc.setTextColor(107, 114, 128);
+                doc.text("Peso Total:", 125, currentY + 18);
+                doc.setTextColor(31, 41, 55);
+                doc.text(`${solicitacaoAtual.total_peso_kg.toFixed(2)} kg`, 190, currentY + 18, { align: 'right' });
+
+                doc.setFontSize(11);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                doc.text("VALOR TOTAL:", 125, currentY + 28);
+                doc.setFontSize(12);
+                doc.text(`R$ ${solicitacaoAtual.total_valor.toFixed(2)}`, 190, currentY + 28, { align: 'right' });
+
+                // Rodapé
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(156, 163, 175);
+                    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')} - MRX Systems Internal Report`, 14, 285);
+                    doc.text(`Página ${i} de ${pageCount}`, 196, 285, { align: 'right' });
+                }
+
+                doc.save(`Pedido_Compra_MRX_${solicitacaoAtual.id}.pdf`);
+                showAlert("PDF gerado com sucesso!", "success");
+            } catch (err) {
+                console.error("Erro ao gerar PDF:", err);
+                showAlert("Erro ao gerar PDF. Verifique o console.", "error");
+            }
+        }
+
+        async function verDetalhes(id) {
+            try {
+                const response = await fetchAPI(`/solicitacoes/${id}`);
+                if (!response || !response.ok) {
+                    showAlert('Erro ao carregar detalhes');
+                    return;
+                }
+                solicitacaoAtual = await response.json();
+
+                let html = `
+                    <div style="background: #f9fafb; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                        <h3 style="margin: 0 0 1rem 0;">Informações Gerais</h3>
+                        <p><strong>ID:</strong> #${solicitacaoAtual.id}</p>
+                        <p><strong>Funcionário:</strong> ${solicitacaoAtual.funcionario_nome}</p>
+                        <p><strong>Fornecedor:</strong> ${solicitacaoAtual.fornecedor_nome}</p>
+                        <p><strong>Tipo de Retirada:</strong> ${solicitacaoAtual.tipo_retirada === 'buscar' ? 'Buscar no fornecedor' : 'Fornecedor entrega'}</p>
+                        <p><strong>Modalidade de Frete:</strong> ${solicitacaoAtual.modalidade_frete || 'FOB'} ${solicitacaoAtual.modalidade_frete === 'FOB' ? '(Comprador paga o frete)' : '(Vendedor paga o frete)'}</p>
+                        <p><strong>Status:</strong> <span class="badge badge-${solicitacaoAtual.status}">${solicitacaoAtual.status.toUpperCase()}</span></p>
+                        <p><strong>Data de Envio:</strong> ${formatDate(solicitacaoAtual.data_envio)}</p>
+                        ${solicitacaoAtual.data_confirmacao ? `<p><strong>Data de Confirmação:</strong> ${formatDate(solicitacaoAtual.data_confirmacao)}</p>` : ''}
+                        ${solicitacaoAtual.admin_nome ? `<p><strong>Admin Responsável:</strong> ${solicitacaoAtual.admin_nome}</p>` : ''}
+                    </div>
+                `;
+
+                if (solicitacaoAtual.rua || solicitacaoAtual.localizacao_lat) {
+                    html += `
+                        <div style="background: #eff6ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <h3 style="margin: 0 0 1rem 0;"> Localização</h3>
+                            ${solicitacaoAtual.endereco_completo ? `<p>${solicitacaoAtual.endereco_completo}</p>` : ''}
+                            ${solicitacaoAtual.localizacao_lat ? `<p>GPS: ${solicitacaoAtual.localizacao_lat.toFixed(6)}, ${solicitacaoAtual.localizacao_lng.toFixed(6)}</p>` : ''}
+                        </div>
+                    `;
+                }
+
+                if (solicitacaoAtual.observacoes) {
+                    html += `
+                        <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <h3 style="margin: 0 0 0.5rem 0;"> Observações</h3>
+                            <p style="margin: 0;">${solicitacaoAtual.observacoes}</p>
+                        </div>
+                    `;
+                }
+
+                if (solicitacaoAtual.itens && solicitacaoAtual.itens.length > 0) {
+                    html += `
+                        <h3 style="margin: 1.5rem 0 1rem 0;"> Itens (${solicitacaoAtual.itens.length})</h3>
+                        ${solicitacaoAtual.itens.map(item => {
+                            const temPrecoCustomizado = item.preco_customizado && item.preco_oferecido;
+                            return `
+                                <div class="card" style="margin-bottom: 1rem; ${temPrecoCustomizado ? 'border-left: 4px solid #ff9800;' : ''}">
+                                    <p><strong>Material:</strong> ${item.material_nome || item.tipo_lote_nome || 'N/A'}</p>
+                                    ${item.material_codigo ? `<p><strong>Código:</strong> ${item.material_codigo}</p>` : ''}
+                                    <p><strong>Classificação:</strong> ${item.classificacao ? item.classificacao.toUpperCase() : 'N/A'}</p>
+                                    <p><strong>Peso:</strong> ${item.peso_kg} kg</p>
+                                    ${temPrecoCustomizado ? `
+                                        <div style="background: #fff3e0; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0;">
+                                            <p style="margin: 0; font-weight: 600; color: #f57c00;">💰 Preço Diferente Oferecido</p>
+                                            <p style="margin: 0.5rem 0 0 0;"><strong>Preço Oferecido:</strong> R$ ${item.preco_oferecido.toFixed(2)}/kg</p>
+                                            <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; color: #666;">
+                                                <strong>Preço da Tabela:</strong> R$ ${item.preco_por_kg_snapshot.toFixed(2)}/kg
+                                            </p>
+                                        </div>
+                                    ` : `
+                                        <p><strong>Preço/kg:</strong> R$ ${item.preco_por_kg_snapshot ? item.preco_por_kg_snapshot.toFixed(2) : '0.00'}/kg</p>
+                                    `}
+                                    <p><strong>Valor Total:</strong> R$ ${item.valor_calculado.toFixed(2)}</p>
+                                    ${item.observacoes ? `<p><strong>Obs:</strong> ${item.observacoes}</p>` : ''}
+                                    ${item.lote_numero ? `<p><strong>Lote Gerado:</strong> ${item.lote_numero}</p>` : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    `;
+                }
+
+                html += `
+                    <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                        <div style="display: flex; justify-content: space-between;"><span><strong>Total de itens:</strong></span><span>${solicitacaoAtual.total_itens}</span></div>
+                        <div style="display: flex; justify-content: space-between;"><span><strong>Peso total:</strong></span><span>${solicitacaoAtual.total_peso_kg.toFixed(2)} kg</span></div>
+                        <div style="display: flex; justify-content: space-between;"><span><strong>Valor total:</strong></span><span style="font-size: 1.2rem; color: var(--primary-color);">R$ ${solicitacaoAtual.total_valor.toFixed(2)}</span></div>
+                    </div>
+                `;
+
+                document.getElementById('detalhesConteudo').innerHTML = html;
+                
+                // Configura o evento do botão de PDF que agora está fixo no rodapé do modal
+                const btnPdf = document.getElementById('btnExportarPDF');
+                if (btnPdf) {
+                    btnPdf.onclick = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        exportarPDF();
+                    };
+                }
+
+                const acoesDiv = document.getElementById('acoesAdmin');
+                if (usuarioAtual.tipo === 'admin' && solicitacaoAtual.status === 'pendente') {
+                    acoesDiv.innerHTML = `
+                        <button class="btn btn-success" onclick="aprovarSolicitacao()" style="flex: 1;">
+                            <i class="fas fa-check"></i> Aceitar
+                        </button>
+                        <button class="btn btn-danger" onclick="rejeitarSolicitacao()" style="flex: 1;">
+                            <i class="fas fa-times"></i> Recusar
+                        </button>
+                    `;
+                } else {
+                    acoesDiv.innerHTML = '';
+                }
+
+                document.getElementById('modalDetalhes').classList.add('active');
+            } catch (error) {
+                console.error('Erro ao carregar detalhes:', error);
+                showAlert('Erro ao carregar detalhes do pedido', 'error');
+            }
+        }
+
+        function fecharModalDetalhes() {
+            document.getElementById('modalDetalhes').classList.remove('active');
+        }
+
+        async function aprovarSolicitacao() {
+            if (!confirm('Aprovar este pedido? Os lotes serão criados automaticamente.')) return;
+
+            try {
+                const response = await fetchAPI(`/solicitacoes/${solicitacaoAtual.id}/aprovar`, {
+                    method: 'POST'
+                });
+
+                if (response && response.ok) {
+                    const data = await response.json();
+                    console.log(' Resposta da aprovação:', data);
+
+                    showAlert('Pedido aprovado! Lotes criados e OC gerada automaticamente.', 'success');
+                    fecharModalDetalhes();
+
+                    // Recarregar ambas as tabelas
+                    await carregarSolicitacoes();
+                    await carregarOCs();
+
+                    console.log(' Tabelas recarregadas com sucesso');
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao aprovar pedido', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao aprovar:', error);
+                showAlert('Erro ao aprovar pedido', 'error');
+            }
+        }
+
+
+        async function rejeitarSolicitacao() {
+            const motivo = prompt('Motivo da rejeição:');
+            if (!motivo) return;
+
+            try {
+                const response = await fetchAPI(`/solicitacoes/${solicitacaoAtual.id}/rejeitar`, {
+                    method: 'POST',
+                    body: JSON.stringify({ motivo_rejeicao: motivo })
+                });
+
+                if (response && response.ok) {
+                    showAlert('Pedido rejeitado', 'success');
+                    fecharModalDetalhes();
+                    await carregarSolicitacoes();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao rejeitar pedido', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao rejeitar:', error);
+                showAlert('Erro ao rejeitar pedido', 'error');
+            }
+        }
+
+        async function carregarOCs(status = '') {
+            try {
+                console.log(' Carregando OCs...');
+                let url = '/ordens-compra';
+                if (status) url += `?status=${status}`;
+
+                const response = await fetchAPI(url);
+                const container = document.getElementById('listaOCs');
+
+                if (!response) {
+                    console.error(' Sem resposta do servidor');
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                            <h3 style="color: #ef4444;">Erro de conexão com o servidor</h3>
+                            <p>Verifique sua conexão e tente novamente</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (!response.ok) {
+                    console.error(' Erro HTTP:', response.status);
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                            <h3 style="color: #ef4444;">Erro ao carregar ordens de compra</h3>
+                            <p>Tente recarregar a página</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const ocs = await response.json();
+                console.log(` ${ocs.length} OC(s) carregada(s)`);
+
+                if (ocs.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-shopping-cart"></i>
+                            <h3>Nenhuma ordem de compra encontrada</h3>
+                            <p>As ordens de compra aparecerão aqui</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = ocs.map(oc => {
+                    const statusClass = oc.status === 'aprovada' ? 'badge-aprovada' : 
+                                       oc.status === 'rejeitada' ? 'badge-rejeitada' : 
+                                       oc.status === 'em_analise' ? 'badge-pendente' : 'badge-pendente';
+
+                    const statusLabel = oc.status === 'aprovada' ? 'APROVADA' :
+                                       oc.status === 'rejeitada' ? 'REJEITADA' :
+                                       oc.status === 'em_analise' ? 'EM ANÁLISE' : oc.status.toUpperCase();
+
+                    const podeAprovar = usuarioAtual && (usuarioAtual.tipo === 'admin' || 
+                        (usuarioAtual.perfil && (usuarioAtual.perfil.nome === 'Administrador' || usuarioAtual.perfil.nome === 'Financeiro')));
+
+                    return `
+                        <div class="oc-card">
+                            <div class="card-header-section">
+                                <div class="card-icon oc-icon">
+                                    <i class="fas fa-shopping-cart"></i>
+                                </div>
+                                <div class="card-title-section">
+                                    <h3 class="card-id">OC #${oc.id}</h3>
+                                    <div class="card-date">SC #${oc.solicitacao_id} • ${formatDate(oc.criado_em)}</div>
+                                </div>
+                            </div>
+
+                            <div class="card-info-grid">
+                                <div class="info-row">
+                                    <i class="fas fa-building"></i>
+                                    <span class="info-value">${oc.fornecedor_nome}</span>
+                                </div>
+                                ${oc.aprovador_nome ? `
+                                    <div class="info-row">
+                                        <i class="fas fa-user-check"></i>
+                                        <span class="info-value">${oc.aprovador_nome}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+
+                            <div class="status-section">
+                                <span class="status-badge ${statusClass}">${statusLabel}</span>
+                                <span class="valor-destaque">R$ ${oc.valor_total.toFixed(2)}</span>
+                            </div>
+
+                            <div class="card-actions">
+                                ${podeAprovar && oc.status === 'em_analise' ? 
+                                    `<button class="btn btn-success" onclick="abrirModalAprovarOC(${oc.id})">
+                                        <i class="fas fa-check-circle"></i> Aprovar/Reprovar
+                                    </button>` :
+                                    `<button class="btn btn-secondary" onclick="verDetalhesOC(${oc.id})">
+                                        <i class="fas fa-eye"></i> Ver Detalhes
+                                    </button>`
+                                }
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Erro ao carregar OCs:', error);
+                const container = document.getElementById('listaOCs');
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                        <h3 style="color: #ef4444;">Erro ao carregar ordens de compra</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function filtrarOCStatus(status) {
+            carregarOCs(status);
+        }
+
+        async function gerarOC(solicitacaoId) {
+            if (!confirm('Gerar Ordem de Compra para este pedido aprovado?')) return;
+
+            try {
+                const response = await fetchAPI(`/ordens-compra/solicitacao/${solicitacaoId}`, {
+                    method: 'POST',
+                    body: JSON.stringify({})
+                });
+
+                if (response && response.ok) {
+                    const data = await response.json();
+                    showAlert(data.message || 'Ordem de compra criada com sucesso!', 'success');
+                    await carregarSolicitacoes();
+                    await carregarOCs();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao gerar ordem de compra', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao gerar OC:', error);
+                showAlert('Erro ao gerar ordem de compra', 'error');
+            }
+        }
+
+        async function abrirModalAprovarOC(ocId) {
+            try {
+                const response = await fetchAPI(`/ordens-compra/${ocId}`);
+                if (!response || !response.ok) {
+                    showAlert('Erro ao carregar ordem de compra', 'error');
+                    return;
+                }
+
+                ocAtual = await response.json();
+
+                document.getElementById('conteudoOC').innerHTML = `
+                    <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px;">
+                        <p><strong>Nº OC:</strong> #${ocAtual.id}</p>
+                        <p><strong>Nº SC:</strong> #${ocAtual.solicitacao_id}</p>
+                        <p><strong>Fornecedor:</strong> ${ocAtual.fornecedor_nome}</p>
+                        <p><strong>Valor Total:</strong> R$ ${ocAtual.valor_total.toFixed(2)}</p>
+                        <p><strong>Status Atual:</strong> ${ocAtual.status.toUpperCase()}</p>
+                    </div>
+                `;
+
+                document.getElementById('observacaoOC').value = '';
+
+                document.getElementById('dispositivoOC').textContent = navigator.userAgent;
+
+                gpsAtual = null;
+                document.getElementById('gpsOC').textContent = 'Capturando...';
+
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            gpsAtual = `${position.coords.latitude},${position.coords.longitude}`;
+                            document.getElementById('gpsOC').textContent = gpsAtual;
+                        },
+                        (error) => {
+                            console.error('Erro ao capturar GPS:', error);
+                            document.getElementById('gpsOC').textContent = 'Não disponível';
+                        }
+                    );
+                } else {
+                    document.getElementById('gpsOC').textContent = 'Não suportado';
+                }
+
+                document.getElementById('ipOC').textContent = 'Detectado automaticamente';
+
+                document.getElementById('modalAprovarOC').classList.add('active');
+            } catch (error) {
+                console.error('Erro ao abrir modal:', error);
+                showAlert('Erro ao carregar dados da ordem de compra', 'error');
+            }
+        }
+
+        function fecharModalAprovarOC() {
+            document.getElementById('modalAprovarOC').classList.remove('active');
+            ocAtual = null;
+            gpsAtual = null;
+        }
+
+        async function confirmarAcaoOC(acao) {
+            if (!ocAtual) return;
+
+            const observacao = document.getElementById('observacaoOC').value;
+
+            if (acao === 'reprovar' && !observacao) {
+                showAlert('Por favor, informe o motivo da reprovação', 'error');
+                return;
+            }
+
+            const confirmMsg = acao === 'aprovar' ? 
+                'Confirma a aprovação desta Ordem de Compra?' : 
+                'Confirma a reprovação desta Ordem de Compra?';
+
+            if (!confirm(confirmMsg)) return;
+
+            try {
+                const endpoint = acao === 'aprovar' ? 
+                    `/ordens-compra/${ocAtual.id}/aprovar` : 
+                    `/ordens-compra/${ocAtual.id}/reprovar`;
+
+                const response = await fetchAPI(endpoint, {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        observacao: observacao,
+                        gps: gpsAtual
+                    })
+                });
+
+                if (response && response.ok) {
+                    const data = await response.json();
+                    showAlert(data.message || `Ordem de compra ${acao === 'aprovar' ? 'aprovada' : 'reprovada'} com sucesso!`, 'success');
+                    fecharModalAprovarOC();
+                    await carregarOCs();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || `Erro ao ${acao} ordem de compra`, 'error');
+                }
+            } catch (error) {
+                console.error(`Erro ao ${acao} OC:`, error);
+                showAlert(`Erro ao ${acao} ordem de compra`, 'error');
+            }
+        }
+
+        function safeFormatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return 'N/A';
+                return date.toLocaleString('pt-BR');
+            } catch (e) {
+                return 'N/A';
+            }
+        }
+
+        async function verDetalhesOC(ocId) {
+            try {
+                const response = await fetchAPI(`/ordens-compra/${ocId}`);
+                if (!response || !response.ok) {
+                    showAlert('Erro ao carregar ordem de compra', 'error');
+                    return;
+                }
+
+                ocAtual = await response.json();
+                
+                // Se a OC não tem itens ou data, vamos buscar do pedido original
+                if ((!ocAtual.itens || ocAtual.itens.length === 0) && ocAtual.solicitacao_id) {
+                    const respPed = await fetchAPI(`/solicitacoes/${ocAtual.solicitacao_id}`);
+                    if (respPed && respPed.ok) {
+                        const pedidoOriginal = await respPed.json();
+                        ocAtual.itens = pedidoOriginal.itens;
+                        if (!ocAtual.data_criacao && !ocAtual.data_envio) {
+                            ocAtual.data_criacao = pedidoOriginal.data_envio;
+                        }
+                    }
+                }
+                
+                // Usamos o mesmo modal de detalhes, mas adaptado para OC
+                let html = `
+                    <div style="background: #f9fafb; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                        <h3 style="margin: 0 0 1rem 0;">Informações da Ordem de Compra</h3>
+                        <p><strong>OC ID:</strong> #${ocAtual.id}</p>
+                        <p><strong>Pedido Original:</strong> #${ocAtual.solicitacao_id}</p>
+                        <p><strong>Fornecedor:</strong> ${ocAtual.fornecedor_nome}</p>
+                        <p><strong>Status:</strong> <span class="badge badge-${ocAtual.status}">${ocAtual.status.toUpperCase()}</span></p>
+                        <p><strong>Aprovador:</strong> ${ocAtual.aprovador_nome || 'N/A'}</p>
+                        <p><strong>Data:</strong> ${safeFormatDate(ocAtual.data_criacao || ocAtual.data_envio || ocAtual.data_atualizacao)}</p>
+                    </div>
+                `;
+
+                if (ocAtual.itens && ocAtual.itens.length > 0) {
+                    html += `
+                        <h3 style="margin: 1.5rem 0 1rem 0;"> Itens (${ocAtual.itens.length})</h3>
+                        ${ocAtual.itens.map(item => `
+                            <div class="card" style="margin-bottom: 1rem;">
+                                <p><strong>Material:</strong> ${item.material_nome || item.tipo_lote_nome || 'N/A'}</p>
+                                <p><strong>Código:</strong> ${item.material_codigo || '-'}</p>
+                                <p><strong>Peso:</strong> ${item.peso_kg || 0} kg</p>
+                                <p><strong>Preço/kg:</strong> R$ ${(item.preco_unitario || item.preco_por_kg_snapshot || 0).toFixed(2)}</p>
+                                <p><strong>Valor Total:</strong> R$ ${(item.valor_total || item.valor_calculado || 0).toFixed(2)}</p>
+                            </div>
+                        `).join('')}
+                    `;
+                }
+
+                html += `
+                    <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                        <div style="display: flex; justify-content: space-between;"><span><strong>Valor Total OC:</strong></span><span style="font-size: 1.2rem; color: var(--primary-color);">R$ ${(ocAtual.valor_total || ocAtual.total_valor || 0).toFixed(2)}</span></div>
+                    </div>
+                `;
+
+                document.getElementById('detalhesConteudo').innerHTML = html;
+                
+                // Configura o evento do botão de PDF que agora está fixo no rodapé do modal
+                const btnPdf = document.getElementById('btnExportarPDF');
+                if (btnPdf) {
+                    btnPdf.onclick = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        exportarPDF_OC();
+                    };
+                }
+
+                document.getElementById('acoesAdmin').innerHTML = '';
+                document.getElementById('modalDetalhes').classList.add('active');
+            } catch (error) {
+                console.error('Erro ao carregar detalhes da OC:', error);
+                showAlert('Erro ao carregar detalhes', 'error');
+            }
+        }
+
+        function exportarPDF_OC() {
+            if (!ocAtual) return;
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                const primaryColor = [5, 150, 105];
+
+                // Cabeçalho
+                doc.setFillColor(243, 244, 246);
+                doc.rect(0, 0, 210, 40, 'F');
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(22);
+                doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                doc.text("MRX SYSTEMS", 14, 25);
+                doc.setFontSize(10);
+                doc.setTextColor(107, 114, 128);
+                doc.text("Ordem de Compra Oficial", 14, 32);
+
+                // Status
+                const status = ocAtual.status.toUpperCase();
+                doc.setFillColor(255, 255, 255);
+                doc.roundedRect(140, 15, 55, 15, 2, 2, 'FD');
+                doc.setFontSize(9);
+                doc.setTextColor(107, 114, 128);
+                doc.text("STATUS DA OC", 145, 21);
+                doc.setFontSize(11);
+                doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                doc.text(status, 145, 27);
+
+                // Info
+                doc.setFontSize(14);
+                doc.setTextColor(31, 41, 55);
+                doc.text("Informações da OC", 14, 55);
+                doc.line(14, 57, 196, 57);
+
+                const dataFormatada = safeFormatDate(ocAtual.data_criacao || ocAtual.data_envio || ocAtual.data_atualizacao);
+                const body = [
+                    ["OC ID:", `#${ocAtual.id}`, "Data:", dataFormatada],
+                    ["Pedido Orig.:", `#${ocAtual.solicitacao_id}`, "Aprovador:", ocAtual.aprovador_nome || "-"],
+                    ["Fornecedor:", ocAtual.fornecedor_nome, "", ""]
+                ];
+
+                doc.autoTable({
+                    startY: 62,
+                    body: body,
+                    theme: 'plain',
+                    styles: { fontSize: 9 },
+                    columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } }
+                });
+
+                // Itens
+                const itens = ocAtual.itens || [];
+                const tableData = itens.map(item => [
+                    item.material_nome || item.tipo_lote_nome || 'N/A',
+                    item.material_codigo || "-",
+                    `${item.peso_kg || 0} kg`,
+                    `R$ ${(item.preco_unitario || item.preco_por_kg_snapshot || 0).toFixed(2)}`,
+                    `R$ ${(item.valor_total || item.valor_calculado || 0).toFixed(2)}`
+                ]);
+
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 10,
+                    head: [['Material', 'Código', 'Peso', 'Preço/kg', 'Total']],
+                    body: tableData,
+                    theme: 'striped',
+                    headStyles: { fillColor: primaryColor }
+                });
+
+                // Total
+                let currentY = doc.lastAutoTable.finalY + 15;
+                doc.setFillColor(249, 250, 251);
+                doc.rect(120, currentY, 76, 15, 'F');
+                doc.setFontSize(11);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                doc.text("VALOR TOTAL:", 125, currentY + 10);
+                doc.text(`R$ ${(ocAtual.valor_total || ocAtual.total_valor || 0).toFixed(2)}`, 190, currentY + 10, { align: 'right' });
+
+                doc.save(`OC_MRX_${ocAtual.id}.pdf`);
+            } catch (err) {
+                console.error(err);
+                showAlert("Erro ao gerar PDF da OC");
+            }
+        }
+
+        carregarPagina();
+    </script>
+</body>
+</html>

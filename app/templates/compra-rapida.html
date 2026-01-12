@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compra Rápida - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .wizard-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        
+        .wizard-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding: 1rem;
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            color: #6b7280;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .wizard-step.active .step-number {
+            background: #059669;
+            color: white;
+        }
+        
+        .wizard-step.completed .step-number {
+            background: #10b981;
+            color: white;
+        }
+        
+        .step-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .wizard-step.active .step-label {
+            color: #059669;
+            font-weight: 600;
+        }
+        
+        .wizard-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .step-section {
+            display: none;
+        }
+        
+        .step-section.active {
+            display: block;
+        }
+        
+        .fornecedor-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .fornecedor-card:hover {
+            border-color: #059669;
+            background: #f0fdf4;
+        }
+        
+        .fornecedor-card.selected {
+            border-color: #059669;
+            background: #f0fdf4;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+        }
+        
+        .tabela-badge {
+            display: inline-block;
+            padding: 0.375rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        
+        .tabela-badge.estrelas-1 {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .tabela-badge.estrelas-2 {
+            background: #fed7aa;
+            color: #92400e;
+        }
+        
+        .tabela-badge.estrelas-3 {
+            background: #fecaca;
+            color: #991b1b;
+        }
+        
+        .material-selector {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            gap: 0.75rem;
+            align-items: end;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+        
+        .item-compra {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .item-compra.acima-tabela {
+            border-left: 4px solid #ef4444;
+            background: #fef2f2;
+        }
+        
+        .item-compra.aprovado {
+            border-left: 4px solid #10b981;
+            background: #f0fdf4;
+        }
+        
+        .alert-preco {
+            background: #fef2f2;
+            border-left: 4px solid #ef4444;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+        
+        .alert-preco i {
+            color: #ef4444;
+        }
+        
+        .resumo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .resumo-item {
+            background: #f9fafb;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .resumo-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+        
+        .resumo-valor {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #059669;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Compra Rápida</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button class="btn btn-secondary" onclick="window.location.href='/funcionario.html'" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mt-4" style="max-width: 1200px; padding-bottom: 3rem;">
+        <h1 style="margin-bottom: 2rem;">Nova Compra Rápida</h1>
+
+        <div class="wizard-steps">
+            <div class="wizard-step active" id="step-indicator-1">
+                <div class="step-number">1</div>
+                <div class="step-label">Fornecedor</div>
+            </div>
+            <div class="wizard-step" id="step-indicator-2">
+                <div class="step-number">2</div>
+                <div class="step-label">Materiais</div>
+            </div>
+            <div class="wizard-step" id="step-indicator-3">
+                <div class="step-number">3</div>
+                <div class="step-label">Revisão</div>
+            </div>
+        </div>
+
+        <div class="wizard-content">
+            <!-- Passo 1: Selecionar Fornecedor -->
+            <div class="step-section active" id="step-1">
+                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-building"></i> Selecionar Fornecedor</h2>
+                
+                <div class="form-group">
+                    <label>Buscar Fornecedor</label>
+                    <input type="text" id="buscaFornecedor" placeholder="Digite o nome, CPF ou CNPJ..." oninput="buscarFornecedores()">
+                </div>
+
+                <div id="listaFornecedores" style="max-height: 400px; overflow-y: auto;">
+                    <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                        <i class="fas fa-search" style="font-size: 2rem; opacity: 0.3;"></i>
+                        <p style="margin-top: 1rem;">Digite para buscar fornecedores</p>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem; justify-content: flex-end;">
+                    <button class="btn btn-primary" onclick="avancarPasso(2)" disabled id="btnAvancar1">
+                        Próximo <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Passo 2: Adicionar Materiais -->
+            <div class="step-section" id="step-2">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h2><i class="fas fa-boxes"></i> Adicionar Materiais</h2>
+                    <div id="tabelaVigenteDisplay"></div>
+                </div>
+
+                <div class="material-selector">
+                    <div class="form-group" style="margin: 0;">
+                        <label>Material</label>
+                        <select id="selectMaterial">
+                            <option value="">Selecione o material...</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Peso (kg)</label>
+                        <input type="number" id="inputPeso" step="0.01" min="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Preço Tabela (R$/kg)</label>
+                        <input type="number" id="inputPrecoTabela" readonly style="background: #f3f4f6;">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label>Preço Negociado (R$/kg)</label>
+                        <input type="number" id="inputPrecoNegociado" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                    <button class="btn btn-success" onclick="adicionarMaterial()" style="margin-top: 1.75rem;">
+                        <i class="fas fa-plus"></i> Adicionar
+                    </button>
+                </div>
+
+                <div id="alertAutorizacao" class="alert-preco" style="display: none;">
+                    <p style="margin: 0; font-weight: 600;">
+                        <i class="fas fa-exclamation-triangle"></i> <span id="qtdAcimaTabela">0</span> item(ns) com preço acima da tabela
+                    </p>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem;">
+                        Estes itens serão enviados para aprovação do administrador
+                    </p>
+                </div>
+
+                <h3 style="margin: 1.5rem 0 1rem;">Itens da Compra</h3>
+                <div id="listaItensCompra">
+                    <div style="text-align: center; padding: 2rem; color: #6b7280; background: #f9fafb; border-radius: 8px;">
+                        <i class="fas fa-shopping-cart" style="font-size: 2rem; opacity: 0.3;"></i>
+                        <p style="margin-top: 1rem;">Nenhum item adicionado</p>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem; justify-content: space-between;">
+                    <button class="btn btn-secondary" onclick="voltarPasso(1)">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </button>
+                    <button class="btn btn-primary" onclick="avancarPasso(3)" disabled id="btnAvancar2">
+                        Revisar <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Passo 3: Revisão e Confirmação -->
+            <div class="step-section" id="step-3">
+                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-clipboard-check"></i> Revisão da Compra</h2>
+
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <h3 style="margin-bottom: 1rem;"><i class="fas fa-building"></i> Fornecedor</h3>
+                    <div id="resumoFornecedor"></div>
+                </div>
+
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <h3 style="margin-bottom: 1rem;"><i class="fas fa-chart-bar"></i> Resumo</h3>
+                    <div class="resumo-grid">
+                        <div class="resumo-item">
+                            <div class="resumo-label">Total de Itens</div>
+                            <div class="resumo-valor" id="resumoTotalItens">0</div>
+                        </div>
+                        <div class="resumo-item">
+                            <div class="resumo-label">Peso Total (kg)</div>
+                            <div class="resumo-valor" id="resumoPesoTotal">0.00</div>
+                        </div>
+                        <div class="resumo-item">
+                            <div class="resumo-label">Valor Total</div>
+                            <div class="resumo-valor" id="resumoValorTotal">R$ 0.00</div>
+                        </div>
+                        <div class="resumo-item">
+                            <div class="resumo-label">Itens Pendentes</div>
+                            <div class="resumo-valor" id="resumoPendentes" style="color: #ef4444;">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 1rem;"><i class="fas fa-list"></i> Itens</h3>
+                    <div id="resumoItens"></div>
+                </div>
+
+                <div id="alertFinalAutorizacao" class="alert-preco" style="display: none; margin-top: 1.5rem;">
+                    <p style="margin: 0; font-weight: 600;">
+                        <i class="fas fa-info-circle"></i> Atenção
+                    </p>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem;">
+                        Esta compra possui itens com preço acima da tabela que precisarão de aprovação do administrador.
+                    </p>
+                </div>
+
+                <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem; justify-content: space-between;">
+                    <button class="btn btn-secondary" onclick="voltarPasso(2)">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </button>
+                    <button class="btn btn-success" onclick="finalizarCompra()" id="btnFinalizar">
+                        <i class="fas fa-check"></i> Finalizar Compra
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/auth.js"></script>
+    <script>
+        let fornecedorSelecionado = null;
+        let tabelaPrecoAtual = null;
+        let materiaisDisponiveis = [];
+        let itensCompra = [];
+
+        async function buscarFornecedores() {
+            const busca = document.getElementById('buscaFornecedor').value;
+            if (busca.length < 2) {
+                document.getElementById('listaFornecedores').innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                        <i class="fas fa-search" style="font-size: 2rem; opacity: 0.3;"></i>
+                        <p style="margin-top: 1rem;">Digite ao menos 2 caracteres para buscar</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/fornecedores?busca=${encodeURIComponent(busca)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Erro ao buscar fornecedores');
+
+                const fornecedores = await response.json();
+                renderizarFornecedores(fornecedores);
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao buscar fornecedores');
+            }
+        }
+
+        function renderizarFornecedores(fornecedores) {
+            const container = document.getElementById('listaFornecedores');
+            
+            if (fornecedores.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #6b7280;">
+                        <i class="fas fa-inbox" style="font-size: 2rem; opacity: 0.3;"></i>
+                        <p style="margin-top: 1rem;">Nenhum fornecedor encontrado</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = fornecedores.map(f => `
+                <div class="fornecedor-card ${fornecedorSelecionado?.id === f.id ? 'selected' : ''}" 
+                     onclick="selecionarFornecedor(${f.id})">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0 0 0.5rem 0;">${f.nome}</h4>
+                            <p style="margin: 0; font-size: 0.875rem; color: #6b7280;">
+                                ${f.cpf_cnpj || 'N/A'} • ${f.cidade || 'N/A'}
+                            </p>
+                        </div>
+                        <span class="tabela-badge estrelas-${f.tabela_preco_estrelas || 1}">
+                            <i class="fas fa-star"></i> ${f.tabela_preco_estrelas || 1}★
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function selecionarFornecedor(id) {
+            try {
+                const response = await fetch(`/api/fornecedores/${id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Erro ao carregar fornecedor');
+
+                fornecedorSelecionado = await response.json();
+                
+                const tabelaId = fornecedorSelecionado.tabela_preco_id || 1;
+                await carregarTabelaPreco(tabelaId);
+                
+                renderizarFornecedores(document.querySelectorAll('.fornecedor-card').length > 0 ? 
+                    Array.from(document.querySelectorAll('.fornecedor-card')).map(() => fornecedorSelecionado) : 
+                    [fornecedorSelecionado]);
+                
+                document.getElementById('btnAvancar1').disabled = false;
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao selecionar fornecedor');
+            }
+        }
+
+        async function carregarTabelaPreco(tabelaId) {
+            try {
+                const response = await fetch(`/api/tabelas-preco/${tabelaId}/precos`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Erro ao carregar tabela de preços');
+
+                tabelaPrecoAtual = await response.json();
+            } catch (error) {
+                console.error('Erro:', error);
+            }
+        }
+
+        async function carregarMateriais() {
+            try {
+                const response = await fetch('/api/materiais-base?apenas_ativos=true', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Erro ao carregar materiais');
+
+                materiaisDisponiveis = await response.json();
+                
+                const select = document.getElementById('selectMaterial');
+                select.innerHTML = '<option value="">Selecione o material...</option>' +
+                    materiaisDisponiveis.map(m => 
+                        `<option value="${m.id}" data-codigo="${m.codigo}">${m.codigo} - ${m.nome}</option>`
+                    ).join('');
+            } catch (error) {
+                console.error('Erro:', error);
+            }
+        }
+
+        document.getElementById('selectMaterial').addEventListener('change', function() {
+            const materialId = parseInt(this.value);
+            if (!materialId || !tabelaPrecoAtual) return;
+
+            const precoItem = tabelaPrecoAtual.find(p => p.material_id === materialId);
+            if (precoItem) {
+                document.getElementById('inputPrecoTabela').value = parseFloat(precoItem.preco_por_kg).toFixed(2);
+                document.getElementById('inputPrecoNegociado').value = parseFloat(precoItem.preco_por_kg).toFixed(2);
+            }
+        });
+
+        function adicionarMaterial() {
+            const materialId = parseInt(document.getElementById('selectMaterial').value);
+            const peso = parseFloat(document.getElementById('inputPeso').value);
+            const precoTabela = parseFloat(document.getElementById('inputPrecoTabela').value);
+            const precoNegociado = parseFloat(document.getElementById('inputPrecoNegociado').value);
+
+            if (!materialId || !peso || !precoTabela || !precoNegociado) {
+                alert('Preencha todos os campos');
+                return;
+            }
+
+            const material = materiaisDisponiveis.find(m => m.id === materialId);
+            if (!material) return;
+
+            const item = {
+                material_id: materialId,
+                material_nome: material.nome,
+                material_codigo: material.codigo,
+                peso_kg: peso,
+                preco_tabela: precoTabela,
+                preco_negociado: precoNegociado,
+                valor_total: peso * precoNegociado,
+                acima_tabela: precoNegociado > precoTabela
+            };
+
+            itensCompra.push(item);
+            renderizarItensCompra();
+            limparFormularioMaterial();
+            document.getElementById('btnAvancar2').disabled = false;
+        }
+
+        function renderizarItensCompra() {
+            const container = document.getElementById('listaItensCompra');
+            
+            if (itensCompra.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #6b7280; background: #f9fafb; border-radius: 8px;">
+                        <i class="fas fa-shopping-cart" style="font-size: 2rem; opacity: 0.3;"></i>
+                        <p style="margin-top: 1rem;">Nenhum item adicionado</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = itensCompra.map((item, index) => {
+                const diferenca = ((item.preco_negociado - item.preco_tabela) / item.preco_tabela * 100).toFixed(1);
+                const classItem = item.acima_tabela ? 'acima-tabela' : 'aprovado';
+                
+                return `
+                    <div class="item-compra ${classItem}">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <h4 style="margin: 0 0 0.5rem 0;">${item.material_codigo} - ${item.material_nome}</h4>
+                                <div style="display: flex; gap: 2rem; font-size: 0.875rem; color: #6b7280;">
+                                    <span><strong>Peso:</strong> ${item.peso_kg.toFixed(2)} kg</span>
+                                    <span><strong>Tabela:</strong> R$ ${item.preco_tabela.toFixed(2)}/kg</span>
+                                    <span><strong>Negociado:</strong> R$ ${item.preco_negociado.toFixed(2)}/kg</span>
+                                    ${item.acima_tabela ? 
+                                        `<span style="color: #ef4444; font-weight: 600;">+${diferenca}%</span>` : 
+                                        `<span style="color: #10b981; font-weight: 600;"><i class="fas fa-check"></i> OK</span>`
+                                    }
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div style="text-align: right;">
+                                    <div style="font-size: 0.875rem; color: #6b7280;">Total</div>
+                                    <div style="font-size: 1.25rem; font-weight: 700; color: #059669;">
+                                        R$ ${item.valor_total.toFixed(2)}
+                                    </div>
+                                </div>
+                                <button class="btn btn-sm btn-danger" onclick="removerItem(${index})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const qtdAcima = itensCompra.filter(i => i.acima_tabela).length;
+            const alertDiv = document.getElementById('alertAutorizacao');
+            if (qtdAcima > 0) {
+                document.getElementById('qtdAcimaTabela').textContent = qtdAcima;
+                alertDiv.style.display = 'block';
+            } else {
+                alertDiv.style.display = 'none';
+            }
+        }
+
+        function removerItem(index) {
+            itensCompra.splice(index, 1);
+            renderizarItensCompra();
+            if (itensCompra.length === 0) {
+                document.getElementById('btnAvancar2').disabled = true;
+            }
+        }
+
+        function limparFormularioMaterial() {
+            document.getElementById('selectMaterial').value = '';
+            document.getElementById('inputPeso').value = '';
+            document.getElementById('inputPrecoTabela').value = '';
+            document.getElementById('inputPrecoNegociado').value = '';
+        }
+
+        function avancarPasso(passo) {
+            document.querySelectorAll('.step-section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active', 'completed'));
+            
+            document.getElementById(`step-${passo}`).classList.add('active');
+            document.getElementById(`step-indicator-${passo}`).classList.add('active');
+            
+            for (let i = 1; i < passo; i++) {
+                document.getElementById(`step-indicator-${i}`).classList.add('completed');
+            }
+
+            if (passo === 2) {
+                document.getElementById('tabelaVigenteDisplay').innerHTML = `
+                    <span class="tabela-badge estrelas-${fornecedorSelecionado.tabela_preco_estrelas || 1}">
+                        <i class="fas fa-star"></i> Tabela ${fornecedorSelecionado.tabela_preco_estrelas || 1}★
+                    </span>
+                `;
+                carregarMateriais();
+            }
+
+            if (passo === 3) {
+                renderizarResumo();
+            }
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function voltarPasso(passo) {
+            avancarPasso(passo);
+        }
+
+        function renderizarResumo() {
+            document.getElementById('resumoFornecedor').innerHTML = `
+                <p style="margin: 0;"><strong>${fornecedorSelecionado.nome}</strong></p>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: #6b7280;">
+                    ${fornecedorSelecionado.cpf_cnpj} • Tabela ${fornecedorSelecionado.tabela_preco_estrelas || 1}★
+                </p>
+            `;
+
+            const totalItens = itensCompra.length;
+            const pesoTotal = itensCompra.reduce((sum, item) => sum + item.peso_kg, 0);
+            const valorTotal = itensCompra.reduce((sum, item) => sum + item.valor_total, 0);
+            const itensPendentes = itensCompra.filter(i => i.acima_tabela).length;
+
+            document.getElementById('resumoTotalItens').textContent = totalItens;
+            document.getElementById('resumoPesoTotal').textContent = pesoTotal.toFixed(2);
+            document.getElementById('resumoValorTotal').textContent = `R$ ${valorTotal.toFixed(2)}`;
+            document.getElementById('resumoPendentes').textContent = itensPendentes;
+
+            document.getElementById('resumoItens').innerHTML = itensCompra.map(item => `
+                <div style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between;">
+                    <span>${item.material_codigo} - ${item.material_nome} (${item.peso_kg} kg)</span>
+                    <span style="font-weight: 600;">R$ ${item.valor_total.toFixed(2)}</span>
+                </div>
+            `).join('');
+
+            if (itensPendentes > 0) {
+                document.getElementById('alertFinalAutorizacao').style.display = 'block';
+            }
+        }
+
+        async function finalizarCompra() {
+            try {
+                document.getElementById('btnFinalizar').disabled = true;
+                document.getElementById('btnFinalizar').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+
+                const itensAprovados = itensCompra.filter(i => !i.acima_tabela);
+                const itensAutorizacao = itensCompra.filter(i => i.acima_tabela);
+
+                for (const item of itensAutorizacao) {
+                    await criarSolicitacaoAutorizacao(item);
+                }
+
+                if (itensAprovados.length > 0) {
+                    alert('Compra criada com sucesso!\n\n' +
+                          `Itens aprovados: ${itensAprovados.length}\n` +
+                          `Itens aguardando autorização: ${itensAutorizacao.length}`);
+                } else {
+                    alert('Solicitação de autorização enviada!\n\n' +
+                          `Todos os ${itensAutorizacao.length} item(ns) aguardam aprovação do administrador.`);
+                }
+
+                window.location.href = '/funcionario.html';
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao finalizar compra: ' + error.message);
+                document.getElementById('btnFinalizar').disabled = false;
+                document.getElementById('btnFinalizar').innerHTML = '<i class="fas fa-check"></i> Finalizar Compra';
+            }
+        }
+
+        async function criarSolicitacaoAutorizacao(item) {
+            const response = await fetch('/api/autorizacoes-preco', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    fornecedor_id: fornecedorSelecionado.id,
+                    material_id: item.material_id,
+                    peso_kg: item.peso_kg,
+                    preco_negociado: item.preco_negociado,
+                    justificativa: `Preço negociado acima da tabela ${fornecedorSelecionado.tabela_preco_estrelas}★`
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.erro || 'Erro ao criar autorização');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RH / Gestão de Usuários - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .tabs-container {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+        }
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab-btn:hover {
+            color: var(--primary-color);
+            background: rgba(5, 150, 105, 0.05);
+        }
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .stat-card .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.75rem;
+        }
+        .stat-card .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .stat-card .stat-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        .user-photo {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .user-photo i {
+            font-size: 1.5rem;
+            color: #9ca3af;
+        }
+        .status-badge {
+            display: inline-flex;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .status-ativo {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status-inativo {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .filter-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .filter-group {
+            flex: 1;
+            min-width: 150px;
+        }
+        .filter-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            color: #374151;
+        }
+        .filter-group input, .filter-group select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+        .export-btns {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .comissao-highlight {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+        }
+        .comissao-highlight .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+        .photo-upload-area {
+            width: 120px;
+            height: 120px;
+            border: 2px dashed #d1d5db;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 0 auto 1rem;
+            overflow: hidden;
+            position: relative;
+        }
+        .photo-upload-area:hover {
+            border-color: var(--primary-color);
+            background: rgba(5, 150, 105, 0.05);
+        }
+        .photo-upload-area img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .photo-upload-area .placeholder {
+            text-align: center;
+            color: #9ca3af;
+        }
+        .photo-upload-area .placeholder i {
+            font-size: 2rem;
+            margin-bottom: 0.25rem;
+        }
+        .ranking-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .ranking-1 { background: #fef3c7; color: #92400e; }
+        .ranking-2 { background: #e5e7eb; color: #374151; }
+        .ranking-3 { background: #fed7aa; color: #9a3412; }
+        .auditoria-item {
+            padding: 1.25rem;
+            border-left: 4px solid var(--primary-color);
+            background: white;
+            margin-bottom: 1rem;
+            border-radius: 0 12px 12px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            transition: all 0.2s;
+        }
+        .auditoria-item:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateX(2px);
+        }
+        .auditoria-item.criar {
+            border-left-color: #10b981;
+        }
+        .auditoria-item.atualizar {
+            border-left-color: #f59e0b;
+        }
+        .auditoria-item.excluir {
+            border-left-color: #ef4444;
+        }
+        .auditoria-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .auditoria-item .acao {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .auditoria-item.criar .acao {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .auditoria-item.atualizar .acao {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .auditoria-item.excluir .acao {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .auditoria-item .entidade-info {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        .auditoria-detalhes {
+            background: #f9fafb;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 0.75rem;
+        }
+        .auditoria-detalhes-title {
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+        .auditoria-campo {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 0.5rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.875rem;
+            min-width: 0;
+        }
+        .auditoria-campo:last-child {
+            border-bottom: none;
+        }
+        .auditoria-campo-label {
+            font-weight: 600;
+            color: #6b7280;
+        }
+        .auditoria-campo-valor {
+            color: #1f2937;
+            word-break: break-all;
+            overflow-wrap: break-word;
+            min-width: 0;
+        }
+        .auditoria-campo-alteracao {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            min-width: 0;
+        }
+        .valor-antes {
+            color: #ef4444;
+            text-decoration: line-through;
+            opacity: 0.7;
+            word-break: break-all;
+            overflow-wrap: break-word;
+        }
+        .valor-depois {
+            color: #10b981;
+            font-weight: 600;
+            word-break: break-all;
+            overflow-wrap: break-word;
+        }
+        .auditoria-item .meta {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        /* Ajustes de espaçamento para header fixo e bottom nav */
+        body {
+            padding-bottom: 95px; /* Espaço para bottom nav */
+            overflow-x: hidden;
+            max-width: 100vw;
+        }
+        
+        /* Prevenção global de overflow horizontal */
+        html {
+            overflow-x: hidden;
+        }
+
+        main.container {
+            padding-top: 80px !important; /* Espaço para header fixo */
+            padding-bottom: 100px !important; /* Espaço para bottom nav */
+        }
+
+        /* Ajuste específico para mobile */
+        @media (max-width: 767px) {
+            main.container {
+                padding-top: 80px !important;
+                padding-bottom: 110px !important;
+                overflow-x: hidden;
+            }
+            
+            .stats-grid {
+                margin-top: 10px;
+            }
+            
+            .filter-row {
+                flex-direction: column;
+            }
+            .filter-group {
+                min-width: 100%;
+            }
+            
+            /* Fix auditoria responsividade */
+            .auditoria-item {
+                max-width: 100%;
+                overflow: hidden;
+            }
+            
+            .auditoria-detalhes {
+                max-width: 100%;
+                overflow: hidden;
+            }
+            
+            .auditoria-campo {
+                grid-template-columns: 100px 1fr;
+            }
+            
+            .auditoria-campo-alteracao {
+                flex-direction: column;
+                gap: 0.25rem;
+                align-items: flex-start;
+            }
+            
+            .auditoria-campo-alteracao i {
+                display: none;
+            }
+            
+            .valor-antes, .valor-depois {
+                max-width: 100%;
+            }
+            
+            .auditoria-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            
+            .meta {
+                flex-direction: column;
+                gap: 0.5rem !important;
+            }
+        }
+        
+        /* Ajustes para desktop */
+        @media (min-width: 768px) {
+            main.container {
+                padding-top: 90px !important;
+                padding-bottom: 100px !important;
+            }
+        }
+        
+        /* Garantir que cards e tabelas não fiquem atrás da navbar */
+        .card, .stats-grid, .tabs-container {
+            position: relative;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>RH / Gestão de Usuários</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button class="btn btn-secondary" onclick="window.location.href='/administracao.html'" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="bottom-nav" id="navMenuMobile"></nav>
+
+    <main class="container mt-4">
+        <div class="tabs-container">
+            <button class="tab-btn active" onclick="showTab('usuarios')">
+                <i class="fas fa-users"></i> Usuários
+            </button>
+            <button class="tab-btn" onclick="showTab('fornecedores')">
+                <i class="fas fa-truck"></i> Fornecedores
+            </button>
+            <button class="tab-btn" onclick="showTab('comissoes')">
+                <i class="fas fa-percentage"></i> Comissões
+            </button>
+            <button class="tab-btn" onclick="showTab('auditoria')">
+                <i class="fas fa-history"></i> Auditoria
+            </button>
+        </div>
+
+        <div id="tab-usuarios" class="tab-content active">
+            <div class="stats-grid" id="statsUsuarios"></div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+                <input type="text" id="buscaUsuario" placeholder="Buscar usuário..." style="flex: 1; min-width: 200px; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 8px;" onkeyup="filtrarUsuarios()">
+                <button class="btn btn-primary" onclick="abrirModalNovoUsuario()">
+                    <i class="fas fa-plus"></i> Novo Usuário
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Foto</th>
+                                <th>Nome</th>
+                                <th>Email</th>
+                                <th>Perfil</th>
+                                <th>Comissão %</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaUsuarios">
+                            <tr><td colspan="7" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-fornecedores" class="tab-content">
+            <div class="card" style="margin-bottom: 1rem; padding: 1rem; background: linear-gradient(135deg, #059669, #10b981); color: white;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fas fa-info-circle" style="font-size: 1.25rem;"></i>
+                    <div>
+                        <strong>Atribuição de Compradores</strong>
+                        <p style="margin: 0.25rem 0 0; font-size: 0.875rem; opacity: 0.9;">
+                            Gerencie qual comprador é responsável por cada fornecedor. Por padrão, o comprador que cadastrou o fornecedor é o responsável.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+                <input type="text" id="buscaFornecedor" placeholder="Buscar fornecedor por nome ou CNPJ/CPF..." style="flex: 1; min-width: 250px; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 8px;" onkeyup="filtrarFornecedoresComprador()">
+                <div class="filter-group" style="min-width: 200px;">
+                    <select id="filtroCompradorFornecedor" onchange="filtrarFornecedoresComprador()" style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 8px;">
+                        <option value="">Todos os compradores</option>
+                        <option value="sem_comprador">Sem comprador atribuído</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fornecedor</th>
+                                <th>CNPJ/CPF</th>
+                                <th>Cidade/UF</th>
+                                <th>Cadastrado por</th>
+                                <th>Comprador Responsável</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaFornecedoresComprador">
+                            <tr><td colspan="6" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-comissoes" class="tab-content">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>Data Início</label>
+                    <input type="date" id="filtroDataInicio">
+                </div>
+                <div class="filter-group">
+                    <label>Data Fim</label>
+                    <input type="date" id="filtroDataFim">
+                </div>
+                <div class="filter-group">
+                    <label>Usuário</label>
+                    <select id="filtroUsuario">
+                        <option value="">Todos os usuários</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Fornecedor</label>
+                    <select id="filtroFornecedor">
+                        <option value="">Todos os fornecedores</option>
+                    </select>
+                </div>
+                <div class="export-btns">
+                    <button class="btn btn-secondary" onclick="aplicarFiltrosComissao()">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                    <button class="btn btn-primary" onclick="exportarComissoes('xlsx')">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportarComissoes('csv')">
+                        <i class="fas fa-file-csv"></i> CSV
+                    </button>
+                </div>
+            </div>
+
+            <div id="resumoComissoes"></div>
+
+            <div class="card">
+                <h3 style="margin-bottom: 1rem;">Ranking de Comissões</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Usuário</th>
+                                <th>Perfil</th>
+                                <th>% Comissão</th>
+                                <th>Solicitações</th>
+                                <th>Valor Total</th>
+                                <th>Comissão Total</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaComissoes">
+                            <tr><td colspan="8" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="detalheComissaoUsuario" style="display: none;" class="card mt-4">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 id="tituloDetalheComissao">Detalhes de Comissão</h3>
+                    <button class="btn btn-secondary" onclick="fecharDetalheComissao()">
+                        <i class="fas fa-times"></i> Fechar
+                    </button>
+                </div>
+                <div id="conteudoDetalheComissao"></div>
+            </div>
+        </div>
+
+        <div id="tab-auditoria" class="tab-content">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>Data Início</label>
+                    <input type="date" id="filtroAuditoriaDataInicio">
+                </div>
+                <div class="filter-group">
+                    <label>Data Fim</label>
+                    <input type="date" id="filtroAuditoriaDataFim">
+                </div>
+                <div class="filter-group">
+                    <label>Usuário Afetado</label>
+                    <select id="filtroAuditoriaUsuario">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="carregarAuditoria()">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+            </div>
+
+            <div id="listaAuditoria"></div>
+        </div>
+    </main>
+
+    <div class="modal" id="modalNovoUsuario">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="tituloModalUsuario">Novo Usuário</h2>
+                <span class="modal-close" onclick="fecharModalUsuario()">&times;</span>
+            </div>
+            <form id="formUsuario" onsubmit="salvarUsuario(event)">
+                <input type="hidden" id="usuarioId">
+                
+                <div class="photo-upload-area" onclick="document.getElementById('fotoInput').click()">
+                    <div id="fotoPreview" class="placeholder">
+                        <i class="fas fa-camera"></i>
+                        <div style="font-size: 0.75rem;">Adicionar foto</div>
+                    </div>
+                </div>
+                <input type="file" id="fotoInput" accept="image/*" style="display: none;" onchange="previewFoto(this)">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Nome *</label>
+                        <input type="text" id="nomeUsuario" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" id="emailUsuario" required>
+                    </div>
+                    <div class="form-group">
+                        <label>CPF</label>
+                        <input type="text" id="cpfUsuario" placeholder="000.000.000-00" onkeyup="formatarCPF(this)">
+                    </div>
+                    <div class="form-group">
+                        <label>Telefone</label>
+                        <input type="text" id="telefoneUsuario" placeholder="(00) 00000-0000" onkeyup="formatarTelefone(this)">
+                    </div>
+                    <div class="form-group">
+                        <label>Perfil *</label>
+                        <select id="perfilUsuario" required>
+                            <option value="">Selecione um perfil...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>% Comissão</label>
+                        <input type="number" id="comissaoUsuario" step="0.01" min="0" max="100" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Senha</label>
+                        <input type="password" id="senhaUsuario" placeholder="Deixe vazio para usar CPF">
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="statusUsuario">
+                            <option value="true">Ativo</option>
+                            <option value="false">Inativo</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharModalUsuario()" style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="modalConfirmacao">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Confirmar Ação</h2>
+                <span class="modal-close" onclick="fecharModalConfirmacao()">&times;</span>
+            </div>
+            <p id="mensagemConfirmacao" style="margin-bottom: 1.5rem;"></p>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-secondary" onclick="fecharModalConfirmacao()" style="flex: 1;">Cancelar</button>
+                <button class="btn btn-danger" id="btnConfirmar" style="flex: 1;">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="modalEditarComprador">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-tie"></i> Atribuir Comprador</h2>
+                <span class="modal-close" onclick="fecharModalComprador()">&times;</span>
+            </div>
+            <div id="infoFornecedorModal" style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                <div style="font-weight: 600; color: #374151;" id="nomeFornecedorModal"></div>
+                <div style="font-size: 0.875rem; color: #6b7280;" id="docFornecedorModal"></div>
+            </div>
+            
+            <input type="hidden" id="fornecedorIdModal">
+            
+            <div class="form-group">
+                <label style="font-weight: 600; margin-bottom: 0.5rem; display: block;">Comprador Responsável</label>
+                <select id="selectCompradorModal" style="width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem;">
+                    <option value="">Nenhum (usar padrão - quem cadastrou)</option>
+                </select>
+                <small style="color: #6b7280; display: block; margin-top: 0.5rem;">
+                    <i class="fas fa-info-circle"></i> Se nenhum comprador for selecionado, o fornecedor ficará sob responsabilidade de quem o cadastrou.
+                </small>
+            </div>
+            
+            <div id="compradorAtualInfo" style="margin-top: 1rem; padding: 0.75rem; background: #ecfdf5; border-radius: 8px; display: none;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; color: #065f46;">
+                    <i class="fas fa-user-check"></i>
+                    <span id="compradorAtualTexto"></span>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalComprador()" style="flex: 1;">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="salvarComprador()" style="flex: 1;">
+                    <i class="fas fa-save"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/rbac.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script>
+        let usuarios = [];
+        let perfis = [];
+        let fornecedores = [];
+        let fornecedoresComprador = [];
+        let compradores = [];
+        let usuarioAtual = null;
+
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+            
+            if (user.tipo !== 'admin') {
+                showAlert('Acesso negado. Apenas administradores podem acessar esta página.');
+                window.location.href = '/dashboard.html';
+                return;
+            }
+            
+            await Promise.all([
+                carregarPerfis(),
+                carregarFornecedores(),
+                carregarCompradores(),
+                carregarDashboard()
+            ]);
+            await carregarUsuarios();
+            await carregarResumoComissoes();
+        }
+
+        async function carregarPerfis() {
+            try {
+                const response = await fetchAPI('/rh/perfis');
+                if (response.ok) {
+                    perfis = await response.json();
+                    const select = document.getElementById('perfilUsuario');
+                    const selectFiltro = document.getElementById('filtroUsuario');
+                    const selectAuditoria = document.getElementById('filtroAuditoriaUsuario');
+                    
+                    select.innerHTML = '<option value="">Selecione um perfil...</option>';
+                    perfis.forEach(p => {
+                        select.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar perfis:', error);
+            }
+        }
+
+        async function carregarFornecedores() {
+            try {
+                const response = await fetchAPI('/rh/fornecedores');
+                if (response.ok) {
+                    fornecedores = await response.json();
+                    const select = document.getElementById('filtroFornecedor');
+                    select.innerHTML = '<option value="">Todos os fornecedores</option>';
+                    fornecedores.forEach(f => {
+                        select.innerHTML += `<option value="${f.id}">${f.nome}</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar fornecedores:', error);
+            }
+        }
+
+        async function carregarCompradores() {
+            try {
+                const response = await fetchAPI('/rh/compradores');
+                if (response.ok) {
+                    compradores = await response.json();
+                    const selectModal = document.getElementById('selectCompradorModal');
+                    const selectFiltro = document.getElementById('filtroCompradorFornecedor');
+                    
+                    selectModal.innerHTML = '<option value="">Nenhum (usar padrão - quem cadastrou)</option>';
+                    compradores.forEach(c => {
+                        selectModal.innerHTML += `<option value="${c.id}">${c.nome} (${c.perfil || 'Sem perfil'})</option>`;
+                    });
+                    
+                    const optionsHtml = compradores.map(c => 
+                        `<option value="${c.id}">${c.nome}</option>`
+                    ).join('');
+                    selectFiltro.innerHTML = `
+                        <option value="">Todos os compradores</option>
+                        <option value="sem_comprador">Sem comprador atribuído</option>
+                        ${optionsHtml}
+                    `;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar compradores:', error);
+            }
+        }
+
+        async function carregarFornecedoresComprador() {
+            try {
+                const busca = document.getElementById('buscaFornecedor').value;
+                const response = await fetchAPI(`/rh/fornecedores/compradores?busca=${encodeURIComponent(busca)}`);
+                if (response.ok) {
+                    fornecedoresComprador = await response.json();
+                    renderizarFornecedoresComprador();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar fornecedores para comprador:', error);
+                document.getElementById('tabelaFornecedoresComprador').innerHTML = 
+                    '<tr><td colspan="6" class="loading">Erro ao carregar dados</td></tr>';
+            }
+        }
+
+        function filtrarFornecedoresComprador() {
+            clearTimeout(window.filtroFornecedorTimeout);
+            window.filtroFornecedorTimeout = setTimeout(() => {
+                renderizarFornecedoresComprador();
+            }, 300);
+        }
+
+        function renderizarFornecedoresComprador() {
+            const busca = document.getElementById('buscaFornecedor').value.toLowerCase();
+            const filtroComprador = document.getElementById('filtroCompradorFornecedor').value;
+            
+            let lista = fornecedoresComprador.filter(f => {
+                const matchBusca = !busca || 
+                    f.nome.toLowerCase().includes(busca) || 
+                    (f.cnpj && f.cnpj.includes(busca)) ||
+                    (f.cpf && f.cpf.includes(busca));
+                
+                let matchComprador = true;
+                if (filtroComprador === 'sem_comprador') {
+                    matchComprador = !f.comprador_responsavel_id;
+                } else if (filtroComprador) {
+                    matchComprador = f.comprador_responsavel_id == filtroComprador;
+                }
+                
+                return matchBusca && matchComprador;
+            });
+
+            const tbody = document.getElementById('tabelaFornecedoresComprador');
+            
+            if (lista.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: #6b7280;">Nenhum fornecedor encontrado</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = lista.map(f => {
+                const doc = f.cnpj || f.cpf || '-';
+                const cidade = f.cidade && f.estado ? `${f.cidade}/${f.estado}` : (f.cidade || f.estado || '-');
+                const compradorNome = f.comprador_responsavel_nome || 
+                    `<span style="color: #9ca3af; font-style: italic;">${f.criado_por_nome || 'Padrão'}</span>`;
+                const compradorBadge = f.comprador_responsavel_id ? 
+                    `<span class="status-badge status-ativo">${f.comprador_responsavel_nome}</span>` :
+                    `<span class="status-badge" style="background: #f3f4f6; color: #6b7280;">${f.criado_por_nome || 'Não definido'} <small>(padrão)</small></span>`;
+                
+                return `
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600;">${f.nome}</div>
+                        </td>
+                        <td style="font-family: monospace; font-size: 0.875rem;">${doc}</td>
+                        <td>${cidade}</td>
+                        <td>
+                            <span style="color: #6b7280; font-size: 0.875rem;">${f.criado_por_nome || '-'}</span>
+                        </td>
+                        <td>${compradorBadge}</td>
+                        <td>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-primary" onclick="abrirModalComprador(${f.id})" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+                                    <i class="fas fa-user-edit"></i> Editar
+                                </button>
+                                ${f.comprador_responsavel_id ? `
+                                    <button class="btn btn-secondary" onclick="removerComprador(${f.id}, '${f.nome.replace(/'/g, "\\'")}')" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+                                        <i class="fas fa-user-minus"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function abrirModalComprador(fornecedorId) {
+            const fornecedor = fornecedoresComprador.find(f => f.id === fornecedorId);
+            if (!fornecedor) {
+                showAlert('Fornecedor não encontrado');
+                return;
+            }
+
+            document.getElementById('fornecedorIdModal').value = fornecedorId;
+            document.getElementById('nomeFornecedorModal').textContent = fornecedor.nome;
+            document.getElementById('docFornecedorModal').textContent = 
+                fornecedor.cnpj || fornecedor.cpf || 'Sem documento';
+            
+            document.getElementById('selectCompradorModal').value = fornecedor.comprador_responsavel_id || '';
+            
+            const infoAtual = document.getElementById('compradorAtualInfo');
+            const textoAtual = document.getElementById('compradorAtualTexto');
+            
+            if (fornecedor.comprador_responsavel_id) {
+                infoAtual.style.display = 'block';
+                textoAtual.textContent = `Comprador atual: ${fornecedor.comprador_responsavel_nome}`;
+            } else if (fornecedor.criado_por_nome) {
+                infoAtual.style.display = 'block';
+                infoAtual.style.background = '#f3f4f6';
+                textoAtual.innerHTML = `<span style="color: #6b7280;">Responsável padrão: ${fornecedor.criado_por_nome} (quem cadastrou)</span>`;
+            } else {
+                infoAtual.style.display = 'none';
+            }
+            
+            document.getElementById('modalEditarComprador').classList.add('active');
+        }
+
+        function fecharModalComprador() {
+            document.getElementById('modalEditarComprador').classList.remove('active');
+        }
+
+        async function salvarComprador() {
+            const fornecedorId = document.getElementById('fornecedorIdModal').value;
+            const compradorId = document.getElementById('selectCompradorModal').value;
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`/api/rh/fornecedores/${fornecedorId}/comprador`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ 
+                        comprador_responsavel_id: compradorId ? parseInt(compradorId) : null 
+                    })
+                });
+                
+                if (response.status === 401) {
+                    showAlert('Sessão expirada. Faça login novamente.');
+                    window.location.href = '/';
+                    return;
+                }
+                
+                if (response.ok) {
+                    showAlert('Comprador atualizado com sucesso!', 'success');
+                    fecharModalComprador();
+                    await carregarFornecedoresComprador();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao atualizar comprador');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar comprador:', error);
+                showAlert('Erro ao salvar comprador');
+            }
+        }
+
+        async function removerComprador(fornecedorId, fornecedorNome) {
+            document.getElementById('mensagemConfirmacao').innerHTML = `
+                Deseja remover o comprador responsável do fornecedor <strong>${fornecedorNome}</strong>?<br><br>
+                <small style="color: #6b7280;">O fornecedor voltará a ser responsabilidade de quem o cadastrou.</small>
+            `;
+            document.getElementById('btnConfirmar').onclick = async () => {
+                try {
+                    const token = localStorage.getItem('token');
+                    const response = await fetch(`/api/rh/fornecedores/${fornecedorId}/comprador`, {
+                        method: 'PUT',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ comprador_responsavel_id: null })
+                    });
+                    
+                    if (response.status === 401) {
+                        showAlert('Sessão expirada. Faça login novamente.');
+                        window.location.href = '/';
+                        return;
+                    }
+                    
+                    if (response.ok) {
+                        showAlert('Comprador removido com sucesso!', 'success');
+                        fecharModalConfirmacao();
+                        await carregarFornecedoresComprador();
+                    } else {
+                        const error = await response.json();
+                        showAlert(error.erro || 'Erro ao remover comprador');
+                    }
+                } catch (error) {
+                    console.error('Erro ao remover comprador:', error);
+                    showAlert('Erro ao remover comprador');
+                }
+            };
+            document.getElementById('modalConfirmacao').classList.add('active');
+        }
+
+        async function carregarDashboard() {
+            try {
+                const response = await fetchAPI('/rh/dashboard');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('statsUsuarios').innerHTML = `
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">
+                                <i class="fas fa-users" style="color: white; font-size: 1.5rem;"></i>
+                            </div>
+                            <div class="stat-value">${data.total_usuarios}</div>
+                            <div class="stat-label">Total de Usuários</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #22c55e, #4ade80);">
+                                <i class="fas fa-user-check" style="color: white; font-size: 1.5rem;"></i>
+                            </div>
+                            <div class="stat-value">${data.usuarios_ativos}</div>
+                            <div class="stat-label">Usuários Ativos</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #fbbf24);">
+                                <i class="fas fa-percentage" style="color: white; font-size: 1.5rem;"></i>
+                            </div>
+                            <div class="stat-value">${data.usuarios_com_comissao}</div>
+                            <div class="stat-label">Com Comissão</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #059669, #10b981);">
+                                <i class="fas fa-dollar-sign" style="color: white; font-size: 1.5rem;"></i>
+                            </div>
+                            <div class="stat-value">R$ ${data.total_comissao_mes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                            <div class="stat-label">Comissões (Mês)</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dashboard:', error);
+            }
+        }
+
+        async function carregarUsuarios() {
+            try {
+                const response = await fetchAPI('/rh/usuarios');
+                if (response.ok) {
+                    usuarios = await response.json();
+                    console.log('Usuários carregados:', usuarios);
+                    usuarios.forEach(u => {
+                        if (u.foto_path) {
+                            console.log(`Usuário ${u.nome} tem foto:`, u.foto_path);
+                        }
+                    });
+                    renderizarUsuarios(usuarios);
+                    
+                    const selectFiltro = document.getElementById('filtroUsuario');
+                    const selectAuditoria = document.getElementById('filtroAuditoriaUsuario');
+                    selectFiltro.innerHTML = '<option value="">Todos os usuários</option>';
+                    selectAuditoria.innerHTML = '<option value="">Todos</option>';
+                    usuarios.forEach(u => {
+                        selectFiltro.innerHTML += `<option value="${u.id}">${u.nome}</option>`;
+                        selectAuditoria.innerHTML += `<option value="${u.id}">${u.nome}</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar usuários:', error);
+            }
+        }
+
+        function renderizarUsuarios(lista) {
+            const tbody = document.getElementById('tabelaUsuarios');
+            
+            if (lista.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #666;">Nenhum usuário encontrado</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = lista.map(u => {
+                const fotoUrl = u.foto_path ? `/uploads/${u.foto_path}` : null;
+                console.log('Renderizando usuário:', u.nome, 'Foto path:', u.foto_path, 'URL:', fotoUrl);
+                
+                return `
+                <tr>
+                    <td>
+                        ${u.foto_path ? 
+                            `<img src="/api/rh/usuarios/${u.id}/foto" class="user-photo" onerror="console.error('Erro ao carregar imagem:', this.src); this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                             <div class="user-photo" style="display:none;"><i class="fas fa-user"></i></div>` : 
+                            `<div class="user-photo"><i class="fas fa-user"></i></div>`
+                        }
+                    </td>
+                    <td><strong>${u.nome}</strong><br><small style="color: #666;">${u.cpf || ''}</small></td>
+                    <td>${u.email}</td>
+                    <td>${u.perfil_nome || '-'}</td>
+                    <td><strong>${u.percentual_comissao || 0}%</strong></td>
+                    <td>
+                        <span class="status-badge ${u.ativo ? 'status-ativo' : 'status-inativo'}">
+                            ${u.ativo ? 'Ativo' : 'Inativo'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="editarUsuario(${u.id})" style="padding: 0.5rem; font-size: 0.875rem;">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-danger" onclick="confirmarExclusao(${u.id}, '${u.nome}')" style="padding: 0.5rem; font-size: 0.875rem; background: #ef4444;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            }).join('');
+        }
+
+        function filtrarUsuarios() {
+            const busca = document.getElementById('buscaUsuario').value.toLowerCase();
+            const filtrados = usuarios.filter(u => 
+                u.nome.toLowerCase().includes(busca) ||
+                u.email.toLowerCase().includes(busca) ||
+                (u.cpf && u.cpf.includes(busca))
+            );
+            renderizarUsuarios(filtrados);
+        }
+
+        async function carregarResumoComissoes() {
+            const dataInicio = document.getElementById('filtroDataInicio').value;
+            const dataFim = document.getElementById('filtroDataFim').value;
+            
+            let url = '/rh/comissoes/resumo?';
+            if (dataInicio) url += `data_inicio=${dataInicio}&`;
+            if (dataFim) url += `data_fim=${dataFim}&`;
+            
+            try {
+                const response = await fetchAPI(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    document.getElementById('resumoComissoes').innerHTML = `
+                        <div class="comissao-highlight">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                                <div>
+                                    <div style="font-size: 0.875rem; opacity: 0.9;">Total de Comissões no Período</div>
+                                    <div class="value">R$ ${data.total_geral_comissoes.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 0.875rem; opacity: 0.9;">Usuários com Comissão</div>
+                                    <div style="font-size: 1.5rem; font-weight: 600;">${data.resumo.length}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    const tbody = document.getElementById('tabelaComissoes');
+                    if (data.resumo.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #666;">Nenhum dado de comissão encontrado</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = data.resumo.map((r, i) => `
+                        <tr>
+                            <td>
+                                ${i < 3 ? `<span class="ranking-badge ranking-${i+1}"><i class="fas fa-trophy"></i> ${i+1}</span>` : i+1}
+                            </td>
+                            <td><strong>${r.usuario_nome}</strong></td>
+                            <td>${r.perfil || '-'}</td>
+                            <td>${r.percentual_comissao}%</td>
+                            <td>${r.total_solicitacoes}</td>
+                            <td>R$ ${r.total_valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                            <td><strong style="color: #059669;">R$ ${r.total_comissao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong></td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="verDetalheComissao(${r.usuario_id})" style="padding: 0.5rem; font-size: 0.875rem;">
+                                    <i class="fas fa-eye"></i> Detalhes
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar comissões:', error);
+            }
+        }
+
+        function aplicarFiltrosComissao() {
+            carregarResumoComissoes();
+        }
+
+        async function verDetalheComissao(usuarioId) {
+            const dataInicio = document.getElementById('filtroDataInicio').value;
+            const dataFim = document.getElementById('filtroDataFim').value;
+            const fornecedorId = document.getElementById('filtroFornecedor').value;
+            
+            let url = `/rh/comissoes/usuario/${usuarioId}?`;
+            if (dataInicio) url += `data_inicio=${dataInicio}&`;
+            if (dataFim) url += `data_fim=${dataFim}&`;
+            if (fornecedorId) url += `fornecedor_id=${fornecedorId}&`;
+            
+            try {
+                const response = await fetchAPI(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    document.getElementById('tituloDetalheComissao').textContent = `Detalhes - ${data.usuario.nome}`;
+                    
+                    let html = `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                            <div class="stat-card">
+                                <div class="stat-value">${data.total_solicitacoes}</div>
+                                <div class="stat-label">Solicitações</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">R$ ${data.total_valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                                <div class="stat-label">Valor Total</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${data.percentual_comissao}%</div>
+                                <div class="stat-label">% Comissão</div>
+                            </div>
+                            <div class="stat-card" style="background: linear-gradient(135deg, #059669, #10b981); color: white;">
+                                <div class="stat-value">R$ ${data.total_comissao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                                <div class="stat-label" style="color: rgba(255,255,255,0.9);">Comissão Total</div>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Data</th>
+                                        <th>Fornecedor</th>
+                                        <th>Valor</th>
+                                        <th>Comissão</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    data.solicitacoes.forEach(s => {
+                        html += `
+                            <tr>
+                                <td>#${s.id}</td>
+                                <td>${s.data_envio ? new Date(s.data_envio).toLocaleDateString('pt-BR') : '-'}</td>
+                                <td>${s.fornecedor_nome || '-'}</td>
+                                <td>R$ ${s.valor_total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                <td style="color: #059669; font-weight: 600;">R$ ${s.comissao.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += '</tbody></table></div>';
+                    
+                    document.getElementById('conteudoDetalheComissao').innerHTML = html;
+                    document.getElementById('detalheComissaoUsuario').style.display = 'block';
+                    document.getElementById('detalheComissaoUsuario').scrollIntoView({ behavior: 'smooth' });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar detalhe:', error);
+            }
+        }
+
+        function fecharDetalheComissao() {
+            document.getElementById('detalheComissaoUsuario').style.display = 'none';
+        }
+
+        async function exportarComissoes(formato) {
+            const dataInicio = document.getElementById('filtroDataInicio').value;
+            const dataFim = document.getElementById('filtroDataFim').value;
+            const usuarioId = document.getElementById('filtroUsuario').value;
+            
+            let url = `/api/rh/comissoes/exportar?formato=${formato}`;
+            if (dataInicio) url += `&data_inicio=${dataInicio}`;
+            if (dataFim) url += `&data_fim=${dataFim}`;
+            if (usuarioId) url += `&usuario_id=${usuarioId}`;
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const downloadUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = downloadUrl;
+                    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                    a.download = `relatorio_comissoes_${dateStr}.${formato === 'csv' ? 'csv' : 'xlsx'}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(downloadUrl);
+                    showAlert('Relatório exportado com sucesso!', 'success');
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao exportar relatório');
+                }
+            } catch (error) {
+                console.error('Erro ao exportar:', error);
+                showAlert('Erro ao exportar relatório');
+            }
+        }
+
+        async function carregarAuditoria() {
+            const dataInicio = document.getElementById('filtroAuditoriaDataInicio').value;
+            const dataFim = document.getElementById('filtroAuditoriaDataFim').value;
+            const usuarioId = document.getElementById('filtroAuditoriaUsuario').value;
+            
+            let url = '/rh/auditoria/usuarios?';
+            if (dataInicio) url += `data_inicio=${dataInicio}&`;
+            if (dataFim) url += `data_fim=${dataFim}&`;
+            if (usuarioId) url += `usuario_id=${usuarioId}&`;
+            
+            try {
+                const response = await fetchAPI(url);
+                if (response.ok) {
+                    const logs = await response.json();
+                    
+                    const container = document.getElementById('listaAuditoria');
+                    
+                    if (logs.length === 0) {
+                        container.innerHTML = '<div class="card" style="text-align: center; padding: 2rem; color: #666;">Nenhum registro de auditoria encontrado</div>';
+                        return;
+                    }
+                    
+                    container.innerHTML = logs.map(log => {
+                        const acaoIcon = log.acao === 'criar' ? 'fa-plus-circle' : log.acao === 'atualizar' ? 'fa-edit' : 'fa-trash';
+                        const detalhesHTML = formatarDetalhesAuditoria(log);
+                        
+                        return `
+                            <div class="auditoria-item ${log.acao}">
+                                <div class="auditoria-header">
+                                    <div class="acao">
+                                        <i class="fas ${acaoIcon}"></i>
+                                        ${log.acao}
+                                    </div>
+                                    <div class="entidade-info">
+                                        <i class="fas fa-user-circle"></i> Usuário ID #${log.entidade_id}
+                                    </div>
+                                </div>
+                                ${detalhesHTML}
+                                <div class="meta">
+                                    <div class="meta-item">
+                                        <i class="fas fa-user"></i>
+                                        <span>${log.usuario_nome || 'Sistema'}</span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <i class="fas fa-clock"></i>
+                                        <span>${log.data_acao ? new Date(log.data_acao).toLocaleString('pt-BR') : '-'}</span>
+                                    </div>
+                                    ${log.ip_address ? `
+                                        <div class="meta-item">
+                                            <i class="fas fa-globe"></i>
+                                            <span>${log.ip_address}</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar auditoria:', error);
+                showAlert('Erro ao carregar auditoria');
+            }
+        }
+        
+        function formatarDetalhesAuditoria(log) {
+            if (!log.detalhes) return '';
+            
+            let html = '<div class="auditoria-detalhes">';
+            
+            // Para ação de criar
+            if (log.acao === 'criar') {
+                html += '<div class="auditoria-detalhes-title"><i class="fas fa-info-circle"></i> Dados Criados</div>';
+                for (const [campo, valor] of Object.entries(log.detalhes)) {
+                    if (campo !== 'antes' && campo !== 'depois') {
+                        html += `
+                            <div class="auditoria-campo">
+                                <div class="auditoria-campo-label">${formatarNomeCampo(campo)}:</div>
+                                <div class="auditoria-campo-valor">${formatarValor(valor)}</div>
+                            </div>
+                        `;
+                    }
+                }
+            }
+            
+            // Para ação de atualizar
+            if (log.acao === 'atualizar' && log.detalhes.antes && log.detalhes.depois) {
+                html += '<div class="auditoria-detalhes-title"><i class="fas fa-exchange-alt"></i> Alterações</div>';
+                
+                const camposAlterados = new Set([
+                    ...Object.keys(log.detalhes.antes || {}),
+                    ...Object.keys(log.detalhes.depois || {})
+                ]);
+                
+                camposAlterados.forEach(campo => {
+                    const antes = log.detalhes.antes[campo];
+                    const depois = log.detalhes.depois[campo];
+                    
+                    if (antes !== depois) {
+                        html += `
+                            <div class="auditoria-campo">
+                                <div class="auditoria-campo-label">${formatarNomeCampo(campo)}:</div>
+                                <div class="auditoria-campo-alteracao">
+                                    <span class="valor-antes">${formatarValor(antes)}</span>
+                                    <i class="fas fa-arrow-right" style="color: #6b7280;"></i>
+                                    <span class="valor-depois">${formatarValor(depois)}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            }
+            
+            // Para ação de excluir
+            if (log.acao === 'excluir') {
+                html += '<div class="auditoria-detalhes-title"><i class="fas fa-trash-alt"></i> Dados Excluídos</div>';
+                for (const [campo, valor] of Object.entries(log.detalhes)) {
+                    if (campo !== 'antes' && campo !== 'depois') {
+                        html += `
+                            <div class="auditoria-campo">
+                                <div class="auditoria-campo-label">${formatarNomeCampo(campo)}:</div>
+                                <div class="auditoria-campo-valor">${formatarValor(valor)}</div>
+                            </div>
+                        `;
+                    }
+                }
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function formatarNomeCampo(campo) {
+            const nomes = {
+                'nome': 'Nome',
+                'email': 'Email',
+                'perfil': 'Perfil',
+                'ativo': 'Status',
+                'cpf': 'CPF',
+                'telefone': 'Telefone',
+                'percentual_comissao': '% Comissão',
+                'foto_path': 'Foto',
+                'senha_alterada': 'Senha'
+            };
+            return nomes[campo] || campo.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+        
+        function formatarValor(valor) {
+            if (valor === null || valor === undefined) return '-';
+            if (typeof valor === 'boolean') return valor ? 'Sim' : 'Não';
+            if (typeof valor === 'object') return JSON.stringify(valor);
+            return String(valor);
+        }
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            
+            if (tabName === 'auditoria') {
+                carregarAuditoria();
+            } else if (tabName === 'fornecedores') {
+                carregarFornecedoresComprador();
+            }
+        }
+
+        function abrirModalNovoUsuario() {
+            usuarioAtual = null;
+            document.getElementById('tituloModalUsuario').textContent = 'Novo Usuário';
+            document.getElementById('formUsuario').reset();
+            document.getElementById('usuarioId').value = '';
+            document.getElementById('fotoPreview').innerHTML = '<i class="fas fa-camera"></i><div style="font-size: 0.75rem;">Adicionar foto</div>';
+            document.getElementById('fotoPreview').classList.add('placeholder');
+            document.getElementById('modalNovoUsuario').classList.add('active');
+        }
+
+        async function editarUsuario(id) {
+            try {
+                const response = await fetchAPI(`/rh/usuarios/${id}`);
+                if (response.ok) {
+                    usuarioAtual = await response.json();
+                    
+                    document.getElementById('tituloModalUsuario').textContent = 'Editar Usuário';
+                    document.getElementById('usuarioId').value = usuarioAtual.id;
+                    document.getElementById('nomeUsuario').value = usuarioAtual.nome;
+                    document.getElementById('emailUsuario').value = usuarioAtual.email;
+                    document.getElementById('cpfUsuario').value = usuarioAtual.cpf || '';
+                    document.getElementById('telefoneUsuario').value = usuarioAtual.telefone || '';
+                    document.getElementById('perfilUsuario').value = usuarioAtual.perfil_id || '';
+                    document.getElementById('comissaoUsuario').value = usuarioAtual.percentual_comissao || 0;
+                    document.getElementById('statusUsuario').value = usuarioAtual.ativo ? 'true' : 'false';
+                    document.getElementById('senhaUsuario').value = '';
+                    
+                    if (usuarioAtual.foto_path) {
+                        const fotoUrl = `/api/rh/usuarios/${usuarioAtual.id}/foto?_=${Date.now()}`;
+                        console.log('Carregando foto:', fotoUrl);
+                        document.getElementById('fotoPreview').innerHTML = `<img src="${fotoUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="console.error('Erro ao carregar foto no modal:', this.src); this.parentElement.innerHTML='<i class=\\'fas fa-camera\\'></i><div style=\\'font-size: 0.75rem;\\'>Adicionar foto</div>'; this.parentElement.classList.add('placeholder');">`;
+                        document.getElementById('fotoPreview').classList.remove('placeholder');
+                    } else {
+                        document.getElementById('fotoPreview').innerHTML = '<i class="fas fa-camera"></i><div style="font-size: 0.75rem;">Adicionar foto</div>';
+                        document.getElementById('fotoPreview').classList.add('placeholder');
+                    }
+                    
+                    document.getElementById('modalNovoUsuario').classList.add('active');
+                }
+            } catch (error) {
+                showAlert('Erro ao carregar usuário');
+            }
+        }
+
+        function fecharModalUsuario() {
+            document.getElementById('modalNovoUsuario').classList.remove('active');
+            usuarioAtual = null;
+        }
+
+        async function salvarUsuario(e) {
+            e.preventDefault();
+            
+            const id = document.getElementById('usuarioId').value;
+            const formData = new FormData();
+            
+            formData.append('nome', document.getElementById('nomeUsuario').value);
+            formData.append('email', document.getElementById('emailUsuario').value);
+            formData.append('cpf', document.getElementById('cpfUsuario').value || '');
+            formData.append('telefone', document.getElementById('telefoneUsuario').value || '');
+            formData.append('perfil_id', document.getElementById('perfilUsuario').value);
+            formData.append('percentual_comissao', document.getElementById('comissaoUsuario').value || '0');
+            formData.append('ativo', document.getElementById('statusUsuario').value);
+            
+            const senha = document.getElementById('senhaUsuario').value;
+            if (senha) {
+                formData.append('senha', senha);
+            }
+            
+            const fotoInput = document.getElementById('fotoInput');
+            if (fotoInput.files.length > 0) {
+                formData.append('foto', fotoInput.files[0]);
+            }
+            
+            try {
+                const url = id ? `/api/rh/usuarios/${id}` : '/api/rh/usuarios';
+                const method = id ? 'PUT' : 'POST';
+                const token = localStorage.getItem('token');
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    showAlert(id ? 'Usuário atualizado com sucesso!' : 'Usuário criado com sucesso!', 'success');
+                    fecharModalUsuario();
+                    await carregarUsuarios();
+                    await carregarDashboard();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao salvar usuário');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar usuário:', error);
+                showAlert('Erro ao salvar usuário');
+            }
+        }
+
+        function confirmarExclusao(id, nome) {
+            document.getElementById('mensagemConfirmacao').textContent = `Tem certeza que deseja excluir o usuário "${nome}"? Esta ação não pode ser desfeita.`;
+            document.getElementById('btnConfirmar').onclick = () => excluirUsuario(id);
+            document.getElementById('modalConfirmacao').classList.add('active');
+        }
+
+        function fecharModalConfirmacao() {
+            document.getElementById('modalConfirmacao').classList.remove('active');
+        }
+
+        async function excluirUsuario(id) {
+            try {
+                const response = await fetchAPI(`/rh/usuarios/${id}`, { method: 'DELETE' });
+                
+                if (response.ok) {
+                    showAlert('Usuário excluído com sucesso!', 'success');
+                    fecharModalConfirmacao();
+                    await carregarUsuarios();
+                    await carregarDashboard();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao excluir usuário');
+                }
+            } catch (error) {
+                showAlert('Erro ao excluir usuário');
+            }
+        }
+
+        function previewFoto(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('fotoPreview').innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+                    document.getElementById('fotoPreview').classList.remove('placeholder');
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function formatarCPF(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.slice(0, 11);
+            if (value.length > 9) {
+                value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+            } else if (value.length > 6) {
+                value = value.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+            } else if (value.length > 3) {
+                value = value.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+            }
+            input.value = value;
+        }
+
+        function formatarTelefone(input) {
+            let value = input.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.slice(0, 11);
+            if (value.length > 10) {
+                value = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+            } else if (value.length > 6) {
+                value = value.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+            } else if (value.length > 2) {
+                value = value.replace(/(\d{2})(\d{0,5})/, '($1) $2');
+            }
+            input.value = value;
+        }
+
+        document.addEventListener('DOMContentLoaded', carregarPagina);
+    </script>
+</body>
+</html>

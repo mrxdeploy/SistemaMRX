@@ -1,0 +1,294 @@
+Implementação Completa das Etapas:
+
+📌 Lote Criado → 📌 Entrada em Estoque → 📌 Separação**
+
+Objetivo geral: Implementar integralmente o fluxo pós-recebimento, adicionando criação de Lote, entrada automática no estoque e módulo completo de Separação, com rastreabilidade, auditoria, permissões e geração de sublotes.
+Essa entrega deve funcionar em conjunto com SC → OC → OS → Conferência já implementados.
+
+🔶 1. Criar Módulo de Lote (Lote Criado)
+Objetivo
+
+Implementar a criação automática de Lote após a Conferência de Chegada (pesagem e qualidade), atendendo às exigências do MRX_Gestão.
+
+Requisitos funcionais
+
+Quando a OS for FINALIZADA e a Conferência registrada:
+
+Criar automaticamente um Lote com:
+
+id
+
+numero_lote (sequencial YYYY-XXXXX)
+
+origem (SC/OC/OS)
+
+fornecedor
+
+material
+
+peso_bruto_recebido
+
+peso_liquido (se houver desconto de impureza)
+
+qualidade_recebida
+
+data_criacao
+
+conferente_id
+
+anexos (fotos de pesagem, fotos de chegada, documentos)
+
+Registrar divergências:
+
+peso_previsto vs peso_recebido
+
+quantidade prevista vs recebida
+
+qualidade informada vs conferida
+Se divergência > limite definido, marcar lote como PENDENTE_ADM e gerar Notificação + Registro de Não Conformidade.
+
+Auditoria obrigatória:
+
+registrar ip, device_id, gps, usuário, timestamp.
+
+Endpoints
+
+POST /lotes (criação automática)
+
+GET /lotes (filtros: data, fornecedor, divergência, status)
+
+GET /lotes/{id} (detalhes do lote, anexos, histórico)
+
+UI/UX
+
+Painel administrativo:
+
+Nova tela Lotes Recebidos
+
+Cores por status: normal, divergente, bloqueado, aguardando separação
+
+Visualização de anexos e do histórico completo
+
+🔶 2. Entrada em Estoque (WMS — Entrada Inicial)
+Objetivo
+
+Registrar automaticamente o Lote recém-criado como uma Entrada de Estoque, seguindo o blueprint WMS do arquivo md.
+
+Requisitos funcionais
+
+Ao criar o lote:
+
+gerar automaticamente registro de entrada de estoque:
+
+lote_id
+
+localizacao_inicial (PÁTIO RECEBIMENTO / DOCK 01 ou equivalente)
+
+quantidade/peso
+
+tipo: "ENTRADA_RECEBIMENTO"
+
+usuário responsável
+
+data/hora
+
+Regras obrigatórias:
+
+Lote com divergência significativa → não entra no estoque final até ADM resolver
+
+Lote pode ser bloqueado para QC ou inventário
+
+Manter histórico de movimentações (WMS)
+
+Permitir políticas futuras de FIFO / FEFO
+
+Auditoria:
+
+Cada movimentação gera registro com before/after.
+
+Endpoints
+
+POST /estoque/entrada (chamado internamente ao criar lote)
+
+GET /estoque/lotes
+
+GET /estoque/movimentacoes
+
+UI/UX
+
+Nova tela Estoque → Lotes Ativos
+
+Localização atual
+
+Status (bloqueado, livre, aguardando separação)
+
+Histórico de movimentações
+
+Filtro por material, data, origem, divergência
+
+🔶 3. Módulo Completo de Separação (Workflow de Separação)
+Objetivo
+
+Implementar o workflow de separação solicitado no MRX_Gestão, permitindo transformar o lote bruto em sublotes, resíduos e materiais classificados.
+
+Requisitos funcionais — Fluxo principal
+
+Lote que entrou no estoque deve aparecer em:
+
+Fila de Separação (status: AGUARDANDO_SEPARACAO)
+
+Tela principal de separação com:
+
+informações do lote
+
+peso recebido
+
+qualidade
+
+anexos
+
+conferente e data
+
+botão Iniciar Separação
+
+Etapas da separação:
+
+Desmontagem / triagem / classificação
+
+Criação de sublotes:
+
+material
+
+peso
+
+quantidade
+
+qualidade
+
+observações
+
+fotos opcional
+
+Resíduos:
+
+resíduos devem ser classificados e registrados
+
+não podem ser descartados sem ADM
+
+justificativa obrigatória
+
+Finalização:
+
+sistema gera automaticamente:
+
+novos lotes filhos
+
+movimentação de estoque
+
+registro de produtividade
+
+percentual de aproveitamento
+
+lote original é marcado como PROCESSADO
+
+Auditoria completa:
+
+início da separação (gps, ip, user)
+
+cada criação de sublote
+
+criação de resíduos
+
+finalização
+
+Permissões
+
+Somente OPERADOR_SEPARACAO pode separar
+
+Somente ADMINISTRADOR pode autorizar descarte
+
+Somente QA pode bloquear/desbloquear lotes
+
+EndPoints
+
+GET /separacao/fila
+
+POST /separacao/{lote_id}/iniciar
+
+POST /separacao/{lote_id}/sublotes
+
+POST /separacao/{lote_id}/residuos
+
+POST /separacao/{lote_id}/finalizar
+
+POST /residuos/{id}/aprovar-adm
+
+UI/UX
+
+Criar três novas telas:
+
+1. “Fila de Separação”
+
+Lista todos os lotes aguardando separação
+
+Botão Abrir lote
+
+2. “Tela de Separação (workflow)”
+
+Cabeçalho com informações do lote
+
+Cards para:
+
+checklist de qualidade
+
+pesagem da separação
+
+criação de sublotes
+
+registro de resíduos
+
+Botão Finalizar Separação (bloqueado até todos campos obrigatórios serem preenchidos)
+
+3. “Painel de Descarte (ADM)”
+
+Lotes com resíduos pendentes
+
+Botão Aprovar / Rejeitar Descarte
+
+Justificativa obrigatória
+
+Critérios de Aceite
+
+Criar lote automaticamente após conferência da OS
+
+Entrada automática em estoque
+
+Workflow completo de Separação funcionando
+
+Criação de sublotes e resíduos
+
+Autorização necessária para descarte
+
+Auditoria completa e rastreável
+
+Histórico do lote deve mostrar cadeia completa:
+
+SC → OC → OS → Conferência → Lote → Separação → Sublotes
+
+Telas prontas e responsivas
+
+Testes unitários e integração
+
+QA & Testes exigidos
+
+Criar lote e verificar divergência
+
+Testar bloqueio de lote divergente
+
+Simular separação gerando três sublotes e um resíduo
+
+Verificar que descarte não funciona sem ADM
+
+Verificar auditoria de cada etapa
+
+Validar movimentações internas WMS

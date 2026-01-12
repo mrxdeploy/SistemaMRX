@@ -1,0 +1,2698 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dashboard - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Dashboard Professional Styles - Mobile First */
+        .dashboard-container {
+            padding: 80px 16px 100px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Período Selector - Mobile Optimized */
+        .period-selector {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding: 16px;
+            margin: 0 -16px 24px -16px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(5, 150, 105, 0.3) transparent;
+            position: relative;
+        }
+
+        .period-selector::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .period-selector::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .period-selector::-webkit-scrollbar-thumb {
+            background: rgba(5, 150, 105, 0.3);
+            border-radius: 2px;
+        }
+
+        .period-btn {
+            flex: 0 0 auto;
+            padding: 10px 16px;
+            border: 2px solid var(--gray-300);
+            background: white;
+            border-radius: 24px;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--gray-700);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+            white-space: nowrap;
+            text-align: center;
+            min-width: fit-content;
+        }
+
+        .period-btn:active {
+            transform: scale(0.95);
+        }
+
+        .period-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--gray-200);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+        }
+
+        .kpi-card:active {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .kpi-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .kpi-icon.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .kpi-icon.warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .kpi-icon.danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .kpi-icon.info {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            color: var(--gray-600);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--gray-900);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .kpi-change {
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .kpi-change.positive {
+            color: var(--success-color);
+        }
+
+        .kpi-change.negative {
+            color: var(--danger-color);
+        }
+
+        /* Chart Cards */
+        .chart-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 24px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .chart-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gray-900);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-type-selector {
+            display: flex;
+            gap: 8px;
+            background: var(--gray-100);
+            padding: 4px;
+            border-radius: 12px;
+        }
+
+        .chart-type-btn {
+            padding: 8px 12px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 16px;
+            color: var(--gray-600);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .chart-type-btn.active {
+            background: white;
+            color: var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            touch-action: pan-y;
+        }
+
+        /* Stats Grid */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            padding: 16px;
+            background: var(--gray-50);
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-item-label {
+            font-size: 11px;
+            color: var(--gray-600);
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .stat-item-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        /* Ranking List */
+        .ranking-list {
+            list-style: none;
+        }
+
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid var(--gray-200);
+            transition: background 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .ranking-item:last-child {
+            border-bottom: none;
+        }
+
+        .ranking-item:active {
+            background: var(--gray-50);
+        }
+
+        .ranking-position {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .ranking-position.gold {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: white;
+        }
+
+        .ranking-position.silver {
+            background: linear-gradient(135deg, #e5e7eb, #9ca3af);
+            color: white;
+        }
+
+        .ranking-position.bronze {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            color: white;
+        }
+
+        .ranking-position.regular {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .ranking-info {
+            flex: 1;
+        }
+
+        .ranking-name {
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 4px;
+        }
+
+        .ranking-value {
+            font-size: 14px;
+            color: var(--gray-600);
+        }
+
+        .ranking-count {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 18px;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--gray-500);
+        }
+
+        .spinner {
+            border: 3px solid var(--gray-200);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile Extra Small - Garantir botões visíveis */
+        @media (max-width: 375px) {
+            .period-btn {
+                padding: 10px 14px;
+                font-size: 12px;
+            }
+            
+            .period-btn i {
+                font-size: 12px;
+            }
+        }
+
+        /* Responsive */
+        @media (min-width: 768px) {
+            .dashboard-container {
+                padding: 100px 24px 40px;
+            }
+
+            .kpi-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .chart-container {
+                height: 400px;
+            }
+            
+            .period-selector {
+                margin: 0 0 24px 0;
+                padding: 16px 0;
+            }
+        }
+
+        /* Touch optimization */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+
+        button, .btn, a {
+            touch-action: manipulation;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Dashboard</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Bottom Navigation (Mobile) -->
+    <nav class="bottom-nav" id="navMenuMobile">
+        <!-- Menus serão renderizados dinamicamente pelo RBAC -->
+    </nav>
+
+    <!-- Scanner Modal -->
+    <div class="scanner-modal" id="scannerModal">
+        <div class="scanner-modal-content">
+            <div class="scanner-modal-header">
+                <h2>Escanear Tipo de Lote</h2>
+                <button class="scanner-close" onclick="closeScanner()">&times;</button>
+            </div>
+            <form id="formScanner">
+                <div class="form-group">
+                    <label>Selecionar Fornecedor</label>
+                    <select id="scannerEmpresa" required>
+                        <option value="">Escolha um fornecedor...</option>
+                    </select>
+                </div>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <i class="fas fa-camera icon" style="font-size: 3rem; color: var(--primary-color);"></i>
+                    <p>Toque para capturar ou selecionar imagem</p>
+                    <input type="file" id="fileInput" accept="image/*" capture="environment" style="display: none;" onchange="previewImage(this)">
+                </div>
+                <div class="image-preview" id="imagePreview">
+                    <img id="previewImg" alt="Preview">
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Lote</label>
+                    <select id="tipoLote" required>
+                        <option value="">Selecione...</option>
+                        <option value="leve">Leve</option>
+                        <option value="pesada">Pesada</option>
+                        <option value="media">Média</option>
+                    </select>
+                    <button type="button" class="btn btn-secondary w-full" onclick="analisarLoteComIA()" style="margin-top: 0.5rem;">
+                         Analisar com IA Gemini
+                    </button>
+                    <div id="resultadoAnaliseIA" style="display: none; margin-top: 0.5rem; padding: 0.75rem; background: #ecfdf5; border-radius: 6px; font-size: 0.85rem; color: #065f46;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Peso (kg)</label>
+                    <input type="number" id="pesoLote" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Valor Total (calculado automaticamente)</label>
+                    <div id="valorCalculado" data-valor="0" style="padding: 0.75rem; background-color: #f0f0f0; border-radius: 5px; font-weight: bold; font-size: 1.1rem; color: #2c3e50;">R$ 0,00</div>
+                </div>
+                <div class="form-group">
+                    <button type="button" class="btn btn-secondary w-full" id="btnCapturarLocalizacao" onclick="capturarLocalizacaoScanner()">
+                        <i class="fas fa-map-marker-alt"></i> Capturar Localização
+                    </button>
+                    <div id="locationInfo" style="margin-top: 0.5rem; padding: 0.75rem; background: #e8f5e9; border-radius: 5px; display: none; font-size: 0.9rem; color: #2e7d32;"></div>
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Solicitar Compra</button>
+            </form>
+        </div>
+    </div>
+
+    <main class="dashboard-container">
+        <!-- Module Selector -->
+        <div class="period-selector">
+            <button class="period-btn active" onclick="changeModule('geral')" data-module="geral">
+                <i class="fas fa-chart-pie"></i> Geral
+            </button>
+            <button class="period-btn" onclick="changeModule('empresas')" data-module="empresas">
+                <i class="fas fa-building"></i> Fornecedores
+            </button>
+            <button class="period-btn" onclick="changeModule('solicitacoes')" data-module="solicitacoes">
+                <i class="fas fa-file-alt"></i> Compra
+            </button>
+            <button class="period-btn" onclick="changeModule('tipos-lote')" data-module="tipos-lote">
+                <i class="fas fa-box"></i> Tipos de Lote
+            </button>
+            <button class="period-btn" onclick="changeModule('entradas')" data-module="entradas">
+                <i class="fas fa-inbox"></i> Entradas
+            </button>
+            <button class="period-btn" onclick="changeModule('compras')" data-module="compras">
+                <i class="fas fa-shopping-cart"></i> Compras
+            </button>
+            <button class="period-btn" onclick="changeModule('financeiro')" data-module="financeiro">
+                <i class="fas fa-dollar-sign"></i> Financeiro
+            </button>
+            <button class="period-btn" onclick="changeModule('logistica')" data-module="logistica">
+                <i class="fas fa-truck"></i> Logística
+            </button>
+            <button class="period-btn" onclick="changeModule('analise-fornecedores')" data-module="analise-fornecedores">
+                <i class="fas fa-star"></i> Análise Fornecedores
+            </button>
+            <button class="period-btn" onclick="changeModule('operacional')" data-module="operacional">
+                <i class="fas fa-cogs"></i> Operacional
+            </button>
+            <button class="period-btn" onclick="changeModule('indicadores')" data-module="indicadores">
+                <i class="fas fa-chart-line"></i> Indicadores
+            </button>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="chart-card" id="filtersSection" style="margin-bottom: 24px; display: none;">
+            <div class="chart-header">
+                <div class="chart-title">
+                    <i class="fas fa-filter"></i>
+                    Filtros
+                </div>
+            </div>
+            <div id="filtersContent" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                <!-- Filtros serão inseridos dinamicamente aqui -->
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card" onclick="navigateFromKPI(1)" id="kpi1Card" style="cursor: pointer;">
+                <div class="kpi-icon warning">
+                    <i class="fas fa-clock" id="kpi1Icon"></i>
+                </div>
+                <div class="kpi-label" id="kpi1Label">Pendentes</div>
+                <div class="kpi-value" id="kpi1Value">0</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    <span id="kpi1Change">Aguardando</span>
+                </div>
+            </div>
+
+            <div class="kpi-card" onclick="navigateFromKPI(2)" id="kpi2Card" style="cursor: pointer;">
+                <div class="kpi-icon success">
+                    <i class="fas fa-check-circle" id="kpi2Icon"></i>
+                </div>
+                <div class="kpi-label" id="kpi2Label">Aprovados</div>
+                <div class="kpi-value" id="kpi2Value">0</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    <span id="kpi2Change">+0%</span>
+                </div>
+            </div>
+
+            <div class="kpi-card" onclick="navigateFromKPI(3)" id="kpi3Card" style="cursor: pointer;">
+                <div class="kpi-icon danger">
+                    <i class="fas fa-times-circle" id="kpi3Icon"></i>
+                </div>
+                <div class="kpi-label" id="kpi3Label">Reprovados</div>
+                <div class="kpi-value" id="kpi3Value">0</div>
+                <div class="kpi-change negative">
+                    <i class="fas fa-arrow-down"></i>
+                    <span id="kpi3Change">-0%</span>
+                </div>
+            </div>
+
+            <div class="kpi-card" onclick="navigateFromKPI(4)" id="kpi4Card" style="cursor: pointer;">
+                <div class="kpi-icon info">
+                    <i class="fas fa-dollar-sign" id="kpi4Icon"></i>
+                </div>
+                <div class="kpi-label" id="kpi4Label">Valor Total</div>
+                <div class="kpi-value" id="kpi4Value">R$ 0</div>
+                <div class="kpi-change positive">
+                    <i class="fas fa-arrow-up"></i>
+                    <span id="kpi4Change">+0%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráficos Container - Muda conforme módulo -->
+        <div id="chartsContainer">
+            <!-- Placeholder - gráficos serão inseridos dinamicamente -->
+        </div>
+    </main>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/rbac.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        let currentModule = 'geral';
+        let activeCharts = {}; // Armazena todos os gráficos ativos
+        let dashboardData = null;
+        let allEmpresas = [];
+        let currentFilters = {};
+
+        async function carregarDashboard() {
+            const userData = await verificarAuth();
+            if (!userData) return;
+
+            // Permitir acesso ao dashboard para Admin e Auditoria/BI
+            if (userData.tipo !== 'admin' && userData.perfil !== 'Auditoria / BI') {
+                console.log('Usuário não tem permissão para dashboard, redirecionando...');
+                window.location.href = '/funcionario.html';
+                return;
+            }
+
+            console.log('✅ Carregando dashboard para perfil:', userData.perfil || userData.tipo);
+            await changeModule('geral');
+            await atualizarNotificacoes();
+        }
+
+        async function loadGeralBI() {
+            try {
+                console.log('🔄 Carregando dashboard...');
+                
+                const statsResponse = await fetchAPI('/dashboard/stats');
+                console.log('📊 Stats response:', statsResponse);
+                
+                if (!statsResponse || !statsResponse.ok) {
+                    console.error('❌ Erro na resposta:', statsResponse);
+                    showAlert('Erro ao carregar estatísticas do dashboard', 'error');
+                    return;
+                }
+                
+                dashboardData = await statsResponse.json();
+                console.log('✅ Dados carregados:', dashboardData);
+
+                updateKPILabels('geral');
+                updateKPIs({
+                    pendentes: dashboardData.relatorios.pendentes,
+                    aprovados: dashboardData.relatorios.aprovados,
+                    reprovados: dashboardData.relatorios.reprovados,
+                    valorTotal: dashboardData.valor_total
+                });
+
+                // Gráfico 1 - Peso por tipo
+                const canvas1 = document.getElementById('chart1');
+                if (canvas1) {
+                    const ctx1 = canvas1.getContext('2d');
+                    if (activeCharts['chart1']) {
+                        activeCharts['chart1'].destroy();
+                    }
+                    activeCharts['chart1'] = new Chart(ctx1, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Leve', 'Média', 'Pesada'],
+                            datasets: [{
+                                label: 'Peso (kg)',
+                                data: [dashboardData.quilos_por_tipo.leve, dashboardData.quilos_por_tipo.media, dashboardData.quilos_por_tipo.pesada],
+                                backgroundColor: ['#10b981', '#3b82f6', '#f59e0b']
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+
+                // Gráfico 2 - Movimentação
+                const graficoResponse = await fetchAPI('/dashboard/grafico-mensal');
+                if (!graficoResponse || !graficoResponse.ok) {
+                    console.error('❌ Erro ao carregar gráfico mensal');
+                    showAlert('Erro ao carregar gráfico de movimentação', 'error');
+                    return;
+                }
+                
+                const graficoData = await graficoResponse.json();
+                console.log('📈 Dados do gráfico mensal:', graficoData);
+                
+                const canvas2 = document.getElementById('chart2');
+                if (canvas2) {
+                    const ctx2 = canvas2.getContext('2d');
+                    if (activeCharts['chart2']) {
+                        activeCharts['chart2'].destroy();
+                    }
+                    activeCharts['chart2'] = new Chart(ctx2, {
+                        type: 'line',
+                        data: {
+                            labels: graficoData.labels,
+                            datasets: [{
+                                label: 'Movimentação',
+                                data: graficoData.data,
+                                borderColor: '#059669',
+                                backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+
+                // Ranking
+                const rankingHTML = dashboardData.ranking_empresas.map((empresa, index) => {
+                    let badge = index < 3 ? ['🥇', '🥈', '🥉'][index] : `${index + 1}`;
+                    return `<li class="ranking-item"><div class="ranking-position ${['gold', 'silver', 'bronze', 'regular'][Math.min(index, 3)]}">${badge}</div><div class="ranking-info"><div class="ranking-name">${empresa.nome}</div></div><div class="ranking-count">${empresa.total}</div></li>`;
+                }).join('');
+                const rankingEl = document.getElementById('ranking');
+                if (rankingEl) rankingEl.innerHTML = rankingHTML;
+
+            } catch (error) {
+                console.error('❌ Erro fatal ao carregar dashboard:', error);
+                showAlert('Erro ao carregar dashboard. Por favor, recarregue a página.', 'error');
+            }
+        }
+
+        function initPesoChart() {
+            const ctx = document.getElementById('chartPeso').getContext('2d');
+            
+            if (chartPeso) {
+                chartPeso.destroy();
+            }
+
+            const data = {
+                labels: ['Leve', 'Média', 'Pesada'],
+                datasets: [{
+                    label: 'Peso (kg)',
+                    data: [
+                        dashboardData.quilos_por_tipo.leve || 0,
+                        dashboardData.quilos_por_tipo.media || 0,
+                        dashboardData.quilos_por_tipo.pesada || 0
+                    ],
+                    backgroundColor: [
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(245, 158, 11, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgb(16, 185, 129)',
+                        'rgb(59, 130, 246)',
+                        'rgb(245, 158, 11)'
+                    ],
+                    borderWidth: 2
+                }]
+            };
+
+            chartPeso = new Chart(ctx, {
+                type: 'bar',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y.toFixed(2) + ' kg';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + ' kg';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadMovimentacaoChart() {
+            try {
+                const graficoResponse = await fetchAPI('/dashboard/grafico-mensal');
+                const graficoData = await graficoResponse.json();
+
+                const ctx = document.getElementById('chartMovimentacao').getContext('2d');
+                
+                if (chartMovimentacao) {
+                    chartMovimentacao.destroy();
+                }
+
+                chartMovimentacao = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: graficoData.labels,
+                        datasets: [{
+                            label: 'Solicitações Aprovadas',
+                            data: graficoData.data,
+                            borderColor: 'rgb(5, 150, 105)',
+                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: 'rgb(5, 150, 105)',
+                            borderWidth: 3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false,
+                            mode: 'index'
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 12,
+                                cornerRadius: 8
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.05)'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Erro ao carregar gráfico de movimentação:', error);
+            }
+        }
+
+        function loadRanking() {
+            const rankingHTML = dashboardData.ranking_empresas.map((empresa, index) => {
+                let positionClass = 'regular';
+                if (index === 0) positionClass = 'gold';
+                else if (index === 1) positionClass = 'silver';
+                else if (index === 2) positionClass = 'bronze';
+
+                return `
+                    <li class="ranking-item">
+                        <div class="ranking-position ${positionClass}">${index + 1}</div>
+                        <div class="ranking-info">
+                            <div class="ranking-name">${empresa.nome}</div>
+                            <div class="ranking-value">Total de solicitações aprovadas</div>
+                        </div>
+                        <div class="ranking-count">${empresa.total}</div>
+                    </li>
+                `;
+            }).join('');
+
+            document.getElementById('rankingEmpresas').innerHTML = rankingHTML || '<li class="ranking-item"><div class="ranking-info"><div class="ranking-name">Nenhum fornecedor com solicitações aprovadas</div></div></li>';
+        }
+
+        async function changeModule(module) {
+            currentModule = module;
+            
+            // Update button states
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                if (btn.dataset.module === module) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Show/hide filters section and load module-specific content
+            await loadModuleContent(module);
+        }
+
+        async function loadModuleContent(module) {
+            const filtersSection = document.getElementById('filtersSection');
+            const filtersContent = document.getElementById('filtersContent');
+            
+            // Configure filters based on module
+            const moduleConfigs = {
+                'geral': {
+                    filters: [],
+                    showFilters: false
+                },
+                'empresas': {
+                    filters: ['status', 'data'],
+                    showFilters: true
+                },
+                'solicitacoes': {
+                    filters: ['empresa', 'status', 'vendedor', 'data'],
+                    showFilters: true
+                },
+                'tipos-lote': {
+                    filters: ['empresa', 'tipo', 'data'],
+                    showFilters: true
+                },
+                'entradas': {
+                    filters: ['empresa', 'status', 'data'],
+                    showFilters: true
+                },
+                'compras': {
+                    filters: ['fornecedor', 'status', 'data'],
+                    showFilters: true
+                },
+                'fornecedores': {
+                    filters: ['status', 'data'],
+                    showFilters: true
+                },
+                'financeiro': {
+                    filters: [],
+                    showFilters: false
+                },
+                'logistica': {
+                    filters: [],
+                    showFilters: false
+                },
+                'analise-fornecedores': {
+                    filters: [],
+                    showFilters: false
+                },
+                'operacional': {
+                    filters: [],
+                    showFilters: false
+                },
+                'indicadores': {
+                    filters: [],
+                    showFilters: false
+                }
+            };
+
+            const config = moduleConfigs[module];
+            
+            // Show/hide filters
+            if (config.showFilters) {
+                filtersSection.style.display = 'block';
+                renderFilters(config.filters);
+            } else {
+                filtersSection.style.display = 'none';
+            }
+
+            // Renderizar gráficos específicos do módulo
+            renderModuleCharts(module);
+
+            // Load module-specific data
+            await loadModuleData(module);
+        }
+
+        function renderModuleCharts(module) {
+            const container = document.getElementById('chartsContainer');
+            
+            // Destruir gráficos antigos
+            Object.values(activeCharts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            activeCharts = {};
+            
+            // Templates de gráficos para cada módulo
+            const chartTemplates = {
+                'geral': `
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-weight"></i> Peso por Tipo de Lote</div>
+                            <div class="chart-type-selector">
+                                <button class="chart-type-btn active" onclick="changeChart('chart1', 'bar', this)"><i class="fas fa-chart-bar"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart1', 'pie', this)"><i class="fas fa-chart-pie"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart1', 'doughnut', this)"><i class="fas fa-circle-notch"></i></button>
+                            </div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart1"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-chart-line"></i> Movimentação Mensal</div>
+                            <div class="chart-type-selector">
+                                <button class="chart-type-btn active" onclick="changeChart('chart2', 'line', this)"><i class="fas fa-chart-line"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart2', 'bar', this)"><i class="fas fa-chart-bar"></i></button>
+                            </div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart2"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-trophy"></i> Ranking de Fornecedores</div>
+                        </div>
+                        <ul class="ranking-list" id="ranking"></ul>
+                    </div>
+                `,
+                'empresas': `
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-building"></i> Status dos Fornecedores</div>
+                            <div class="chart-type-selector">
+                                <button class="chart-type-btn active" onclick="changeChart('chart1', 'pie', this)"><i class="fas fa-chart-pie"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart1', 'doughnut', this)"><i class="fas fa-circle-notch"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart1', 'bar', this)"><i class="fas fa-chart-bar"></i></button>
+                            </div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart1"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-chart-area"></i> Fornecedores Cadastrados por Mês</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart2"></canvas></div>
+                    </div>
+                `,
+                'solicitacoes': `
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-file-alt"></i> Status das Solicitações</div>
+                            <div class="chart-type-selector">
+                                <button class="chart-type-btn active" onclick="changeChart('chart1', 'doughnut', this)"><i class="fas fa-circle-notch"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart1', 'bar', this)"><i class="fas fa-chart-bar"></i></button>
+                            </div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart1"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-chart-line"></i> Solicitações por Mês</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart2"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-trophy"></i> Top 5 Fornecedores</div>
+                        </div>
+                        <ul class="ranking-list" id="ranking"></ul>
+                    </div>
+                `,
+                'tipos-lote': `
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-th-large"></i> Tipos de Lote</div>
+                            <div class="chart-type-selector">
+                                <button class="chart-type-btn active" onclick="changeChart('chart1', 'bar', this)"><i class="fas fa-chart-bar"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart1', 'pie', this)"><i class="fas fa-chart-pie"></i></button>
+                            </div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart1"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-weight"></i> Peso Total por Tipo (kg)</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart2"></canvas></div>
+                    </div>
+                `,
+                'entradas': `
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-inbox"></i> Status das Entradas</div>
+                            <div class="chart-type-selector">
+                                <button class="chart-type-btn active" onclick="changeChart('chart1', 'pie', this)"><i class="fas fa-chart-pie"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart1', 'bar', this)"><i class="fas fa-chart-bar"></i></button>
+                            </div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart1"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-chart-line"></i> Entradas por Mês</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart2"></canvas></div>
+                    </div>
+                `,
+                'compras': `
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-shopping-cart"></i> Status das Compras</div>
+                            <div class="chart-type-selector">
+                                <button class="chart-type-btn active" onclick="changeChart('chart1', 'doughnut', this)"><i class="fas fa-circle-notch"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart1', 'bar', this)"><i class="fas fa-chart-bar"></i></button>
+                            </div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart1"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-dollar-sign"></i> Valor de Compras por Mês</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart2"></canvas></div>
+                    </div>
+                `,
+                'fornecedores': `
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-truck"></i> Fornecedores Ativos vs Inativos</div>
+                            <div class="chart-type-selector">
+                                <button class="chart-type-btn active" onclick="changeChart('chart1', 'pie', this)"><i class="fas fa-chart-pie"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart1', 'bar', this)"><i class="fas fa-chart-bar"></i></button>
+                            </div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart1"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-chart-area"></i> Volume de Compras por Fornecedor</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart2"></canvas></div>
+                    </div>
+                `,
+                'financeiro': `
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-user-tie"></i> Gastos por Comprador (Mês Atual)</div>
+                            <div class="chart-type-selector">
+                                <button class="chart-type-btn active" onclick="changeChart('chart1', 'bar', this)"><i class="fas fa-chart-bar"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart1', 'pie', this)"><i class="fas fa-chart-pie"></i></button>
+                            </div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart1"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-chart-line"></i> Gastos Mensais (Últimos 6 Meses)</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart2"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-receipt"></i> Ticket Médio por Comprador</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart3"></canvas></div>
+                    </div>
+                `,
+                'logistica': `
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-truck"></i> KM Rodados por Motorista</div>
+                            <div class="chart-type-selector">
+                                <button class="chart-type-btn active" onclick="changeChart('chart1', 'bar', this)"><i class="fas fa-chart-bar"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart1', 'pie', this)"><i class="fas fa-chart-pie"></i></button>
+                            </div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart1"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-percentage"></i> Taxa de Conclusão por Motorista (%)</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart2"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-clock"></i> Tempo Médio de Coleta/Entrega (horas)</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart3"></canvas></div>
+                    </div>
+                `,
+                'analise-fornecedores': `
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-trophy"></i> Top 10 Fornecedores por Volume</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart1"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-check-circle"></i> Taxa de Aprovação por Fornecedor</div>
+                            <div class="chart-type-selector">
+                                <button class="chart-type-btn active" onclick="changeChart('chart2', 'bar', this)"><i class="fas fa-chart-bar"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart2', 'line', this)"><i class="fas fa-chart-line"></i></button>
+                            </div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart2"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-dollar-sign"></i> Preço Médio por Kg (Fornecedores)</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart3"></canvas></div>
+                    </div>
+                `,
+                'operacional': `
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-tasks"></i> Taxa de Aprovação (%)</div>
+                            <div class="chart-type-selector">
+                                <button class="chart-type-btn active" onclick="changeChart('chart1', 'doughnut', this)"><i class="fas fa-circle-notch"></i></button>
+                                <button class="chart-type-btn" onclick="changeChart('chart1', 'pie', this)"><i class="fas fa-chart-pie"></i></button>
+                            </div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart1"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-chart-line"></i> Solicitações por Mês</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart2"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-hourglass-half"></i> Tempo Médio de Aprovação e Ciclo</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart3"></canvas></div>
+                    </div>
+                `,
+                'indicadores': `
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-dollar-sign"></i> Cotação do Dólar (USD/BRL)</div>
+                        </div>
+                        <div style="padding: 20px; text-align: center;">
+                            <div id="dolarValue" style="font-size: 48px; font-weight: bold; color: #059669; margin-bottom: 10px;">R$ 0,00</div>
+                            <div id="dolarVariacao" style="font-size: 18px; color: #6b7280;"></div>
+                            <div id="dolarData" style="font-size: 14px; color: #9ca3af; margin-top: 10px;"></div>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-chart-line"></i> Histórico do Dólar (Últimos 30 Dias)</div>
+                        </div>
+                        <div class="chart-container"><canvas id="chart1"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title"><i class="fas fa-euro-sign"></i> Cotação do Euro (EUR/BRL)</div>
+                        </div>
+                        <div style="padding: 20px; text-align: center;">
+                            <div id="euroValue" style="font-size: 48px; font-weight: bold; color: #3b82f6; margin-bottom: 10px;">R$ 0,00</div>
+                            <div id="euroVariacao" style="font-size: 18px; color: #6b7280;"></div>
+                            <div id="euroData" style="font-size: 14px; color: #9ca3af; margin-top: 10px;"></div>
+                        </div>
+                    </div>
+                `
+            };
+            
+            container.innerHTML = chartTemplates[module] || chartTemplates['geral'];
+        }
+
+        function changeChart(chartId, type, btnElement) {
+            // Update button states
+            const parent = btnElement.closest('.chart-type-selector');
+            parent.querySelectorAll('.chart-type-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+            
+            // Recriar gráfico com novo tipo
+            if (activeCharts[chartId]) {
+                // Salvar dados e configurações
+                const oldChart = activeCharts[chartId];
+                const chartData = JSON.parse(JSON.stringify(oldChart.data));
+                
+                // Destruir gráfico antigo
+                oldChart.destroy();
+                
+                // Criar novo gráfico
+                const ctx = document.getElementById(chartId).getContext('2d');
+                
+                // Ajustar opções baseadas no tipo
+                const chartOptions = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: type === 'pie' || type === 'doughnut',
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            cornerRadius: 8
+                        }
+                    }
+                };
+                
+                // Adicionar escalas apenas para gráficos de barras e linhas
+                if (type === 'bar' || type === 'line') {
+                    chartOptions.scales = {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    };
+                    
+                    // Adicionar configurações específicas para linha
+                    if (type === 'line') {
+                        chartOptions.interaction = {
+                            intersect: false,
+                            mode: 'index'
+                        };
+                    }
+                }
+                
+                activeCharts[chartId] = new Chart(ctx, {
+                    type: type,
+                    data: chartData,
+                    options: chartOptions
+                });
+            }
+        }
+
+        function renderFilters(filterTypes) {
+            const filtersContent = document.getElementById('filtersContent');
+            let html = '';
+
+            filterTypes.forEach(type => {
+                switch(type) {
+                    case 'empresa':
+                        html += `
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-size: 12px; font-weight: 600;">Empresa</label>
+                                <select id="filterEmpresa" onchange="applyFilters()" style="width: 100%; padding: 8px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px;">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+                        `;
+                        break;
+                    case 'status':
+                        html += `
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-size: 12px; font-weight: 600;">Status</label>
+                                <select id="filterStatus" onchange="applyFilters()" style="width: 100%; padding: 8px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px;">
+                                    <option value="">Todos</option>
+                                    <option value="pendente">Pendente</option>
+                                    <option value="aprovado">Aprovado</option>
+                                    <option value="reprovado">Reprovado</option>
+                                    <option value="em_analise">Em Análise</option>
+                                </select>
+                            </div>
+                        `;
+                        break;
+                    case 'tipo':
+                        html += `
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-size: 12px; font-weight: 600;">Tipo de Lote</label>
+                                <select id="filterTipo" onchange="applyFilters()" style="width: 100%; padding: 8px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px;">
+                                    <option value="">Todos</option>
+                                    <option value="leve">Leve</option>
+                                    <option value="media">Média</option>
+                                    <option value="pesada">Pesada</option>
+                                </select>
+                            </div>
+                        `;
+                        break;
+                    case 'vendedor':
+                        html += `
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-size: 12px; font-weight: 600;">Vendedor</label>
+                                <select id="filterVendedor" onchange="applyFilters()" style="width: 100%; padding: 8px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px;">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                        `;
+                        break;
+                    case 'fornecedor':
+                        html += `
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-size: 12px; font-weight: 600;">Fornecedor</label>
+                                <select id="filterFornecedor" onchange="applyFilters()" style="width: 100%; padding: 8px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px;">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                        `;
+                        break;
+                    case 'data':
+                        html += `
+                            <div class="form-group" style="margin: 0;">
+                                <label style="font-size: 12px; font-weight: 600;">Período</label>
+                                <select id="filterData" onchange="applyFilters()" style="width: 100%; padding: 8px; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 14px;">
+                                    <option value="tudo">Todo período</option>
+                                    <option value="hoje">Hoje</option>
+                                    <option value="semana">Última semana</option>
+                                    <option value="mes">Último mês</option>
+                                    <option value="trimestre">Último trimestre</option>
+                                    <option value="ano">Último ano</option>
+                                </select>
+                            </div>
+                        `;
+                        break;
+                }
+            });
+
+            filtersContent.innerHTML = html;
+
+            // Load empresa options if needed
+            if (filterTypes.includes('empresa')) {
+                loadEmpresaOptions();
+            }
+        }
+
+        async function loadEmpresaOptions() {
+            try {
+                const response = await fetchAPI('/fornecedores');
+                const empresas = await response.json();
+                allEmpresas = empresas;
+                
+                const select = document.getElementById('filterEmpresa');
+                if (select) {
+                    empresas.forEach(empresa => {
+                        const option = document.createElement('option');
+                        option.value = fornecedor.id;
+                        option.textContent = fornecedor.nome;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar empresas:', error);
+            }
+        }
+
+        function applyFilters() {
+            currentFilters = {
+                empresa: document.getElementById('filterEmpresa')?.value || '',
+                status: document.getElementById('filterStatus')?.value || '',
+                tipo: document.getElementById('filterTipo')?.value || '',
+                vendedor: document.getElementById('filterVendedor')?.value || '',
+                fornecedor: document.getElementById('filterFornecedor')?.value || '',
+                data: document.getElementById('filterData')?.value || 'tudo'
+            };
+
+            // Destruir e recriar gráficos com filtros aplicados
+            Object.values(activeCharts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            activeCharts = {};
+
+            // Reload module data with filters (irá recriar os gráficos)
+            loadModuleData(currentModule);
+        }
+
+        async function loadModuleData(module) {
+            try {
+                // Load specific data based on module
+                switch(module) {
+                    case 'geral':
+                        await loadGeralBI();
+                        break;
+                    case 'empresas':
+                        await loadEmpresasBI();
+                        break;
+                    case 'solicitacoes':
+                        await loadSolicitacoesBI();
+                        break;
+                    case 'tipos-lote':
+                        await loadTiposLoteBI();
+                        break;
+                    case 'entradas':
+                        await loadEntradasBI();
+                        break;
+                    case 'compras':
+                        await loadComprasBI();
+                        break;
+                    case 'fornecedores':
+                        await loadFornecedoresBI();
+                        break;
+                    case 'financeiro':
+                        await loadFinanceiroBI();
+                        break;
+                    case 'logistica':
+                        await loadLogisticaBI();
+                        break;
+                    case 'analise-fornecedores':
+                        await loadAnaliseFornecedoresBI();
+                        break;
+                    case 'operacional':
+                        await loadOperacionalBI();
+                        break;
+                    case 'indicadores':
+                        await loadIndicadoresBI();
+                        break;
+                }
+            } catch (error) {
+                console.error(`Erro ao carregar dados do módulo ${module}:`, error);
+            }
+        }
+
+        async function loadEmpresasBI() {
+            try {
+                const response = await fetchAPI('/fornecedores');
+                const empresas = await response.json();
+                
+                const ativas = empresas.filter(e => e.ativo !== false).length;
+                const inativas = empresas.length - ativas;
+                
+                updateKPILabels('empresas');
+                updateKPIs({
+                    pendentes: empresas.length,
+                    aprovados: ativas,
+                    reprovados: inativas,
+                    valorTotal: 0
+                });
+
+                // Criar gráfico 1 - Status dos Fornecedores
+                const ctx1 = document.getElementById('chart1')?.getContext('2d');
+                if (ctx1) {
+                    activeCharts['chart1'] = new Chart(ctx1, {
+                        type: 'pie',
+                        data: {
+                            labels: ['Ativas', 'Inativas'],
+                            datasets: [{
+                                data: [ativas, inativas],
+                                backgroundColor: ['#10b981', '#ef4444']
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+                
+                // Gráfico 2 - Fornecedores por mês (mock data)
+                const ctx2 = document.getElementById('chart2')?.getContext('2d');
+                if (ctx2) {
+                    activeCharts['chart2'] = new Chart(ctx2, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
+                            datasets: [{
+                                label: 'Fornecedores Cadastrados',
+                                data: [2, 3, 1, 4, 2, empresas.length],
+                                backgroundColor: '#059669'
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados de empresas:', error);
+            }
+        }
+
+        async function loadSolicitacoesBI() {
+            const statsResponse = await fetchAPI('/dashboard/stats');
+            dashboardData = await statsResponse.json();
+            
+            updateKPILabels('solicitacoes');
+            updateKPIs({
+                pendentes: dashboardData.relatorios.pendentes,
+                aprovados: dashboardData.relatorios.aprovados,
+                reprovados: dashboardData.relatorios.reprovados,
+                valorTotal: dashboardData.valor_total
+            });
+
+            // Gráfico 1 - Status
+            const ctx1 = document.getElementById('chart1')?.getContext('2d');
+            if (ctx1) {
+                activeCharts['chart1'] = new Chart(ctx1, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Pendentes', 'Aprovadas', 'Reprovadas'],
+                        datasets: [{
+                            data: [dashboardData.relatorios.pendentes, dashboardData.relatorios.aprovados, dashboardData.relatorios.reprovados],
+                            backgroundColor: ['#f59e0b', '#10b981', '#ef4444']
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+
+            // Gráfico 2 - Movimentação mensal
+            const graficoResponse = await fetchAPI('/dashboard/grafico-mensal');
+            const graficoData = await graficoResponse.json();
+            const ctx2 = document.getElementById('chart2')?.getContext('2d');
+            if (ctx2) {
+                activeCharts['chart2'] = new Chart(ctx2, {
+                    type: 'line',
+                    data: {
+                        labels: graficoData.labels,
+                        datasets: [{
+                            label: 'Solicitações',
+                            data: graficoData.data,
+                            borderColor: '#059669',
+                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+
+            // Ranking - Top 5 Fornecedores
+            const rankingHTML = dashboardData.ranking_empresas.slice(0, 5).map((empresa, index) => {
+                let positionClass = 'regular';
+                if (index === 0) positionClass = 'gold';
+                else if (index === 1) positionClass = 'silver';
+                else if (index === 2) positionClass = 'bronze';
+                
+                return `
+                    <li class="ranking-item">
+                        <div class="ranking-position ${positionClass}">${index + 1}</div>
+                        <div class="ranking-info">
+                            <div class="ranking-name">${empresa.nome}</div>
+                            <div class="ranking-value">Total de solicitações aprovadas</div>
+                        </div>
+                        <div class="ranking-count">${empresa.total}</div>
+                    </li>
+                `;
+            }).join('');
+            const rankingEl = document.getElementById('ranking');
+            if (rankingEl) {
+                rankingEl.innerHTML = rankingHTML || '<li class="ranking-item"><div class="ranking-info"><div class="ranking-name">Nenhum fornecedor com solicitações aprovadas</div></div></li>';
+            }
+        }
+
+        async function loadTiposLoteBI() {
+            try {
+                // Use stats do geral para simular dados de tipos de lote
+                const statsResponse = await fetchAPI('/dashboard/stats');
+                const data = await statsResponse.json();
+                
+                updateKPILabels('tipos-lote');
+                updateKPIs({
+                    pendentes: data.relatorios.pendentes + data.relatorios.aprovados + data.relatorios.reprovados,
+                    aprovados: data.relatorios.aprovados,
+                    reprovados: data.relatorios.reprovados,
+                    valorTotal: data.valor_total
+                });
+
+                // Gráfico 1 - Tipos de Lote por classificação
+                const ctx1 = document.getElementById('chart1')?.getContext('2d');
+                if (ctx1) {
+                    activeCharts['chart1'] = new Chart(ctx1, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Leve', 'Média', 'Pesada'],
+                            datasets: [{
+                                label: 'Quantidade',
+                                data: [data.relatorios.aprovados, data.relatorios.pendentes, data.relatorios.reprovados],
+                                backgroundColor: ['#10b981', '#3b82f6', '#f59e0b']
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+
+                // Gráfico 2 - Peso por tipo
+                const ctx2 = document.getElementById('chart2')?.getContext('2d');
+                if (ctx2) {
+                    activeCharts['chart2'] = new Chart(ctx2, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Leve', 'Média', 'Pesada'],
+                            datasets: [{
+                                label: 'Peso (kg)',
+                                data: [data.quilos_por_tipo.leve, data.quilos_por_tipo.media, data.quilos_por_tipo.pesada],
+                                backgroundColor: '#059669'
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados de tipos de lote:', error);
+                updateKPILabels('tipos-lote');
+                updateKPIs({ pendentes: 0, aprovados: 0, reprovados: 0, valorTotal: 0 });
+            }
+        }
+
+        async function loadEntradasBI() {
+            try {
+                const statsResponse = await fetchAPI('/dashboard/stats');
+                const data = await statsResponse.json();
+                
+                updateKPILabels('entradas');
+                updateKPIs({
+                    pendentes: data.relatorios.pendentes,
+                    aprovados: data.relatorios.aprovados,
+                    reprovados: data.relatorios.reprovados,
+                    valorTotal: data.valor_total
+                });
+
+                // Gráfico 1 - Status
+                const ctx1 = document.getElementById('chart1')?.getContext('2d');
+                if (ctx1) {
+                    activeCharts['chart1'] = new Chart(ctx1, {
+                        type: 'pie',
+                        data: {
+                            labels: ['Pendentes', 'Aprovadas', 'Reprovadas'],
+                            datasets: [{
+                                data: [data.relatorios.pendentes, data.relatorios.aprovados, data.relatorios.reprovados],
+                                backgroundColor: ['#f59e0b', '#10b981', '#ef4444']
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+
+                // Gráfico 2 - Movimentação mensal
+                const graficoResponse = await fetchAPI('/dashboard/grafico-mensal');
+                const graficoData = await graficoResponse.json();
+                const ctx2 = document.getElementById('chart2')?.getContext('2d');
+                if (ctx2) {
+                    activeCharts['chart2'] = new Chart(ctx2, {
+                        type: 'line',
+                        data: {
+                            labels: graficoData.labels,
+                            datasets: [{
+                                label: 'Entradas',
+                                data: graficoData.data,
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados de entradas:', error);
+                updateKPILabels('entradas');
+                updateKPIs({ pendentes: 0, aprovados: 0, reprovados: 0, valorTotal: 0 });
+            }
+        }
+
+        async function loadComprasBI() {
+            try {
+                const statsResponse = await fetchAPI('/dashboard/stats');
+                const data = await statsResponse.json();
+                
+                updateKPILabels('compras');
+                updateKPIs({
+                    pendentes: data.relatorios.pendentes,
+                    aprovados: data.relatorios.aprovados,
+                    reprovados: data.relatorios.reprovados,
+                    valorTotal: data.valor_total
+                });
+
+                // Gráfico 1 - Status
+                const ctx1 = document.getElementById('chart1')?.getContext('2d');
+                if (ctx1) {
+                    activeCharts['chart1'] = new Chart(ctx1, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Pendentes', 'Concluídas', 'Canceladas'],
+                            datasets: [{
+                                data: [data.relatorios.pendentes, data.relatorios.aprovados, data.relatorios.reprovados],
+                                backgroundColor: ['#f59e0b', '#10b981', '#ef4444']
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+
+                // Gráfico 2 - Solicitações por mês
+                const graficoResponse = await fetchAPI('/dashboard/grafico-mensal');
+                const graficoData = await graficoResponse.json();
+                const ctx2 = document.getElementById('chart2')?.getContext('2d');
+                if (ctx2) {
+                    activeCharts['chart2'] = new Chart(ctx2, {
+                        type: 'bar',
+                        data: {
+                            labels: graficoData.labels,
+                            datasets: [{
+                                label: 'Solicitações',
+                                data: graficoData.data,
+                                backgroundColor: '#059669'
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados de compras:', error);
+                updateKPILabels('compras');
+                updateKPIs({ pendentes: 0, aprovados: 0, reprovados: 0, valorTotal: 0 });
+            }
+        }
+
+        async function loadFornecedoresBI() {
+            try {
+                const response = await fetchAPI('/fornecedores');
+                const fornecedores = await response.json();
+                
+                // Buscar ranking de fornecedores para dados reais
+                const statsResponse = await fetchAPI('/dashboard/stats');
+                const statsData = await statsResponse.json();
+                const ranking = statsData.ranking_empresas || [];
+                
+                const ativos = fornecedores.filter(f => f.ativo !== false).length;
+                const inativos = fornecedores.length - ativos;
+                
+                updateKPILabels('fornecedores');
+                updateKPIs({
+                    pendentes: fornecedores.length,
+                    aprovados: ativos,
+                    reprovados: inativos,
+                    valorTotal: ranking.reduce((sum, r) => sum + r.total, 0)
+                });
+
+                // Gráfico 1 - Ativos vs Inativos
+                const ctx1 = document.getElementById('chart1')?.getContext('2d');
+                if (ctx1) {
+                    activeCharts['chart1'] = new Chart(ctx1, {
+                        type: 'pie',
+                        data: {
+                            labels: ['Ativos', 'Inativos'],
+                            datasets: [{
+                                data: [ativos, inativos],
+                                backgroundColor: ['#10b981', '#ef4444']
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+
+                // Gráfico 2 - Volume de Solicitações por Fornecedor (dados reais do ranking)
+                const ctx2 = document.getElementById('chart2')?.getContext('2d');
+                if (ctx2 && ranking.length > 0) {
+                    const topFornecedores = ranking.slice(0, 5);
+                    activeCharts['chart2'] = new Chart(ctx2, {
+                        type: 'bar',
+                        data: {
+                            labels: topFornecedores.map(f => f.nome),
+                            datasets: [{
+                                label: 'Total de Solicitações',
+                                data: topFornecedores.map(f => f.total),
+                                backgroundColor: '#059669'
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados de fornecedores:', error);
+                updateKPILabels('fornecedores');
+                updateKPIs({ pendentes: 0, aprovados: 0, reprovados: 0, valorTotal: 0 });
+            }
+        }
+
+        async function loadFinanceiroBI() {
+            try {
+                const response = await fetchAPI('/dashboard/financeiro');
+                const data = await response.json();
+                
+                updateKPILabels('financeiro');
+                updateKPIs({
+                    pendentes: data.total_gasto_mes,
+                    aprovados: data.total_compras_mes,
+                    reprovados: data.ticket_medio_geral,
+                    valorTotal: data.gastos_por_comprador.length
+                });
+
+                // Gráfico 1 - Gastos por Comprador
+                const ctx1 = document.getElementById('chart1')?.getContext('2d');
+                if (ctx1 && data.gastos_por_comprador.length > 0) {
+                    activeCharts['chart1'] = new Chart(ctx1, {
+                        type: 'bar',
+                        data: {
+                            labels: data.gastos_por_comprador.map(c => c.nome),
+                            datasets: [{
+                                label: 'Gasto Mensal (R$)',
+                                data: data.gastos_por_comprador.map(c => c.valor_mes),
+                                backgroundColor: '#059669'
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return 'R$ ' + value.toLocaleString('pt-BR');
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfico 2 - Gastos Mensais Últimos 6 Meses
+                const ctx2 = document.getElementById('chart2')?.getContext('2d');
+                if (ctx2) {
+                    activeCharts['chart2'] = new Chart(ctx2, {
+                        type: 'line',
+                        data: {
+                            labels: data.gastos_mensais.map(m => m.mes),
+                            datasets: [{
+                                label: 'Valor (R$)',
+                                data: data.gastos_mensais.map(m => m.valor),
+                                borderColor: '#059669',
+                                backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return 'R$ ' + value.toLocaleString('pt-BR');
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfico 3 - Ticket Médio por Comprador
+                const ctx3 = document.getElementById('chart3')?.getContext('2d');
+                if (ctx3 && data.gastos_por_comprador.length > 0) {
+                    activeCharts['chart3'] = new Chart(ctx3, {
+                        type: 'bar',
+                        data: {
+                            labels: data.gastos_por_comprador.map(c => c.nome),
+                            datasets: [{
+                                label: 'Ticket Médio (R$)',
+                                data: data.gastos_por_comprador.map(c => c.ticket_medio),
+                                backgroundColor: '#3b82f6'
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return 'R$ ' + value.toLocaleString('pt-BR');
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados financeiros:', error);
+                updateKPILabels('financeiro');
+                updateKPIs({ pendentes: 0, aprovados: 0, reprovados: 0, valorTotal: 0 });
+            }
+        }
+
+        async function loadLogisticaBI() {
+            try {
+                const response = await fetchAPI('/dashboard/logistica');
+                const data = await response.json();
+                
+                updateKPILabels('logistica');
+                updateKPIs({
+                    pendentes: data.total_km_mes,
+                    aprovados: data.total_os_mes,
+                    reprovados: data.media_km_por_os,
+                    valorTotal: data.metricas_motoristas.length
+                });
+
+                // Gráfico 1 - KM Rodados por Motorista
+                const ctx1 = document.getElementById('chart1')?.getContext('2d');
+                if (ctx1 && data.metricas_motoristas.length > 0) {
+                    activeCharts['chart1'] = new Chart(ctx1, {
+                        type: 'bar',
+                        data: {
+                            labels: data.metricas_motoristas.map(m => m.nome),
+                            datasets: [{
+                                label: 'KM Total',
+                                data: data.metricas_motoristas.map(m => m.km_total),
+                                backgroundColor: '#f59e0b'
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfico 2 - Taxa de Conclusão
+                const ctx2 = document.getElementById('chart2')?.getContext('2d');
+                if (ctx2 && data.metricas_motoristas.length > 0) {
+                    activeCharts['chart2'] = new Chart(ctx2, {
+                        type: 'bar',
+                        data: {
+                            labels: data.metricas_motoristas.map(m => m.nome),
+                            datasets: [{
+                                label: 'Taxa de Conclusão (%)',
+                                data: data.metricas_motoristas.map(m => m.taxa_conclusao),
+                                backgroundColor: '#10b981'
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfico 3 - Tempo Médio de Coleta/Entrega
+                const ctx3 = document.getElementById('chart3')?.getContext('2d');
+                if (ctx3 && data.metricas_motoristas.length > 0) {
+                    activeCharts['chart3'] = new Chart(ctx3, {
+                        type: 'bar',
+                        data: {
+                            labels: data.metricas_motoristas.map(m => m.nome),
+                            datasets: [{
+                                label: 'Tempo Médio (horas)',
+                                data: data.metricas_motoristas.map(m => m.tempo_medio_horas),
+                                backgroundColor: '#3b82f6'
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados de logística:', error);
+                updateKPILabels('logistica');
+                updateKPIs({ pendentes: 0, aprovados: 0, reprovados: 0, valorTotal: 0 });
+            }
+        }
+
+        async function loadAnaliseFornecedoresBI() {
+            try {
+                const response = await fetchAPI('/dashboard/analise-fornecedores');
+                const data = await response.json();
+                
+                updateKPILabels('analise-fornecedores');
+                updateKPIs({
+                    pendentes: data.total_fornecedores,
+                    aprovados: data.top_fornecedores.length,
+                    reprovados: data.top_fornecedores.reduce((sum, f) => sum + f.valor_total, 0),
+                    valorTotal: data.top_fornecedores.reduce((sum, f) => sum + f.peso_total_kg, 0)
+                });
+
+                // Gráfico 1 - Top 10 Fornecedores por Volume
+                const ctx1 = document.getElementById('chart1')?.getContext('2d');
+                if (ctx1 && data.top_fornecedores.length > 0) {
+                    activeCharts['chart1'] = new Chart(ctx1, {
+                        type: 'bar',
+                        data: {
+                            labels: data.top_fornecedores.map(f => f.nome),
+                            datasets: [{
+                                label: 'Valor Total (R$)',
+                                data: data.top_fornecedores.map(f => f.valor_total),
+                                backgroundColor: '#059669'
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            indexAxis: 'y',
+                            scales: {
+                                x: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return 'R$ ' + value.toLocaleString('pt-BR');
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfico 2 - Taxa de Aprovação
+                const ctx2 = document.getElementById('chart2')?.getContext('2d');
+                if (ctx2 && data.top_fornecedores.length > 0) {
+                    activeCharts['chart2'] = new Chart(ctx2, {
+                        type: 'bar',
+                        data: {
+                            labels: data.top_fornecedores.map(f => f.nome),
+                            datasets: [{
+                                label: 'Taxa de Aprovação (%)',
+                                data: data.top_fornecedores.map(f => f.taxa_aprovacao),
+                                backgroundColor: '#10b981'
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfico 3 - Preço Médio por KG
+                const ctx3 = document.getElementById('chart3')?.getContext('2d');
+                if (ctx3 && data.top_fornecedores.length > 0) {
+                    activeCharts['chart3'] = new Chart(ctx3, {
+                        type: 'bar',
+                        data: {
+                            labels: data.top_fornecedores.map(f => f.nome),
+                            datasets: [{
+                                label: 'Preço Médio/Kg (R$)',
+                                data: data.top_fornecedores.map(f => f.preco_medio_kg),
+                                backgroundColor: '#f59e0b'
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return 'R$ ' + value.toFixed(2);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar análise de fornecedores:', error);
+                updateKPILabels('analise-fornecedores');
+                updateKPIs({ pendentes: 0, aprovados: 0, reprovados: 0, valorTotal: 0 });
+            }
+        }
+
+        async function loadOperacionalBI() {
+            try {
+                const response = await fetchAPI('/dashboard/operacional');
+                const data = await response.json();
+                
+                updateKPILabels('operacional');
+                updateKPIs({
+                    pendentes: data.solicitacoes_pendentes,
+                    aprovados: data.solicitacoes_aprovadas,
+                    reprovados: data.solicitacoes_rejeitadas,
+                    valorTotal: data.taxa_aprovacao
+                });
+
+                // Gráfico 1 - Taxa de Aprovação
+                const ctx1 = document.getElementById('chart1')?.getContext('2d');
+                if (ctx1) {
+                    const totalSolicitacoes = data.total_solicitacoes_mes;
+                    const aprovadas = data.solicitacoes_aprovadas;
+                    const rejeitadas = data.solicitacoes_rejeitadas;
+                    const pendentes = data.solicitacoes_pendentes;
+                    
+                    activeCharts['chart1'] = new Chart(ctx1, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Aprovadas', 'Rejeitadas', 'Pendentes'],
+                            datasets: [{
+                                data: [aprovadas, rejeitadas, pendentes],
+                                backgroundColor: ['#10b981', '#ef4444', '#f59e0b']
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+
+                // Gráfico 2 - Solicitações por Mês
+                const ctx2 = document.getElementById('chart2')?.getContext('2d');
+                if (ctx2) {
+                    activeCharts['chart2'] = new Chart(ctx2, {
+                        type: 'line',
+                        data: {
+                            labels: data.solicitacoes_por_mes.map(m => m.mes),
+                            datasets: [{
+                                label: 'Total',
+                                data: data.solicitacoes_por_mes.map(m => m.total),
+                                borderColor: '#059669',
+                                backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }, {
+                                label: 'Aprovadas',
+                                data: data.solicitacoes_por_mes.map(m => m.aprovadas),
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfico 3 - Tempos Médios
+                const ctx3 = document.getElementById('chart3')?.getContext('2d');
+                if (ctx3) {
+                    activeCharts['chart3'] = new Chart(ctx3, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Tempo Médio Aprovação (h)', 'Tempo Ciclo Completo (dias)'],
+                            datasets: [{
+                                label: 'Tempo',
+                                data: [data.tempo_medio_aprovacao_horas, data.tempo_medio_ciclo_dias],
+                                backgroundColor: ['#3b82f6', '#f59e0b']
+                            }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados operacionais:', error);
+                updateKPILabels('operacional');
+                updateKPIs({ pendentes: 0, aprovados: 0, reprovados: 0, valorTotal: 0 });
+            }
+        }
+
+        async function loadIndicadoresBI() {
+            try {
+                const response = await fetchAPI('/dashboard/indicadores-externos');
+                
+                if (!response || !response.ok) {
+                    console.error('❌ Erro ao buscar indicadores externos');
+                    throw new Error('Erro ao buscar indicadores');
+                }
+                
+                const data = await response.json();
+                
+                console.log('📊 Dados de indicadores:', data);
+                
+                // Se houve erro na API, mostrar valores zerados mas não falhar
+                if (data.erro) {
+                    console.warn('⚠️ API retornou erro:', data.erro);
+                }
+                
+                updateKPILabels('indicadores');
+                updateKPIs({
+                    pendentes: data.dolar?.valor || 0,
+                    aprovados: data.euro?.valor || 0,
+                    reprovados: data.dolar?.variacao || 0,
+                    valorTotal: 0
+                });
+
+                // Exibir cotação do dólar
+                const dolarValueEl = document.getElementById('dolarValue');
+                const dolarVariacaoEl = document.getElementById('dolarVariacao');
+                const dolarDataEl = document.getElementById('dolarData');
+                
+                if (dolarValueEl && data.dolar && data.dolar.valor > 0) {
+                    dolarValueEl.textContent = 'R$ ' + data.dolar.valor.toFixed(2);
+                    const variacaoClass = data.dolar.variacao >= 0 ? 'positive' : 'negative';
+                    const variacaoIcon = data.dolar.variacao >= 0 ? '▲' : '▼';
+                    dolarVariacaoEl.innerHTML = `<span class="kpi-change ${variacaoClass}">${variacaoIcon} ${Math.abs(data.dolar.variacao).toFixed(2)}%</span>`;
+                    dolarDataEl.textContent = 'Atualizado em: ' + (data.dolar.data_atualizacao || 'N/A');
+                } else if (dolarValueEl) {
+                    dolarValueEl.textContent = 'R$ 0,00';
+                    dolarVariacaoEl.innerHTML = '<span style="color: #6b7280;">Dados indisponíveis</span>';
+                    dolarDataEl.textContent = data.erro || 'API temporariamente indisponível';
+                }
+
+                // Exibir cotação do euro
+                const euroValueEl = document.getElementById('euroValue');
+                const euroVariacaoEl = document.getElementById('euroVariacao');
+                const euroDataEl = document.getElementById('euroData');
+                
+                if (euroValueEl && data.euro && data.euro.valor > 0) {
+                    euroValueEl.textContent = 'R$ ' + data.euro.valor.toFixed(2);
+                    const variacaoClass = data.euro.variacao >= 0 ? 'positive' : 'negative';
+                    const variacaoIcon = data.euro.variacao >= 0 ? '▲' : '▼';
+                    euroVariacaoEl.innerHTML = `<span class="kpi-change ${variacaoClass}">${variacaoIcon} ${Math.abs(data.euro.variacao).toFixed(2)}%</span>`;
+                    euroDataEl.textContent = 'Atualizado em: ' + (data.euro.data_atualizacao || 'N/A');
+                } else if (euroValueEl) {
+                    euroValueEl.textContent = 'R$ 0,00';
+                    euroVariacaoEl.innerHTML = '<span style="color: #6b7280;">Dados indisponíveis</span>';
+                    euroDataEl.textContent = data.erro || 'API temporariamente indisponível';
+                }
+
+                // Gráfico 1 - Histórico do Dólar
+                const ctx1 = document.getElementById('chart1')?.getContext('2d');
+                if (ctx1) {
+                    if (activeCharts['chart1']) {
+                        activeCharts['chart1'].destroy();
+                    }
+                    
+                    if (data.historico_dolar && data.historico_dolar.length > 0) {
+                        activeCharts['chart1'] = new Chart(ctx1, {
+                            type: 'line',
+                            data: {
+                                labels: data.historico_dolar.map(h => h.data),
+                                datasets: [{
+                                    label: 'USD/BRL',
+                                    data: data.historico_dolar.map(h => h.valor),
+                                    borderColor: '#059669',
+                                    backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                                    tension: 0.4,
+                                    fill: true
+                                }]
+                            },
+                            options: { 
+                                responsive: true, 
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: {
+                                        ticks: {
+                                            callback: function(value) {
+                                                return 'R$ ' + value.toFixed(2);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    } else {
+                        // Criar gráfico vazio com mensagem
+                        activeCharts['chart1'] = new Chart(ctx1, {
+                            type: 'line',
+                            data: {
+                                labels: ['Sem dados'],
+                                datasets: [{
+                                    label: 'USD/BRL',
+                                    data: [0],
+                                    borderColor: '#9ca3af',
+                                    backgroundColor: 'rgba(156, 163, 175, 0.1)'
+                                }]
+                            },
+                            options: { 
+                                responsive: true, 
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: false
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Erro fatal ao carregar indicadores externos:', error);
+                updateKPILabels('indicadores');
+                updateKPIs({ pendentes: 0, aprovados: 0, reprovados: 0, valorTotal: 0 });
+                
+                // Mostrar mensagem de erro nos elementos
+                const dolarValueEl = document.getElementById('dolarValue');
+                const euroValueEl = document.getElementById('euroValue');
+                if (dolarValueEl) {
+                    dolarValueEl.textContent = 'Erro ao carregar';
+                    document.getElementById('dolarVariacao').innerHTML = '<span style="color: #ef4444;">Tente novamente mais tarde</span>';
+                }
+                if (euroValueEl) {
+                    euroValueEl.textContent = 'Erro ao carregar';
+                    document.getElementById('euroVariacao').innerHTML = '<span style="color: #ef4444;">Tente novamente mais tarde</span>';
+                }
+            }
+        }
+
+        function updateKPIs(data) {
+            document.getElementById('kpi1Value').textContent = data.pendentes;
+            document.getElementById('kpi2Value').textContent = data.aprovados;
+            document.getElementById('kpi3Value').textContent = data.reprovados;
+            document.getElementById('kpi4Value').textContent = formatCurrency(data.valorTotal);
+        }
+
+        function updateKPILabels(module) {
+            const labels = {
+                'geral': {
+                    kpi1: 'Pendentes',
+                    kpi2: 'Aprovados',
+                    kpi3: 'Reprovados',
+                    kpi4: 'Valor Total'
+                },
+                'empresas': {
+                    kpi1: 'Total Fornecedores',
+                    kpi2: 'Ativas',
+                    kpi3: 'Inativas',
+                    kpi4: 'Faturamento'
+                },
+                'solicitacoes': {
+                    kpi1: 'Pendentes',
+                    kpi2: 'Aprovadas',
+                    kpi3: 'Reprovadas',
+                    kpi4: 'Valor Total'
+                },
+                'tipos-lote': {
+                    kpi1: 'Total Tipos de Lote',
+                    kpi2: 'Aprovadas',
+                    kpi3: 'Rejeitadas',
+                    kpi4: 'Valor Total'
+                },
+                'entradas': {
+                    kpi1: 'Pendentes',
+                    kpi2: 'Aprovadas',
+                    kpi3: 'Reprovadas',
+                    kpi4: 'Valor Total'
+                },
+                'compras': {
+                    kpi1: 'Pendentes',
+                    kpi2: 'Concluídas',
+                    kpi3: 'Canceladas',
+                    kpi4: 'Valor Total'
+                },
+                'fornecedores': {
+                    kpi1: 'Total',
+                    kpi2: 'Ativos',
+                    kpi3: 'Inativos',
+                    kpi4: 'Volume Total'
+                },
+                'financeiro': {
+                    kpi1: 'Gasto Total (Mês)',
+                    kpi2: 'Total de Compras',
+                    kpi3: 'Ticket Médio',
+                    kpi4: 'Compradores Ativos'
+                },
+                'logistica': {
+                    kpi1: 'KM Total (Mês)',
+                    kpi2: 'Ordens de Serviço',
+                    kpi3: 'Média KM/OS',
+                    kpi4: 'Motoristas Ativos'
+                },
+                'analise-fornecedores': {
+                    kpi1: 'Total Fornecedores',
+                    kpi2: 'Top 10 Fornecedores',
+                    kpi3: 'Valor Total Top 10',
+                    kpi4: 'Peso Total (kg)'
+                },
+                'operacional': {
+                    kpi1: 'Pendentes',
+                    kpi2: 'Aprovadas',
+                    kpi3: 'Rejeitadas',
+                    kpi4: 'Taxa de Aprovação (%)'
+                },
+                'indicadores': {
+                    kpi1: 'Dólar (R$)',
+                    kpi2: 'Euro (R$)',
+                    kpi3: 'Variação Dólar (%)',
+                    kpi4: 'Atualizado'
+                }
+            };
+
+            const moduleLabels = labels[module] || labels['geral'];
+            document.getElementById('kpi1Label').textContent = moduleLabels.kpi1;
+            document.getElementById('kpi2Label').textContent = moduleLabels.kpi2;
+            document.getElementById('kpi3Label').textContent = moduleLabels.kpi3;
+            document.getElementById('kpi4Label').textContent = moduleLabels.kpi4;
+        }
+
+        function navigateFromKPI(kpiNumber) {
+            const routes = {
+                'geral': ['/solicitacoes.html', '/solicitacoes.html', '/solicitacoes.html', '/solicitacoes.html'],
+                'empresas': ['/fornecedores.html', '/fornecedores.html', '/fornecedores.html', '/fornecedores.html'],
+                'solicitacoes': ['/solicitacoes.html', '/solicitacoes.html', '/solicitacoes.html', '/solicitacoes.html'],
+                'tipos-lote': ['/tipos-lote.html', '/tipos-lote.html', '/tipos-lote.html', '/tipos-lote.html'],
+                'entradas': ['/entradas.html', '/entradas.html', '/entradas.html', '/entradas.html'],
+                'compras': ['/compras.html', '/compras.html', '/compras.html', '/compras.html'],
+                'fornecedores': ['/fornecedores.html', '/fornecedores.html', '/fornecedores.html', '/fornecedores.html'],
+                'financeiro': ['/dashboard.html', '/dashboard.html', '/dashboard.html', '/dashboard.html'],
+                'logistica': ['/motoristas.html', '/motoristas.html', '/motoristas.html', '/motoristas.html'],
+                'analise-fornecedores': ['/fornecedores.html', '/fornecedores.html', '/fornecedores.html', '/fornecedores.html'],
+                'operacional': ['/solicitacoes.html', '/solicitacoes.html', '/solicitacoes.html', '/solicitacoes.html'],
+                'indicadores': ['/dashboard.html', '/dashboard.html', '/dashboard.html', '/dashboard.html']
+            };
+
+            const route = routes[currentModule][kpiNumber - 1];
+            if (route) {
+                window.location.href = route;
+            }
+        }
+
+        function updatePesoChartWithData(pesoData) {
+            if (chartPeso) {
+                chartPeso.data.datasets[0].data = [
+                    pesoData.leve || 0,
+                    pesoData.media || 0,
+                    pesoData.pesada || 0
+                ];
+                chartPeso.update();
+            }
+        }
+
+        function changePesoChart(type, btnElement) {
+            // Update button states
+            document.querySelectorAll('[data-chart="peso"]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            btnElement.classList.add('active');
+
+            // Change chart type
+            if (chartPeso) {
+                chartPeso.destroy();
+            }
+
+            const ctx = document.getElementById('chartPeso').getContext('2d');
+            const data = {
+                labels: ['Leve', 'Média', 'Pesada'],
+                datasets: [{
+                    label: 'Peso (kg)',
+                    data: [
+                        dashboardData.quilos_por_tipo.leve || 0,
+                        dashboardData.quilos_por_tipo.media || 0,
+                        dashboardData.quilos_por_tipo.pesada || 0
+                    ],
+                    backgroundColor: [
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(245, 158, 11, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgb(16, 185, 129)',
+                        'rgb(59, 130, 246)',
+                        'rgb(245, 158, 11)'
+                    ],
+                    borderWidth: 2
+                }]
+            };
+
+            chartPeso = new Chart(ctx, {
+                type: type,
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: type === 'pie' || type === 'doughnut',
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.parsed.toFixed(2) + ' kg';
+                                }
+                            }
+                        }
+                    },
+                    scales: type === 'bar' ? {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + ' kg';
+                                }
+                            }
+                        }
+                    } : {}
+                }
+            });
+        }
+
+        function changeMovimentacaoChart(type, btnElement) {
+            // Update button states
+            document.querySelectorAll('[data-chart="movimentacao"]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            btnElement.classList.add('active');
+
+            // Change chart appearance
+            if (chartMovimentacao) {
+                if (type === 'area') {
+                    chartMovimentacao.config.type = 'line';
+                    chartMovimentacao.data.datasets[0].fill = true;
+                    chartMovimentacao.data.datasets[0].backgroundColor = 'rgba(5, 150, 105, 0.2)';
+                } else {
+                    chartMovimentacao.config.type = type;
+                    chartMovimentacao.data.datasets[0].fill = type === 'line';
+                    chartMovimentacao.data.datasets[0].backgroundColor = type === 'line' ? 'rgba(5, 150, 105, 0.1)' : 'rgba(5, 150, 105, 0.8)';
+                }
+                chartMovimentacao.update();
+            }
+        }
+
+        // Funções do Scanner com IA
+        function openScanner() {
+            carregarEmpresasScanner();
+            document.getElementById('scannerModal').classList.add('active');
+        }
+
+        function closeScanner() {
+            document.getElementById('scannerModal').classList.remove('active');
+            document.getElementById('formScanner').reset();
+            document.getElementById('imagePreview').classList.remove('active');
+            document.getElementById('resultadoAnaliseIA').style.display = 'none';
+        }
+
+        async function carregarEmpresasScanner() {
+            try {
+                const response = await fetchAPI('/fornecedores');
+                if (!response || !response.ok) {
+                    console.error('Erro ao carregar fornecedores para scanner');
+                    return;
+                }
+                
+                const empresas = await response.json();
+                const select = document.getElementById('scannerEmpresa');
+                if (select) {
+                    select.innerHTML = '<option value="">Escolha um fornecedor...</option>';
+                    empresas.forEach(fornecedor => {
+                        const option = document.createElement('option');
+                        option.value = fornecedor.id;
+                        option.textContent = fornecedor.nome;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar fornecedores no scanner:', error);
+            }
+        }
+
+        async function analisarLoteComIA() {
+            const fotoInput = document.getElementById('fileInput');
+            if (!fotoInput.files || fotoInput.files.length === 0) {
+                showAlert('Adicione uma foto do tipo de lote primeiro!', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('imagem', fotoInput.files[0]);
+
+            const resultadoDiv = document.getElementById('resultadoAnaliseIA');
+            resultadoDiv.innerHTML = ' Analisando com IA Gemini...';
+            resultadoDiv.style.display = 'block';
+
+            try {
+                const response = await fetchAPI('/lotes/analisar', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response && response.ok) {
+                    const resultado = await response.json();
+                    document.getElementById('tipoLote').value = resultado.classificacao;
+                    resultadoDiv.innerHTML = ` ${resultado.mensagem}`;
+                    resultadoDiv.style.background = '#ecfdf5';
+                    resultadoDiv.style.color = '#065f46';
+                } else {
+                    const error = response ? await response.json() : {erro: 'Erro de conexão'};
+                    resultadoDiv.innerHTML = ` ${error.erro || 'Erro ao analisar'}`;
+                    resultadoDiv.style.background = '#fee2e2';
+                    resultadoDiv.style.color = '#991b1b';
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                resultadoDiv.innerHTML = ' Erro ao analisar. Tente novamente.';
+                resultadoDiv.style.background = '#fee2e2';
+                resultadoDiv.style.color = '#991b1b';
+            }
+        }
+
+        function previewImage(input) {
+            const preview = document.getElementById('imagePreview');
+            const img = document.getElementById('previewImg');
+
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    img.src = e.target.result;
+                    preview.classList.add('active');
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        carregarDashboard();
+    </script>
+</body>
+</html>

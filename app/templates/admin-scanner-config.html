@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Configurações do Scanner - Admin - MRX Systems{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <div class="card shadow-lg">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-cog me-2"></i>
+                        Configurações do Scanner de Placas
+                    </h4>
+                    <p class="mb-0 mt-2 opacity-75">Configure preços e regras do scanner de PCBs</p>
+                </div>
+                <div class="card-body">
+                    <form id="configForm">
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enabledSwitch" checked>
+                                <label class="form-check-label fw-bold" for="enabledSwitch">
+                                    <i class="fas fa-power-off me-2"></i>Scanner Ativo
+                                </label>
+                            </div>
+                            <small class="text-muted">Ativar/desativar o popup flutuante e a página de scanner</small>
+                        </div>
+                        
+                        <hr>
+                        
+                        <h5 class="mb-3"><i class="fas fa-dollar-sign me-2"></i>Faixas de Preço (R$/kg)</h5>
+                        
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-secondary">
+                                            <span class="badge bg-secondary me-2">LOW</span> Placas de Baixo Valor
+                                        </h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <label class="form-label">Preço Mínimo</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">R$</span>
+                                                    <input type="number" class="form-control" id="priceLowMin" step="0.01" min="0" value="5.00">
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label">Preço Máximo</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">R$</span>
+                                                    <input type="number" class="form-control" id="priceLowMax" step="0.01" min="0" value="15.00">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card" style="background: #fff3cd;">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-warning">
+                                            <span class="badge bg-warning text-dark me-2">MEDIUM</span> Placas de Médio Valor
+                                        </h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <label class="form-label">Preço Mínimo</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">R$</span>
+                                                    <input type="number" class="form-control" id="priceMediumMin" step="0.01" min="0" value="20.00">
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label">Preço Máximo</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">R$</span>
+                                                    <input type="number" class="form-control" id="priceMediumMax" step="0.01" min="0" value="50.00">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="card" style="background: #d4edda;">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-success">
+                                            <span class="badge bg-success me-2">HIGH</span> Placas de Alto Valor
+                                        </h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <label class="form-label">Preço Mínimo</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">R$</span>
+                                                    <input type="number" class="form-control" id="priceHighMin" step="0.01" min="0" value="60.00">
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label">Preço Máximo</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">R$</span>
+                                                    <input type="number" class="form-control" id="priceHighMax" step="0.01" min="0" value="150.00">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="mb-4">
+                            <label for="promptRules" class="form-label fw-bold">
+                                <i class="fas fa-robot me-2"></i>Regras Adicionais do Prompt
+                            </label>
+                            <textarea class="form-control" id="promptRules" rows="4" 
+                                placeholder="Adicione regras personalizadas para a classificação da IA..."></textarea>
+                            <small class="text-muted">Estas regras serão anexadas ao prompt interno da IA para personalizar as classificações.</small>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-key me-2"></i>Chave API Perplexity
+                            </label>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                A chave API está configurada via variável de ambiente (PERPLEXITY_API_KEY).
+                                <span id="apiStatus" class="badge ms-2">Verificando...</span>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i>Salvar Configurações
+                            </button>
+                            <a href="/scanner" class="btn btn-outline-secondary">
+                                <i class="fas fa-external-link-alt me-2"></i>Testar Scanner
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const token = getToken();
+    if (!token) {
+        window.location.href = '/';
+        return;
+    }
+    
+    loadConfig();
+    checkApiStatus();
+    
+    document.getElementById('configForm').addEventListener('submit', saveConfig);
+});
+
+async function loadConfig() {
+    const token = getToken();
+    
+    try {
+        const response = await fetch('/api/admin/scanner-config', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.status === 403) {
+            alert('Acesso negado. Apenas administradores podem acessar esta página.');
+            window.location.href = '/dashboard';
+            return;
+        }
+        
+        if (response.ok) {
+            const config = await response.json();
+            
+            document.getElementById('enabledSwitch').checked = config.enabled;
+            document.getElementById('priceLowMin').value = config.price_low_min || 5;
+            document.getElementById('priceLowMax').value = config.price_low_max || 15;
+            document.getElementById('priceMediumMin').value = config.price_medium_min || 20;
+            document.getElementById('priceMediumMax').value = config.price_medium_max || 50;
+            document.getElementById('priceHighMin').value = config.price_high_min || 60;
+            document.getElementById('priceHighMax').value = config.price_high_max || 150;
+            document.getElementById('promptRules').value = config.prompt_rules || '';
+        }
+    } catch (error) {
+        console.error('Erro ao carregar configurações:', error);
+        alert('Erro ao carregar configurações.');
+    }
+}
+
+async function checkApiStatus() {
+    try {
+        const response = await fetch('/api/scanner/status');
+        const data = await response.json();
+        
+        const apiStatus = document.getElementById('apiStatus');
+        if (data.api_configured) {
+            apiStatus.className = 'badge bg-success ms-2';
+            apiStatus.textContent = 'Configurada';
+        } else {
+            apiStatus.className = 'badge bg-danger ms-2';
+            apiStatus.textContent = 'Não configurada';
+        }
+    } catch (error) {
+        document.getElementById('apiStatus').className = 'badge bg-warning ms-2';
+        document.getElementById('apiStatus').textContent = 'Erro ao verificar';
+    }
+}
+
+async function saveConfig(e) {
+    e.preventDefault();
+    
+    const token = getToken();
+    
+    const config = {
+        enabled: document.getElementById('enabledSwitch').checked,
+        price_low_min: parseFloat(document.getElementById('priceLowMin').value) || 0,
+        price_low_max: parseFloat(document.getElementById('priceLowMax').value) || 0,
+        price_medium_min: parseFloat(document.getElementById('priceMediumMin').value) || 0,
+        price_medium_max: parseFloat(document.getElementById('priceMediumMax').value) || 0,
+        price_high_min: parseFloat(document.getElementById('priceHighMin').value) || 0,
+        price_high_max: parseFloat(document.getElementById('priceHighMax').value) || 0,
+        prompt_rules: document.getElementById('promptRules').value
+    };
+    
+    try {
+        const response = await fetch('/api/admin/scanner-config', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(config)
+        });
+        
+        if (response.ok) {
+            alert('Configurações salvas com sucesso!');
+        } else {
+            const data = await response.json();
+            alert(data.erro || 'Erro ao salvar configurações.');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro de conexão.');
+    }
+}
+</script>
+{% endblock %}

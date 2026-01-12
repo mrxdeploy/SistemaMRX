@@ -1,0 +1,99 @@
+[2025-11-07 00:29:47 +0000] [1] [INFO] Starting gunicorn 21.2.0
+[2025-11-07 00:29:47 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2025-11-07 00:29:47 +0000] [1] [INFO] Using worker: eventlet
+[2025-11-07 00:29:47 +0000] [2] [INFO] Booting worker with pid: 2
+Failed to find attribute 'app' in 'app'.
+[2025-11-07 00:29:48 +0000] [2] [INFO] Worker exiting (pid: 2)
+[2025-11-07 00:29:48 +0000] [1] [ERROR] Reason: App failed to load.
+[2025-11-07 00:29:48 +0000] [1] [ERROR] Worker (pid:2) exited with code 4
+[2025-11-07 00:29:48 +0000] [1] [ERROR] Shutting down: Master
+[2025-11-07 00:29:50 +0000] [1] [INFO] Starting gunicorn 21.2.0
+[2025-11-07 00:29:50 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2025-11-07 00:29:50 +0000] [1] [INFO] Using worker: eventlet
+[2025-11-07 00:29:50 +0000] [2] [INFO] Booting worker with pid: 2
+Failed to find attribute 'app' in 'app'.
+[2025-11-07 00:29:50 +0000] [2] [INFO] Worker exiting (pid: 2)
+[2025-11-07 00:29:51 +0000] [1] [ERROR] Worker (pid:2) exited with code 4
+[2025-11-07 00:29:51 +0000] [1] [ERROR] Shutting down: Master
+[2025-11-07 00:29:51 +0000] [1] [ERROR] Reason: App failed to load.
+[2025-11-07 00:29:53 +0000] [1] [INFO] Starting gunicorn 21.2.0
+[2025-11-07 00:29:53 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2025-11-07 00:29:53 +0000] [1] [INFO] Using worker: eventlet
+[2025-11-07 00:29:53 +0000] [2] [INFO] Booting worker with pid: 2
+Failed to find attribute 'app' in 'app'.
+[2025-11-07 00:29:54 +0000] [2] [INFO] Worker exiting (pid: 2)
+[2025-11-07 00:29:54 +0000] [1] [ERROR] Worker (pid:2) exited with code 4
+[2025-11-07 00:29:54 +0000] [1] [ERROR] Shutting down: Master
+[2025-11-07 00:29:54 +0000] [1] [ERROR] Reason: App failed to load.
+[2025-11-07 00:29:56 +0000] [1] [INFO] Starting gunicorn 21.2.0
+[2025-11-07 00:29:56 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2025-11-07 00:29:56 +0000] [1] [INFO] Using worker: eventlet
+[2025-11-07 00:29:56 +0000] [2] [INFO] Booting worker with pid: 2
+Failed to find attribute 'app' in 'app'.
+[2025-11-07 00:29:56 +0000] [2] [INFO] Worker exiting (pid: 2)
+[2025-11-07 00:29:56 +0000] [1] [ERROR] Worker (pid:2) exited with code 4
+[2025-11-07 00:29:56 +0000] [1] [ERROR] Shutting down: Master
+[2025-11-07 00:29:56 +0000] [1] [ERROR] Reason: App failed to load.
+[2025-11-07 00:29:58 +0000] [2] [INFO] Booting worker with pid: 2
+[2025-11-07 00:29:58 +0000] [1] [INFO] Starting gunicorn 21.2.0
+[2025-11-07 00:29:58 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2025-11-07 00:29:58 +0000] [1] [INFO] Using worker: eventlet
+[2025-11-07 00:29:59 +0000] [1] [ERROR] Shutting down: Master
+[2025-11-07 00:29:59 +0000] [1] [ERROR] Reason: App failed to load.
+Failed to find attribute 'app' in 'app'.
+[2025-11-07 00:29:59 +0000] [2] [INFO] Worker exiting (pid: 2)
+[2025-11-07 00:29:59 +0000] [1] [ERROR] Worker (pid:2) exited with code 4
+[2025-11-07 00:30:02 +0000] [1] [INFO] Starting gunicorn 21.2.0
+[2025-11-07 00:30:02 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2025-11-07 00:30:02 +0000] [1] [INFO] Using worker: eventlet
+[2025-11-07 00:30:02 +0000] [2] [INFO] Booting worker with pid: 2
+[2025-11-07 00:30:03 +0000] [1] [ERROR] Reason: App failed to load.
+Failed to find attribute 'app' in 'app'.
+[2025-11-07 00:30:02 +0000] [2] [INFO] Worker exiting (pid: 2)
+[2025-11-07 00:30:03 +0000] [1] [ERROR] Worker (pid:2) exited with code 4
+[2025-11-07 00:30:03 +0000] [1] [ERROR] Shutting down: Master
+[2025-11-07 00:30:05 +0000] [1] [INFO] Starting gunicorn 21.2.0
+[2025-11-07 00:30:05 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2025-11-07 00:30:05 +0000] [1] [INFO] Using worker: eventlet
+[2025-11-07 00:30:05 +0000] [2] [INFO] Booting worker with pid: 2
+Failed to find attribute 'app' in 'app'.
+[2025-11-07 00:30:06 +0000] [2] [INFO] Worker exiting (pid: 2)
+[2025-11-07 00:30:06 +0000] [1] [ERROR] Worker (pid:2) exited with code 4
+[2025-11-07 00:30:06 +0000] [1] [ERROR] Shutting down: Master
+[2025-11-07 00:30:06 +0000] [1] [ERROR] Reason: App failed to load.
+[2025-11-07 00:30:08 +0000] [2] [INFO] Booting worker with pid: 2
+Failed to find attribute 'app' in 'app'.
+[2025-11-07 00:30:09 +0000] [2] [INFO] Worker exiting (pid: 2)
+[2025-11-07 00:30:08 +0000] [1] [INFO] Starting gunicorn 21.2.0
+[2025-11-07 00:30:08 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2025-11-07 00:30:08 +0000] [1] [INFO] Using worker: eventlet
+[2025-11-07 00:30:09 +0000] [1] [ERROR] Worker (pid:2) exited with code 4
+[2025-11-07 00:30:09 +0000] [1] [ERROR] Shutting down: Master
+[2025-11-07 00:30:09 +0000] [1] [ERROR] Reason: App failed to load.
+[2025-11-07 00:30:11 +0000] [1] [INFO] Starting gunicorn 21.2.0
+[2025-11-07 00:30:11 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2025-11-07 00:30:11 +0000] [1] [INFO] Using worker: eventlet
+[2025-11-07 00:30:11 +0000] [2] [INFO] Booting worker with pid: 2
+Failed to find attribute 'app' in 'app'.
+[2025-11-07 00:30:12 +0000] [2] [INFO] Worker exiting (pid: 2)
+[2025-11-07 00:30:12 +0000] [1] [ERROR] Worker (pid:2) exited with code 4
+[2025-11-07 00:30:12 +0000] [1] [ERROR] Shutting down: Master
+[2025-11-07 00:30:12 +0000] [1] [ERROR] Reason: App failed to load.
+[2025-11-07 00:30:15 +0000] [1] [INFO] Starting gunicorn 21.2.0
+[2025-11-07 00:30:15 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2025-11-07 00:30:15 +0000] [1] [INFO] Using worker: eventlet
+[2025-11-07 00:30:15 +0000] [2] [INFO] Booting worker with pid: 2
+Failed to find attribute 'app' in 'app'.
+[2025-11-07 00:30:16 +0000] [2] [INFO] Worker exiting (pid: 2)
+[2025-11-07 00:30:16 +0000] [1] [ERROR] Worker (pid:2) exited with code 4
+[2025-11-07 00:30:16 +0000] [1] [ERROR] Shutting down: Master
+[2025-11-07 00:30:16 +0000] [1] [ERROR] Reason: App failed to load.
+[2025-11-07 00:30:19 +0000] [1] [INFO] Starting gunicorn 21.2.0
+[2025-11-07 00:30:19 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2025-11-07 00:30:19 +0000] [1] [INFO] Using worker: eventlet
+[2025-11-07 00:30:19 +0000] [2] [INFO] Booting worker with pid: 2
+Failed to find attribute 'app' in 'app'.
+[2025-11-07 00:30:20 +0000] [2] [INFO] Worker exiting (pid: 2)
+[2025-11-07 00:30:20 +0000] [1] [ERROR] Worker (pid:2) exited with code 4
+[2025-11-07 00:30:20 +0000] [1] [ERROR] Shutting down: Master
+[2025-11-07 00:30:20 +0000] [1] [ERROR] Reason: App failed to load.

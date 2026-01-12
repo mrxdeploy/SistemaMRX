@@ -1,0 +1,1895 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fornecedores - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Fornecedores</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Bottom Navigation (Mobile) -->
+    <nav class="bottom-nav" id="navMenuMobile">
+        <!-- Menus serão renderizados dinamicamente pelo RBAC -->
+    </nav>
+
+    <main class="container mt-4">
+        <div class="flex justify-between items-center mb-3" style="flex-wrap: wrap; gap: var(--spacing-md);">
+            <h1 style="font-size: clamp(1.5rem, 6vw, 2rem);">Gerenciar Fornecedores</h1>
+        </div>
+
+        <div class="tabs-container" style="margin-bottom: 1.5rem;">
+            <div class="tabs-header" style="display: flex; gap: 0; border-bottom: 2px solid #e5e7eb;">
+                <button class="tab-btn active" data-tab="fornecedores" onclick="trocarAba('fornecedores')" style="padding: 1rem 1.5rem; background: none; border: none; cursor: pointer; font-weight: 600; color: #059669; border-bottom: 2px solid #059669; margin-bottom: -2px; transition: all 0.3s;">
+                    <i class="fas fa-building"></i> Fornecedores
+                </button>
+                <button class="tab-btn" data-tab="visitas" onclick="trocarAba('visitas')" style="padding: 1rem 1.5rem; background: none; border: none; cursor: pointer; font-weight: 500; color: #6b7280; transition: all 0.3s;">
+                    <i class="fas fa-map-marker-alt"></i> Visitas
+                </button>
+            </div>
+        </div>
+
+        <div id="abaFornecedores" class="tab-content active">
+            <div class="flex justify-end mb-3">
+                <button class="btn btn-primary" onclick="abrirModalNovoFornecedor()">+ Novo Fornecedor</button>
+            </div>
+            <div id="listaFornecedores" class="fornecedores-grid">
+                <div class="loading-card">
+                    <div class="spinner-border"></div>
+                    <p>Carregando fornecedores...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="abaVisitas" class="tab-content" style="display: none;">
+            <div class="flex justify-between items-center mb-3" style="flex-wrap: wrap; gap: 1rem;">
+                <div class="visitas-stats" id="visitasStats" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <span class="stat-badge" style="background: #fef3c7; color: #92400e; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.875rem;">
+                        <i class="fas fa-clock"></i> Pendentes: <strong id="statPendentes">0</strong>
+                    </span>
+                    <span class="stat-badge" style="background: #fee2e2; color: #991b1b; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.875rem;">
+                        <i class="fas fa-times-circle"></i> Não Fechados: <strong id="statNaoFechados">0</strong>
+                    </span>
+                    <span class="stat-badge" style="background: #d1fae5; color: #065f46; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.875rem;">
+                        <i class="fas fa-check-circle"></i> Fechados: <strong id="statFechados">0</strong>
+                    </span>
+                </div>
+                <button class="btn btn-primary" onclick="abrirModalNovaVisita()">
+                    <i class="fas fa-plus"></i> Realizar Nova Visita
+                </button>
+            </div>
+            <div id="listaVisitas" class="visitas-grid">
+                <div class="loading-card">
+                    <div class="spinner-border"></div>
+                    <p>Carregando visitas...</p>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .fornecedores-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 16px;
+                margin-bottom: 24px;
+            }
+
+            @media (min-width: 768px) {
+                .fornecedores-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+
+            @media (min-width: 1200px) {
+                .fornecedores-grid {
+                    grid-template-columns: repeat(3, 1fr);
+                }
+            }
+
+            .fornecedor-card {
+                background: white;
+                border-radius: 12px;
+                padding: 20px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                border: 1px solid #e5e7eb;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .fornecedor-card:hover {
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+                transform: translateY(-2px);
+            }
+
+            .fornecedor-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 4px;
+                background: linear-gradient(90deg, #059669, #10b981);
+            }
+
+            .fornecedor-header {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+
+            .fornecedor-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 12px;
+                background: linear-gradient(135deg, #059669, #10b981);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+
+            .fornecedor-icon i {
+                color: white;
+                font-size: 24px;
+            }
+
+            .fornecedor-title {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .fornecedor-nome {
+                font-size: 18px;
+                font-weight: 700;
+                color: #111827;
+                margin: 0 0 4px 0;
+                word-break: break-word;
+            }
+
+            .fornecedor-cnpj {
+                font-size: 14px;
+                color: #6b7280;
+                font-family: 'Courier New', monospace;
+            }
+
+            .fornecedor-info {
+                display: grid;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+
+            .info-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 14px;
+                color: #374151;
+            }
+
+            .info-item i {
+                color: #059669;
+                width: 20px;
+                font-size: 16px;
+            }
+
+            .fornecedor-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                padding-top: 16px;
+                border-top: 1px solid #f3f4f6;
+            }
+
+            .fornecedor-actions .btn {
+                flex: 1;
+                min-width: fit-content;
+                font-size: 13px;
+                padding: 8px 12px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+            }
+
+            .loading-card {
+                grid-column: 1 / -1;
+                text-align: center;
+                padding: 40px;
+                color: #6b7280;
+            }
+
+            .spinner-border {
+                border: 3px solid #f3f4f6;
+                border-top: 3px solid #059669;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 16px;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            .empty-state {
+                grid-column: 1 / -1;
+                text-align: center;
+                padding: 60px 20px;
+                color: #6b7280;
+            }
+
+            .empty-state i {
+                font-size: 48px;
+                color: #d1d5db;
+                margin-bottom: 16px;
+            }
+
+            .empty-state h3 {
+                font-size: 18px;
+                color: #374151;
+                margin-bottom: 8px;
+            }
+
+            /* Estilos para Visitas */
+            .visitas-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 16px;
+                margin-bottom: 24px;
+            }
+
+            @media (min-width: 768px) {
+                .visitas-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+
+            @media (min-width: 1200px) {
+                .visitas-grid {
+                    grid-template-columns: repeat(3, 1fr);
+                }
+            }
+
+            .visita-card {
+                background: white;
+                border-radius: 12px;
+                padding: 20px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                border: 1px solid #e5e7eb;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .visita-card:hover {
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+                transform: translateY(-2px);
+            }
+
+            .visita-card.status-pendente::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 4px;
+                background: linear-gradient(90deg, #f59e0b, #fbbf24);
+            }
+
+            .visita-card.status-nao_fechado::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 4px;
+                background: linear-gradient(90deg, #ef4444, #f87171);
+            }
+
+            .visita-card.status-negociacao_fechada::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 4px;
+                background: linear-gradient(90deg, #059669, #10b981);
+            }
+
+            .visita-header {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+
+            .visita-icon {
+                width: 48px;
+                height: 48px;
+                border-radius: 12px;
+                background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+
+            .visita-icon i {
+                color: white;
+                font-size: 20px;
+            }
+
+            .visita-title {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .visita-nome {
+                font-size: 16px;
+                font-weight: 700;
+                color: #111827;
+                margin: 0 0 4px 0;
+                word-break: break-word;
+            }
+
+            .visita-contato {
+                font-size: 13px;
+                color: #6b7280;
+            }
+
+            .visita-status-badge {
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+
+            .visita-status-badge.pendente {
+                background: #fef3c7;
+                color: #92400e;
+            }
+
+            .visita-status-badge.nao_fechado {
+                background: #fee2e2;
+                color: #991b1b;
+            }
+
+            .visita-status-badge.negociacao_fechada {
+                background: #d1fae5;
+                color: #065f46;
+            }
+
+            .visita-info {
+                display: grid;
+                gap: 8px;
+                margin-bottom: 16px;
+                font-size: 13px;
+                color: #374151;
+            }
+
+            .visita-info .info-item i {
+                color: #6366f1;
+            }
+
+            .visita-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                padding-top: 16px;
+                border-top: 1px solid #f3f4f6;
+            }
+
+            .visita-actions .btn {
+                flex: 1;
+                min-width: fit-content;
+                font-size: 12px;
+                padding: 8px 12px;
+            }
+
+            .btn-success-outline {
+                background: transparent;
+                border: 1px solid #059669;
+                color: #059669;
+            }
+
+            .btn-success-outline:hover {
+                background: #059669;
+                color: white;
+            }
+
+            .btn-danger-outline {
+                background: transparent;
+                border: 1px solid #ef4444;
+                color: #ef4444;
+            }
+
+            .btn-danger-outline:hover {
+                background: #ef4444;
+                color: white;
+            }
+
+            .btn-info-outline {
+                background: transparent;
+                border: 1px solid #6366f1;
+                color: #6366f1;
+            }
+
+            .btn-info-outline:hover {
+                background: #6366f1;
+                color: white;
+            }
+
+            .location-status {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 12px;
+                border-radius: 8px;
+                font-size: 14px;
+                margin-bottom: 16px;
+            }
+
+            .location-status.loading {
+                background: #fef3c7;
+                color: #92400e;
+            }
+
+            .location-status.success {
+                background: #d1fae5;
+                color: #065f46;
+            }
+
+            .location-status.error {
+                background: #fee2e2;
+                color: #991b1b;
+            }
+
+            .detail-section {
+                margin-bottom: 24px;
+            }
+
+            .detail-section h4 {
+                font-size: 14px;
+                font-weight: 600;
+                color: #374151;
+                margin-bottom: 12px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid #e5e7eb;
+            }
+
+            .detail-grid {
+                display: grid;
+                gap: 12px;
+            }
+
+            .detail-item {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .detail-item label {
+                font-size: 12px;
+                color: #6b7280;
+                font-weight: 500;
+            }
+
+            .detail-item span {
+                font-size: 14px;
+                color: #111827;
+            }
+
+            .map-link {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                color: #6366f1;
+                text-decoration: none;
+                font-weight: 500;
+            }
+
+            .map-link:hover {
+                text-decoration: underline;
+            }
+        </style>
+
+        <style>
+            /* Padding específico para mobile na página de fornecedores */
+            @media (max-width: 767px) {
+                main.container {
+                    padding-top: 60px !important;
+                }
+            }
+
+            @media (min-width: 768px) {
+                main.container {
+                    padding-top: 50px !important;
+                }
+            }
+        </style>
+    </main>
+
+    <!-- Modal Fornecedor -->
+    <div class="modal" id="modalFornecedor">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2 id="tituloModal">Novo Fornecedor</h2>
+                <button class="modal-close" onclick="fecharModal()">&times;</button>
+            </div>
+            <form id="formFornecedor">
+                <input type="hidden" id="fornecedorId">
+
+                <div class="form-group">
+                    <label style="margin-bottom: 0.5rem; display: block;">Tipo de Documento</label>
+                    <div style="display: flex; gap: 1.5rem; margin-bottom: 0.5rem;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="tipoDocumento" value="cnpj" checked onchange="alterarTipoDocumento()" style="margin-right: 0.5rem;">
+                            CNPJ
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="radio" name="tipoDocumento" value="cpf" onchange="alterarTipoDocumento()" style="margin-right: 0.5rem;">
+                            CPF
+                        </label>
+                    </div>
+                    <label id="labelDocumento">CNPJ</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="cnpj" placeholder="00.000.000/0000-00" style="flex: 1;">
+                        <button type="button" class="btn btn-secondary" onclick="buscarCNPJ()" id="btnBuscarCNPJ">
+                             Buscar
+                        </button>
+                    </div>
+                    <small style="color: #666;" id="textoAjuda">Digite o CNPJ e clique em Buscar para preencher automaticamente</small>
+                </div>
+
+                <div id="dadosCNPJ" style="display: none; background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <h4 style="margin: 0 0 1rem 0; color: #0369a1;"> Dados da Receita Federal</h4>
+
+                    <div class="form-group">
+                        <label>CEP</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="cepBusca" placeholder="00000-000" style="flex: 1;" maxlength="9" oninput="formatarCEP(this)">
+                            <button type="button" class="btn btn-secondary" onclick="buscarEnderecoPorCEP()">
+                                <i class="fas fa-search"></i> Buscar CEP
+                            </button>
+                        </div>
+                        <small style="color: #666; margin-top: 0.25rem; display: block;">Digite o CEP e clique em Buscar para preencher automaticamente o endereço</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nome / Razão Social</label>
+                        <input type="text" id="nome" required>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.75rem;">
+                        <div class="form-group">
+                            <label>Rua</label>
+                            <input type="text" id="rua">
+                        </div>
+                        <div class="form-group">
+                            <label>Número</label>
+                            <input type="text" id="numero">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
+                        <div class="form-group">
+                            <label>Cidade</label>
+                            <input type="text" id="cidade">
+                        </div>
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <input type="text" id="estado" maxlength="2">
+                        </div>
+                        <div class="form-group">
+                            <label>CEP</label>
+                            <input type="text" id="cep">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Bairro</label>
+                        <input type="text" id="bairro">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <div class="form-group">
+                            <label>Telefone</label>
+                            <input type="tel" id="telefone">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="email">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Endereço Diferente para Visita -->
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="temOutroEndereco" onchange="toggleEnderecoVisita()" style="margin-right: 0.5rem;">
+                        <strong> Endereço para visita diferente do CNPJ cadastrado</strong>
+                    </label>
+                    <small style="color: #666; margin-left: 1.5rem;">Marque se o local de coleta é diferente do endereço do CNPJ</small>
+                </div>
+
+                <div id="camposEnderecoVisita" style="display: none; background: #fef3c7; padding: 1rem; border-radius: 8px; margin-top: 0.5rem; border-left: 4px solid #f59e0b;">
+                    <h4 style="margin: 0 0 1rem 0; color: #92400e;"> Endereço de Visita/Coleta</h4>
+
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.75rem;">
+                        <div class="form-group">
+                            <label>Rua</label>
+                            <input type="text" id="outroRua">
+                        </div>
+                        <div class="form-group">
+                            <label>Número</label>
+                            <input type="text" id="outroNumero">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
+                        <div class="form-group">
+                            <label>Cidade</label>
+                            <input type="text" id="outroCidade">
+                        </div>
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <input type="text" id="outroEstado" maxlength="2">
+                        </div>
+                        <div class="form-group">
+                            <label>CEP</label>
+                            <input type="text" id="outroCep">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Bairro</label>
+                        <input type="text" id="outroBairro">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Complemento</label>
+                        <input type="text" id="outroComplemento" placeholder="Apto, Sala, etc.">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label>Observações</label>
+                    <textarea id="observacoes" rows="2"></textarea>
+                </div>
+
+                <!-- Comprador Responsável (Apenas Administrador) -->
+                <div data-perfil="Administrador" style="background: #e0f2fe; padding: 1.5rem; border-radius: 8px; margin-top: 1.5rem; border-left: 4px solid #0284c7;">
+                    <h4 style="margin: 0 0 1rem 0; color: #075985; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-user-tie"></i> Comprador Responsável
+                    </h4>
+                    <p style="margin: 0 0 1rem 0; font-size: 0.9rem; color: #0c4a6e;">
+                        Selecione o comprador que será responsável por este fornecedor. Se não selecionar nenhum, o fornecedor ficará sem atribuição.
+                    </p>
+
+                    <div class="form-group">
+                        <label><strong>Comprador</strong></label>
+                        <select id="compradorResponsavelId" style="padding: 0.75rem; border: 2px solid #0284c7; border-radius: 8px; font-size: 1rem;">
+                            <option value="">Sem atribuição</option>
+                        </select>
+                        <small style="color: #075985; display: block; margin-top: 0.5rem;">
+                            <i class="fas fa-info-circle"></i> Apenas este comprador poderá criar solicitações para este fornecedor.
+                        </small>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full"> Salvar Fornecedor</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Preços Removido - Preços agora são configurados em Tipos de Lote, fornecedores apenas configuram estrelas -->
+
+    <!-- Modal Nova Visita -->
+    <div class="modal" id="modalNovaVisita">
+        <div class="modal-content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2><i class="fas fa-map-marker-alt"></i> Realizar Nova Visita</h2>
+                <button class="modal-close" onclick="fecharModalVisita()">&times;</button>
+            </div>
+            <form id="formVisita" onsubmit="salvarVisita(event)">
+                <div id="locationStatus" class="location-status loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Obtendo sua localização...</span>
+                </div>
+                <input type="hidden" id="visitaLatitude">
+                <input type="hidden" id="visitaLongitude">
+
+                <div class="form-group">
+                    <label>Nome do Fornecedor *</label>
+                    <input type="text" id="visitaNomeFornecedor" required placeholder="Digite o nome do fornecedor">
+                </div>
+
+                <div class="form-group">
+                    <label>Quem te atendeu? *</label>
+                    <input type="text" id="visitaContatoNome" required placeholder="Nome da pessoa que te atendeu">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="visitaContatoEmail" placeholder="email@exemplo.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Telefone</label>
+                        <input type="tel" id="visitaContatoTelefone" placeholder="(00) 00000-0000">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Observações</label>
+                    <textarea id="visitaObservacoes" rows="4" placeholder="Descreva detalhes da visita, materiais encontrados, condições, etc."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full" id="btnSalvarVisita">
+                    <i class="fas fa-check"></i> Concluir Visita
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Detalhes Visita -->
+    <div class="modal" id="modalDetalhesVisita">
+        <div class="modal-content" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border-radius: 8px 8px 0 0; margin: -1.5rem -1.5rem 1.5rem -1.5rem; padding: 1.5rem;">
+                <div>
+                    <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-clipboard-list"></i> Detalhes da Visita
+                    </h2>
+                    <span id="detalheVisitaStatus" class="visita-status-badge" style="margin-top: 8px; display: inline-block;"></span>
+                </div>
+                <button class="modal-close" onclick="fecharModalDetalhes()" style="color: white;">&times;</button>
+            </div>
+
+            <div id="detalheVisitaContent">
+                <div class="detail-section">
+                    <h4><i class="fas fa-building"></i> Informações do Fornecedor</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Nome do Fornecedor</label>
+                            <span id="detalheNomeFornecedor" style="font-weight: 600; font-size: 16px;"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h4><i class="fas fa-user"></i> Contato</h4>
+                    <div class="detail-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="detail-item">
+                            <label>Pessoa que atendeu</label>
+                            <span id="detalheContatoNome"></span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Telefone</label>
+                            <span id="detalheContatoTelefone"></span>
+                        </div>
+                        <div class="detail-item" style="grid-column: 1 / -1;">
+                            <label>Email</label>
+                            <span id="detalheContatoEmail"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h4><i class="fas fa-map-marker-alt"></i> Localização do Comprador</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <label>Coordenadas</label>
+                            <span id="detalheCoordenadas"></span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Ver no Mapa</label>
+                            <a id="detalheMapaLink" href="#" target="_blank" class="map-link">
+                                <i class="fas fa-external-link-alt"></i> Abrir no Google Maps
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h4><i class="fas fa-clock"></i> Registro de Segurança</h4>
+                    <div class="detail-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="detail-item">
+                            <label>Data da Visita</label>
+                            <span id="detalheDataVisita" style="font-weight: 600;"></span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Horário</label>
+                            <span id="detalheHorarioVisita" style="font-weight: 600;"></span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Comprador</label>
+                            <span id="detalheComprador"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="detail-section" id="secaoObservacoes" style="display: none;">
+                    <h4><i class="fas fa-sticky-note"></i> Observações</h4>
+                    <div style="background: #f9fafb; padding: 12px; border-radius: 8px; border-left: 4px solid #6366f1;">
+                        <p id="detalheObservacoes" style="margin: 0; white-space: pre-wrap;"></p>
+                    </div>
+                </div>
+
+                <div class="detail-section" id="secaoFornecedorVinculado" style="display: none;">
+                    <h4><i class="fas fa-link"></i> Fornecedor Vinculado</h4>
+                    <div style="background: #d1fae5; padding: 12px; border-radius: 8px;">
+                        <span id="detalheFornecedorVinculado" style="font-weight: 600; color: #065f46;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                <button class="btn btn-secondary w-full" onclick="fecharModalDetalhes()">
+                    <i class="fas fa-times"></i> Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script src="/static/js/rbac.js"></script>
+    <script>
+        let fornecedorAtual = null;
+        let todosTiposLote = [];
+        let precosConfigurados = {};
+        let listaCompradores = [];
+
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+
+            await carregarFornecedores();
+            await carregarCompradores();
+            await atualizarNotificacoes();
+
+            // Renderizar menus após carregar os dados do usuário
+            if (typeof renderizarMenusMobile === 'function') {
+                renderizarMenusMobile();
+            }
+        }
+
+        async function carregarCompradores() {
+            try {
+                const response = await fetchAPI('/usuarios');
+                if (!response || !response.ok) return;
+
+                const usuarios = await response.json();
+                listaCompradores = usuarios.filter(u => u.perfil_nome && u.perfil_nome.includes('Comprador'));
+
+                const select = document.getElementById('compradorResponsavelId');
+                if (select) {
+                    select.innerHTML = '<option value="">Sem atribuição</option>';
+                    listaCompradores.forEach(c => {
+                        select.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar compradores:', error);
+            }
+        }
+
+        async function carregarFornecedores() {
+            try {
+                const response = await fetchAPI('/fornecedores');
+                if (!response || !response.ok) return;
+                const fornecedores = await response.json();
+
+                const container = document.getElementById('listaFornecedores');
+
+                if (fornecedores.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-building"></i>
+                            <h3>Nenhum fornecedor cadastrado</h3>
+                            <p>Clique em "+ Novo Fornecedor" para começar</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Verificar se o usuário é administrador
+                const isAdmin = currentUserData && (currentUserData.tipo === 'admin' || currentUserData.perfil === 'Administrador');
+
+                container.innerHTML = fornecedores.map(f => {
+                    const telefone = f.telefone || 'Não informado';
+                    const cidade = f.cidade || 'Não informada';
+                    const documento = f.cnpj ? formatarCNPJ(f.cnpj) : (f.cpf ? formatarCPF(f.cpf) : 'Não informado');
+
+                    return `
+                        <div class="fornecedor-card">
+                            <div class="fornecedor-header">
+                                <div class="fornecedor-icon">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                                <div class="fornecedor-title">
+                                    <h3 class="fornecedor-nome">${f.nome}</h3>
+                                    <div class="fornecedor-cnpj">${documento}</div>
+                                </div>
+                            </div>
+
+                            <div class="fornecedor-info">
+                                <div class="info-item">
+                                    <i class="fas fa-phone"></i>
+                                    <span>${telefone}</span>
+                                </div>
+                                <div class="info-item">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>${cidade}</span>
+                                </div>
+                            </div>
+
+                            <div class="fornecedor-actions">
+                                <button class="btn btn-secondary" onclick="editarFornecedor(${f.id})">
+                                    <i class="fas fa-edit"></i> Editar
+                                </button>
+                                <button class="btn btn-info" onclick="abrirTabelaPrecos(${f.id})" style="background: #0ea5e9;">
+                                    <i class="fas fa-table"></i> Tabela
+                                </button>
+                                ${isAdmin ? `
+                                    <button class="btn btn-danger" onclick="deletarFornecedor(${f.id}, '${f.nome.replace(/'/g, "\\'")}')">
+                                        <i class="fas fa-trash"></i> Excluir
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Erro ao carregar fornecedores:', error);
+                const container = document.getElementById('listaFornecedores');
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                        <h3 style="color: #ef4444;">Erro ao carregar fornecedores</h3>
+                        <p>Tente recarregar a página</p>
+                    </div>
+                `;
+            }
+        }
+
+        function formatarCNPJ(cnpj) {
+            if (!cnpj) return '';
+            const numeros = cnpj.replace(/\D/g, '');
+            return numeros.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+        }
+
+        function formatarCPF(cpf) {
+            if (!cpf) return '';
+            const numeros = cpf.replace(/\D/g, '');
+            return numeros.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+        }
+
+        async function abrirModalNovoFornecedor() {
+            fornecedorAtual = null;
+            document.getElementById('tituloModal').textContent = 'Novo Fornecedor';
+            document.getElementById('formFornecedor').reset();
+            document.getElementById('fornecedorId').value = '';
+            document.getElementById('dadosCNPJ').style.display = 'block';
+            document.getElementById('camposEnderecoVisita').style.display = 'none';
+            document.getElementById('temOutroEndereco').checked = false;
+
+            // Limpar seleção de comprador
+            const compradorSelect = document.getElementById('compradorResponsavelId');
+            if (compradorSelect) {
+                compradorSelect.value = '';
+            }
+
+            // Remover readonly dos campos
+            ['nome', 'rua', 'numero', 'cidade', 'estado', 'cep', 'bairro'].forEach(id => {
+                document.getElementById(id).removeAttribute('readonly');
+            });
+
+            document.getElementById('modalFornecedor').classList.add('active');
+        }
+
+
+
+        function toggleEnderecoVisita() {
+            const checkbox = document.getElementById('temOutroEndereco');
+            const campos = document.getElementById('camposEnderecoVisita');
+            campos.style.display = checkbox.checked ? 'block' : 'none';
+        }
+
+        function alterarTipoDocumento() {
+            const tipoSelecionado = document.querySelector('input[name="tipoDocumento"]:checked').value;
+            const input = document.getElementById('cnpj');
+            const label = document.getElementById('labelDocumento');
+            const btnBuscar = document.getElementById('btnBuscarCNPJ');
+            const textoAjuda = document.getElementById('textoAjuda');
+
+            if (tipoSelecionado === 'cpf') {
+                label.textContent = 'CPF';
+                input.placeholder = '000.000.000-00';
+                input.maxLength = 14;
+                btnBuscar.style.display = 'none';
+                textoAjuda.textContent = 'Digite o CPF do fornecedor';
+            } else {
+                label.textContent = 'CNPJ';
+                input.placeholder = '00.000.000/0000-00';
+                input.maxLength = 18;
+                btnBuscar.style.display = 'inline-block';
+                textoAjuda.textContent = 'Digite o CNPJ e clique em Buscar para preencher automaticamente';
+            }
+
+            input.value = '';
+        }
+
+        function mostrarAlertaConflito(mensagemErro) {
+            // Criar alerta customizado com HTML formatado
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-error';
+            alertDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000; max-width: 500px; background: #fee; border: 2px solid #f00; border-radius: 8px; padding: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.2);';
+            alertDiv.innerHTML = `
+                <div style="display: flex; align-items: start; gap: 0.75rem;">
+                    <i class="fas fa-exclamation-circle" style="color: #c00; font-size: 1.5rem;"></i>
+                    <div style="flex: 1;">
+                        <strong style="display: block; margin-bottom: 0.5rem; color: #c00;">Fornecedor já cadastrado</strong>
+                        <div style="font-size: 0.9rem; color: #600; white-space: pre-line;">${mensagemErro}</div>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; font-size: 1.5rem; color: #c00; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+                </div>
+            `;
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => alertDiv.remove(), 8000);
+        }
+
+        async function buscarCNPJ() {
+            const cnpjInput = document.getElementById('cnpj');
+            const cnpj = cnpjInput.value.replace(/\D/g, '');
+
+            if (!cnpj || cnpj.length !== 14) {
+                showAlert('Digite um CNPJ válido com 14 dígitos', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btnBuscarCNPJ');
+            btn.disabled = true;
+            btn.textContent = '⏳ Buscando...';
+
+            try {
+                const response = await fetchAPI(`/fornecedores/consultar-cnpj/${cnpj}`);
+
+                if (response && response.ok) {
+                    const dadosReceita = await response.json();
+
+                    if (!dadosReceita || dadosReceita.erro) {
+                        throw new Error(dadosReceita.mensagem || 'Erro ao consultar CNPJ');
+                    }
+
+                    // Se chegou aqui, não há conflito - preencher os campos normalmente
+                    const nomeValue = dadosReceita.nome || dadosReceita.nome_fantasia || dadosReceita.razao_social || '';
+                    const ruaValue = dadosReceita.rua || dadosReceita.logradouro || '';
+                    const numeroValue = dadosReceita.numero || '';
+                    const cidadeValue = dadosReceita.cidade || dadosReceita.municipio || '';
+                    const estadoValue = dadosReceita.estado || dadosReceita.uf || '';
+                    const cepValue = (dadosReceita.cep || '').replace(/\D/g, '');
+                    const bairroValue = dadosReceita.bairro || '';
+                    const telefoneValue = dadosReceita.telefone || dadosReceita.ddd_telefone_1 || '';
+                    const emailValue = dadosReceita.email || '';
+                    
+                    document.getElementById('nome').value = nomeValue;
+                    document.getElementById('rua').value = ruaValue;
+                    document.getElementById('numero').value = numeroValue;
+                    document.getElementById('cidade').value = cidadeValue;
+                    document.getElementById('estado').value = estadoValue;
+                    document.getElementById('cep').value = cepValue;
+                    document.getElementById('bairro').value = bairroValue;
+                    document.getElementById('telefone').value = telefoneValue;
+                    document.getElementById('email').value = emailValue;
+
+                    document.getElementById('dadosCNPJ').style.display = 'block';
+
+                    ['nome', 'rua', 'numero', 'cidade', 'estado', 'cep', 'bairro'].forEach(id => {
+                        document.getElementById(id).setAttribute('readonly', true);
+                    });
+
+                    showAlert('Dados do CNPJ carregados com sucesso!', 'success');
+                } else if (response && response.status === 409) {
+                    const error = await response.json();
+                    const mensagemErro = error.erro || error.conflito_endereco?.mensagem || 'CNPJ já cadastrado';
+                    
+                    mostrarAlertaConflito(mensagemErro);
+                    document.getElementById('dadosCNPJ').style.display = 'block';
+                } else {
+                    showAlert('CNPJ não encontrado. Preencha os dados manualmente.', 'error');
+                    document.getElementById('dadosCNPJ').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Erro ao buscar CNPJ:', error);
+                showAlert(error.message || 'Erro ao buscar CNPJ. Preencha os dados manualmente.', 'error');
+                document.getElementById('dadosCNPJ').style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Buscar';
+            }
+        }
+
+        function formatarCEP(input) {
+            let valor = input.value.replace(/\D/g, '');
+            if (valor.length > 5) {
+                valor = valor.substring(0, 5) + '-' + valor.substring(5, 8);
+            }
+            input.value = valor;
+        }
+
+        async function verificarConflitoEndereco() {
+            const rua = document.getElementById('rua').value;
+            const numero = document.getElementById('numero').value;
+            const cidade = document.getElementById('cidade').value;
+            const estado = document.getElementById('estado').value;
+            const cep = document.getElementById('cep').value;
+            const fornecedorId = document.getElementById('fornecedorId').value || null;
+
+            if (!rua || !cidade || !estado) {
+                return null;
+            }
+
+            try {
+                const response = await fetchAPI('/fornecedores/verificar-endereco', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        rua: rua,
+                        numero: numero,
+                        cidade: cidade,
+                        estado: estado,
+                        cep: cep,
+                        fornecedor_id: fornecedorId ? parseInt(fornecedorId) : null
+                    })
+                });
+
+                if (response && response.status === 409) {
+                    const conflito = await response.json();
+                    showAlert(conflito.mensagem, 'warning');
+                    return conflito;
+                }
+
+                return null;
+            } catch (error) {
+                console.error('Erro ao verificar endereço:', error);
+                return null;
+            }
+        }
+
+        async function buscarEnderecoPorCEP() {
+            const cepInput = document.getElementById('cepBusca');
+            const cep = cepInput.value.replace(/\D/g, '');
+
+            if (!cep || cep.length !== 8) {
+                showAlert('Digite um CEP válido com 8 dígitos', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetchAPI(`/fornecedores/buscar-cep/${cep}`);
+
+                if (response && response.ok) {
+                    const data = await response.json();
+
+                    document.getElementById('rua').value = data.rua || '';
+                    document.getElementById('bairro').value = data.bairro || '';
+                    document.getElementById('cidade').value = data.cidade || '';
+                    document.getElementById('estado').value = data.estado || '';
+                    document.getElementById('cep').value = data.cep || '';
+
+                    showAlert('Endereço preenchido com sucesso!', 'success');
+                } else if (response && response.status === 409) {
+                    const error = await response.json();
+                    const mensagemErro = error.erro || error.conflito_endereco?.mensagem || 'Endereço já cadastrado';
+                    
+                    mostrarAlertaConflito(mensagemErro);
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'CEP não encontrado', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao buscar CEP:', error);
+                showAlert('Erro ao buscar CEP. Verifique sua conexão.', 'error');
+            }
+        }
+
+        document.getElementById('formFornecedor').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('fornecedorId').value;
+            const tipoDocumento = document.querySelector('input[name="tipoDocumento"]:checked').value;
+            const documentoValor = document.getElementById('cnpj').value || null;
+
+            const data = {
+                nome: document.getElementById('nome').value,
+                tipo_documento: tipoDocumento,
+                cnpj: tipoDocumento === 'cnpj' ? documentoValor : null,
+                cpf: tipoDocumento === 'cpf' ? documentoValor : null,
+                rua: document.getElementById('rua').value || null,
+                numero: document.getElementById('numero').value || null,
+                cidade: document.getElementById('cidade').value || null,
+                estado: document.getElementById('estado').value || null,
+                cep: document.getElementById('cep').value || null,
+                bairro: document.getElementById('bairro').value || null,
+                telefone: document.getElementById('telefone').value || null,
+                email: document.getElementById('email').value || null,
+                observacoes: document.getElementById('observacoes').value || null,
+                tem_outro_endereco: document.getElementById('temOutroEndereco').checked,
+                outro_rua: document.getElementById('outroRua').value || null,
+                outro_numero: document.getElementById('outroNumero').value || null,
+                outro_cidade: document.getElementById('outroCidade').value || null,
+                outro_estado: document.getElementById('outroEstado').value || null,
+                outro_cep: document.getElementById('outroCep').value || null,
+                outro_bairro: document.getElementById('outroBairro').value || null,
+                outro_complemento: document.getElementById('outroComplemento').value || null
+            };
+
+            // Apenas admin pode definir/alterar comprador responsável
+            const isAdmin = currentUserData && (currentUserData.tipo === 'admin' || currentUserData.perfil === 'Administrador');
+            if (isAdmin) {
+                const compradorSelect = document.getElementById('compradorResponsavelId');
+                if (compradorSelect && compradorSelect.value) {
+                    data.comprador_responsavel_id = parseInt(compradorSelect.value);
+                }
+            }
+
+            try {
+                const url = id ? `/fornecedores/${id}` : '/fornecedores';
+                const method = id ? 'PUT' : 'POST';
+                const response = await fetchAPI(url, { method, body: JSON.stringify(data) });
+
+                // Tratar erro 409 (conflito)
+                if (response && response.status === 409) {
+                    const errorData = await response.json();
+                    const mensagemErro = errorData.erro || errorData.conflito_endereco?.mensagem || 'Conflito ao cadastrar fornecedor';
+                    
+                    // Usar alerta customizado para todos os conflitos
+                    mostrarAlertaConflito(mensagemErro);
+                    return;
+                }
+
+                if (!response || !response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.erro || 'Erro ao salvar fornecedor');
+                }
+
+                showAlert(id ? 'Fornecedor atualizado com sucesso!' : 'Fornecedor cadastrado com sucesso!', 'success');
+                fecharModal();
+                await carregarFornecedores();
+            } catch (error) {
+                console.error('Erro ao salvar fornecedor:', error);
+                showAlert(error.message || 'Erro ao salvar fornecedor', 'error');
+            }
+        });
+
+        async function editarFornecedor(id) {
+            try {
+                const response = await fetchAPI(`/fornecedores/${id}`);
+                if (!response || !response.ok) {
+                    showAlert('Erro ao carregar fornecedor');
+                    return;
+                }
+                fornecedorAtual = await response.json();
+
+                document.getElementById('tituloModal').textContent = 'Editar Fornecedor';
+                document.getElementById('fornecedorId').value = fornecedorAtual.id;
+                document.getElementById('nome').value = fornecedorAtual.nome || '';
+
+                // Restaurar tipo de documento e valor correto
+                const tipoDoc = fornecedorAtual.tipo_documento || (fornecedorAtual.cpf ? 'cpf' : 'cnpj');
+                const radioTipo = document.querySelector(`input[name="tipoDocumento"][value="${tipoDoc}"]`);
+                if (radioTipo) {
+                    radioTipo.checked = true;
+                    alterarTipoDocumento(); // Atualizar UI
+                }
+                document.getElementById('cnpj').value = fornecedorAtual.cpf || fornecedorAtual.cnpj || '';
+
+                document.getElementById('rua').value = fornecedorAtual.rua || '';
+                document.getElementById('numero').value = fornecedorAtual.numero || '';
+                document.getElementById('cidade').value = fornecedorAtual.cidade || '';
+                document.getElementById('estado').value = fornecedorAtual.estado || '';
+                document.getElementById('cep').value = fornecedorAtual.cep || '';
+                document.getElementById('bairro').value = fornecedorAtual.bairro || '';
+                document.getElementById('telefone').value = fornecedorAtual.telefone || '';
+                document.getElementById('email').value = fornecedorAtual.email || '';
+                document.getElementById('observacoes').value = fornecedorAtual.observacoes || '';
+
+                // Carregar comprador responsável (apenas admin vê e pode editar)
+                const compradorSelect = document.getElementById('compradorResponsavelId');
+                if (compradorSelect) {
+                    compradorSelect.value = fornecedorAtual.comprador_responsavel_id || '';
+                }
+
+                // Carregar endereço alternativo se existir
+                if (fornecedorAtual.tem_outro_endereco) {
+                    document.getElementById('temOutroEndereco').checked = true;
+                    document.getElementById('camposEnderecoVisita').style.display = 'block';
+                    document.getElementById('outroRua').value = fornecedorAtual.outro_rua || '';
+                    document.getElementById('outroNumero').value = fornecedorAtual.outro_numero || '';
+                    document.getElementById('outroCidade').value = fornecedorAtual.outro_cidade || '';
+                    document.getElementById('outroEstado').value = fornecedorAtual.outro_estado || '';
+                    document.getElementById('outroCep').value = fornecedorAtual.outro_cep || '';
+                    document.getElementById('outroBairro').value = fornecedorAtual.outro_bairro || '';
+                    document.getElementById('outroComplemento').value = fornecedorAtual.outro_complemento || '';
+                } else {
+                    document.getElementById('temOutroEndereco').checked = false;
+                    document.getElementById('camposEnderecoVisita').style.display = 'none';
+                }
+
+                document.getElementById('dadosCNPJ').style.display = 'block';
+                document.getElementById('modalFornecedor').classList.add('active');
+            } catch (error) {
+                console.error('Erro ao editar fornecedor:', error);
+                showAlert('Erro ao carregar dados do fornecedor', 'error');
+            }
+        }
+
+        function abrirTabelaPrecos(id) {
+            window.location.href = `/fornecedor-tabela-precos.html?id=${id}`;
+        }
+
+        async function deletarFornecedor(id, nome) {
+            if (!confirm(`Tem certeza que deseja excluir o fornecedor "${nome}"?`)) return;
+
+            try {
+                const response = await fetchAPI(`/fornecedores/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response && response.ok) {
+                    showAlert('Fornecedor excluído com sucesso!', 'success');
+                    await carregarFornecedores();
+                } else {
+                    showAlert('Erro ao excluir fornecedor', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao excluir fornecedor:', error);
+                showAlert('Erro ao excluir fornecedor', 'error');
+            }
+        }
+
+        function fecharModal() {
+            document.getElementById('modalFornecedor').classList.remove('active');
+        }
+
+        async function configurarPrecos(fornecedorId, fornecedorNome) {
+            fornecedorAtual = { id: fornecedorId, nome: fornecedorNome };
+            precosConfigurados = {};
+
+            document.getElementById('tituloModalPrecos').textContent = `Configurar Preços - ${fornecedorNome}`;
+
+            await carregarTiposLote();
+            await carregarPrecosExistentes(fornecedorId);
+
+            renderizarListaTiposLote();
+            atualizarResumoPrecos();
+
+            document.getElementById('modalPrecos').classList.add('active');
+        }
+
+        async function carregarTiposLote() {
+            try {
+                const response = await fetchAPI('/tipos-lote');
+                if (response && response.ok) {
+                    todosTiposLote = await response.json();
+                } else {
+                    showAlert('Erro ao carregar tipos de lote', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar tipos de lote:', error);
+                showAlert('Erro ao carregar tipos de lote', 'error');
+            }
+        }
+
+        async function carregarPrecosExistentes(fornecedorId) {
+            try {
+                const response = await fetchAPI(`/fornecedores/${fornecedorId}/precos`);
+                if (response && response.ok) {
+                    const precos = await response.json();
+                    precos.forEach(preco => {
+                        const key = `${preco.tipo_lote_id}_${preco.estrelas}`;
+                        precosConfigurados[key] = preco.preco_por_kg;
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar preços:', error);
+            }
+        }
+
+        function renderizarListaTiposLote(filtro = '') {
+            const container = document.getElementById('listaTiposLote');
+
+            let tiposFiltrados = todosTiposLote;
+            if (filtro) {
+                tiposFiltrados = todosTiposLote.filter(t => 
+                    t.nome.toLowerCase().includes(filtro.toLowerCase()) ||
+                    (t.codigo && t.codigo.toLowerCase().includes(filtro.toLowerCase()))
+                );
+            }
+
+            if (tiposFiltrados.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">Nenhum tipo de lote encontrado</p>';
+                return;
+            }
+
+            container.innerHTML = tiposFiltrados.map(tipo => {
+                const temPreco = [1,2,3,4,5].some(e => precosConfigurados[`${tipo.id}_${e}`]);
+                return `
+                    <div style="padding: 1rem; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 1rem; ${temPreco ? 'background: #f0fdf4; border-color: #86efac;' : ''}">
+                        <div style="margin-bottom: 0.75rem;">
+                            <strong style="font-size: 1.1rem;">${tipo.nome}</strong>
+                            ${tipo.codigo ? `<span style="color: #666; font-size: 0.85rem; margin-left: 0.5rem;">(${tipo.codigo})</span>` : ''}
+                            ${tipo.descricao ? `<br><small style="color: #666;">${tipo.descricao}</small>` : ''}
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem;">
+                            ${[1,2,3,4,5].map(estrelas => {
+                                const key = `${tipo.id}_${estrelas}`;
+                                const preco = precosConfigurados[key] || '';
+                                return `
+                                    <div>
+                                        <label style="font-size: 0.85rem; display: block; margin-bottom: 0.25rem;">
+                                            ${''.repeat(estrelas)}
+                                        </label>
+                                        <input 
+                                            type="number" 
+                                            step="0.01" 
+                                            placeholder="R$/kg"
+                                            value="${preco}"
+                                            onchange="atualizarPreco(${tipo.id}, ${estrelas}, this.value)"
+                                            style="width: 100%; padding: 0.4rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.9rem;">
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filtrarTiposLote() {
+            const filtro = document.getElementById('buscaTipoLote').value;
+            renderizarListaTiposLote(filtro);
+        }
+
+        function atualizarPreco(tipoLoteId, estrelas, valor) {
+            const key = `${tipoLoteId}_${estrelas}`;
+            if (valor && parseFloat(valor) > 0) {
+                precosConfigurados[key] = parseFloat(valor);
+            } else {
+                delete precosConfigurados[key];
+            }
+            atualizarResumoPrecos();
+        }
+
+        function atualizarResumoPrecos() {
+            const total = Object.keys(precosConfigurados).length;
+            const tiposConfigurados = new Set(Object.keys(precosConfigurados).map(k => k.split('_')[0])).size;
+
+            document.getElementById('resumoPrecos').textContent = 
+                total > 0 
+                ? `${total} preço(s) configurado(s) para ${tiposConfigurados} tipo(s) de lote` 
+                : 'Nenhum preço configurado ainda';
+        }
+
+        async function salvarPrecos() {
+            if (Object.keys(precosConfigurados).length === 0) {
+                showAlert('Configure pelo menos um preço antes de salvar', 'error');
+                return;
+            }
+
+            const precos = Object.entries(precosConfigurados).map(([key, preco]) => {
+                const [tipo_lote_id, estrelas] = key.split('_');
+                return {
+                    tipo_lote_id: parseInt(tipo_lote_id),
+                    estrelas: parseInt(estrelas),
+                    preco_por_kg: parseFloat(preco)
+                };
+            });
+
+            try {
+                const response = await fetchAPI(`/fornecedores/${fornecedorAtual.id}/precos`, {
+                    method: 'POST',
+                    body: JSON.stringify({ precos })
+                });
+
+                if (response && response.ok) {
+                    showAlert('Preços salvos com sucesso!', 'success');
+                    fecharModalPrecos();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao salvar preços', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar preços:', error);
+                showAlert('Erro ao salvar preços', 'error');
+            }
+        }
+
+        function fecharModalPrecos() {
+            document.getElementById('modalPrecos').classList.remove('active');
+        }
+
+        // ============ VISITAS FUNCTIONS ============
+        let visitasLista = [];
+        let visitaAtual = null;
+        let localizacaoAtual = { latitude: null, longitude: null };
+
+        function trocarAba(aba) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.style.fontWeight = '500';
+                btn.style.color = '#6b7280';
+                btn.style.borderBottom = 'none';
+            });
+
+            const btnAtivo = document.querySelector(`.tab-btn[data-tab="${aba}"]`);
+            if (btnAtivo) {
+                btnAtivo.style.fontWeight = '600';
+                btnAtivo.style.color = '#059669';
+                btnAtivo.style.borderBottom = '2px solid #059669';
+            }
+
+            document.getElementById('abaFornecedores').style.display = aba === 'fornecedores' ? 'block' : 'none';
+            document.getElementById('abaVisitas').style.display = aba === 'visitas' ? 'block' : 'none';
+
+            if (aba === 'visitas') {
+                carregarVisitas();
+                carregarEstatisticasVisitas();
+            }
+        }
+
+        async function carregarVisitas() {
+            try {
+                const response = await fetchAPI('/fornecedores/visitas');
+                if (!response || !response.ok) return;
+
+                const data = await response.json();
+                visitasLista = data.visitas || [];
+                renderizarVisitas();
+            } catch (error) {
+                console.error('Erro ao carregar visitas:', error);
+            }
+        }
+
+        async function carregarEstatisticasVisitas() {
+            try {
+                const response = await fetchAPI('/fornecedores/visitas/estatisticas');
+                if (!response || !response.ok) return;
+
+                const stats = await response.json();
+                document.getElementById('statPendentes').textContent = stats.pendentes || 0;
+                document.getElementById('statNaoFechados').textContent = stats.nao_fechados || 0;
+                document.getElementById('statFechados').textContent = stats.negociacao_fechada || 0;
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+            }
+        }
+
+        function renderizarVisitas() {
+            const container = document.getElementById('listaVisitas');
+
+            if (visitasLista.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <h3>Nenhuma visita registrada</h3>
+                        <p>Clique em "Realizar Nova Visita" para começar</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = visitasLista.map(v => {
+                const statusClass = v.status || 'pendente';
+                const statusTexto = {
+                    'pendente': 'Pendente',
+                    'nao_fechado': 'Não Fechado',
+                    'negociacao_fechada': 'Negociação Fechada'
+                }[v.status] || 'Pendente';
+
+                const dataVisita = v.data_visita ? new Date(v.data_visita).toLocaleDateString('pt-BR') : '-';
+
+                let acoes = '';
+                if (v.status === 'pendente') {
+                    acoes = `
+                        <button class="btn btn-danger-outline" onclick="marcarNaoFechado(${v.id})">
+                            <i class="fas fa-times"></i> Não Fechado
+                        </button>
+                        <button class="btn btn-success-outline" onclick="darContinuidade(${v.id})">
+                            <i class="fas fa-handshake"></i> Dar Continuidade
+                        </button>
+                    `;
+                }
+
+                return `
+                    <div class="visita-card status-${statusClass}">
+                        <div class="visita-header">
+                            <div class="visita-icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+                            <div class="visita-title">
+                                <h3 class="visita-nome">${v.nome_fornecedor}</h3>
+                                <div class="visita-contato">
+                                    <i class="fas fa-user"></i> ${v.contato_nome}
+                                </div>
+                            </div>
+                            <span class="visita-status-badge ${statusClass}">${statusTexto}</span>
+                        </div>
+                        <div class="visita-info">
+                            ${v.contato_telefone ? `<div class="info-item"><i class="fas fa-phone"></i> ${v.contato_telefone}</div>` : ''}
+                            ${v.contato_email ? `<div class="info-item"><i class="fas fa-envelope"></i> ${v.contato_email}</div>` : ''}
+                            <div class="info-item"><i class="fas fa-calendar"></i> ${dataVisita}</div>
+                        </div>
+                        <div class="visita-actions">
+                            <button class="btn btn-info-outline" onclick="verDetalhesVisita(${v.id})">
+                                <i class="fas fa-eye"></i> Ver Detalhes
+                            </button>
+                            ${acoes}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function abrirModalNovaVisita() {
+            document.getElementById('formVisita').reset();
+            document.getElementById('visitaLatitude').value = '';
+            document.getElementById('visitaLongitude').value = '';
+            localizacaoAtual = { latitude: null, longitude: null };
+
+            const statusDiv = document.getElementById('locationStatus');
+            statusDiv.className = 'location-status loading';
+            statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Obtendo sua localização...</span>';
+
+            document.getElementById('modalNovaVisita').classList.add('active');
+            obterLocalizacao();
+        }
+
+        function fecharModalVisita() {
+            document.getElementById('modalNovaVisita').classList.remove('active');
+        }
+
+        function obterLocalizacao() {
+            const statusDiv = document.getElementById('locationStatus');
+
+            if (!navigator.geolocation) {
+                statusDiv.className = 'location-status error';
+                statusDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span>Geolocalização não suportada neste navegador</span>';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    localizacaoAtual.latitude = position.coords.latitude;
+                    localizacaoAtual.longitude = position.coords.longitude;
+                    document.getElementById('visitaLatitude').value = position.coords.latitude;
+                    document.getElementById('visitaLongitude').value = position.coords.longitude;
+
+                    statusDiv.className = 'location-status success';
+                    statusDiv.innerHTML = `<i class="fas fa-check-circle"></i> <span>Localização capturada: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}</span>`;
+                },
+                (error) => {
+                    let mensagem = 'Erro ao obter localização';
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            mensagem = 'Permissão de localização negada. Por favor, permita o acesso.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            mensagem = 'Localização indisponível.';
+                            break;
+                        case error.TIMEOUT:
+                            mensagem = 'Tempo esgotado ao obter localização.';
+                            break;
+                    }
+
+                    statusDiv.className = 'location-status error';
+                    statusDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> <span>${mensagem}</span>`;
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        async function salvarVisita(event) {
+            event.preventDefault();
+
+            const data = {
+                nome_fornecedor: document.getElementById('visitaNomeFornecedor').value.trim(),
+                contato_nome: document.getElementById('visitaContatoNome').value.trim(),
+                contato_email: document.getElementById('visitaContatoEmail').value.trim(),
+                contato_telefone: document.getElementById('visitaContatoTelefone').value.trim(),
+                latitude: document.getElementById('visitaLatitude').value || null,
+                longitude: document.getElementById('visitaLongitude').value || null,
+                observacoes: document.getElementById('visitaObservacoes').value.trim()
+            };
+
+            if (!data.nome_fornecedor || !data.contato_nome) {
+                showAlert('Por favor, preencha os campos obrigatórios', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetchAPI('/fornecedores/visitas', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+
+                if (response && response.ok) {
+                    showAlert('Visita registrada com sucesso!', 'success');
+                    fecharModalVisita();
+                    carregarVisitas();
+                    carregarEstatisticasVisitas();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao registrar visita', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar visita:', error);
+                showAlert('Erro ao registrar visita', 'error');
+            }
+        }
+
+        async function marcarNaoFechado(id) {
+            if (!confirm('Deseja marcar esta visita como "Negócio Não Fechado"?')) return;
+
+            try {
+                const response = await fetchAPI(`/fornecedores/visitas/${id}/status`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: 'nao_fechado' })
+                });
+
+                if (response && response.ok) {
+                    showAlert('Status atualizado', 'success');
+                    carregarVisitas();
+                    carregarEstatisticasVisitas();
+                } else {
+                    showAlert('Erro ao atualizar status', 'error');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert('Erro ao atualizar status', 'error');
+            }
+        }
+
+        async function darContinuidade(id) {
+            const visita = visitasLista.find(v => v.id === id);
+            if (!visita) return;
+
+            try {
+                const response = await fetchAPI(`/fornecedores/visitas/${id}/status`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ status: 'negociacao_fechada' })
+                });
+
+                if (response && response.ok) {
+                    showAlert('Negociação fechada! Cadastre o fornecedor.', 'success');
+                    carregarVisitas();
+                    carregarEstatisticasVisitas();
+
+                    abrirModalNovoFornecedor();
+
+                    setTimeout(() => {
+                        document.getElementById('nome').value = visita.nome_fornecedor || '';
+                        document.getElementById('email').value = visita.contato_email || '';
+                        document.getElementById('telefone').value = visita.contato_telefone || '';
+                        document.getElementById('dadosCNPJ').style.display = 'block';
+
+                        visitaAtual = visita;
+                    }, 300);
+                } else {
+                    showAlert('Erro ao fechar negociação', 'error');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert('Erro ao processar', 'error');
+            }
+        }
+
+        async function verDetalhesVisita(id) {
+            const visita = visitasLista.find(v => v.id === id);
+            if (!visita) {
+                try {
+                    const response = await fetchAPI(`/fornecedores/visitas/${id}`);
+                    if (!response || !response.ok) {
+                        showAlert('Erro ao carregar detalhes', 'error');
+                        return;
+                    }
+                    visitaAtual = await response.json();
+                } catch (error) {
+                    showAlert('Erro ao carregar detalhes', 'error');
+                    return;
+                }
+            } else {
+                visitaAtual = visita;
+            }
+
+            const v = visitaAtual;
+            const statusTexto = {
+                'pendente': 'Pendente',
+                'nao_fechado': 'Não Fechado',
+                'negociacao_fechada': 'Negociação Fechada'
+            }[v.status] || 'Pendente';
+
+            document.getElementById('detalheVisitaStatus').textContent = statusTexto;
+            document.getElementById('detalheVisitaStatus').className = `visita-status-badge ${v.status}`;
+
+            document.getElementById('detalheNomeFornecedor').textContent = v.nome_fornecedor;
+            document.getElementById('detalheContatoNome').textContent = v.contato_nome || '-';
+            document.getElementById('detalheContatoTelefone').textContent = v.contato_telefone || '-';
+            document.getElementById('detalheContatoEmail').textContent = v.contato_email || '-';
+
+            if (v.latitude && v.longitude) {
+                document.getElementById('detalheCoordenadas').textContent = `${v.latitude.toFixed(6)}, ${v.longitude.toFixed(6)}`;
+                document.getElementById('detalheMapaLink').href = `https://www.google.com/maps?q=${v.latitude},${v.longitude}`;
+                document.getElementById('detalheMapaLink').style.display = 'inline-flex';
+            } else {
+                document.getElementById('detalheCoordenadas').textContent = 'Não disponível';
+                document.getElementById('detalheMapaLink').style.display = 'none';
+            }
+
+            if (v.data_visita) {
+                const dataVisita = new Date(v.data_visita);
+                document.getElementById('detalheDataVisita').textContent = dataVisita.toLocaleDateString('pt-BR');
+                document.getElementById('detalheHorarioVisita').textContent = dataVisita.toLocaleTimeString('pt-BR');
+            } else {
+                document.getElementById('detalheDataVisita').textContent = '-';
+                document.getElementById('detalheHorarioVisita').textContent = '-';
+            }
+
+            document.getElementById('detalheComprador').textContent = v.usuario_nome || '-';
+
+            if (v.observacoes) {
+                document.getElementById('detalheObservacoes').textContent = v.observacoes;
+                document.getElementById('secaoObservacoes').style.display = 'block';
+            } else {
+                document.getElementById('secaoObservacoes').style.display = 'none';
+            }
+
+            if (v.fornecedor_nome) {
+                document.getElementById('detalheFornecedorVinculado').textContent = v.fornecedor_nome;
+                document.getElementById('secaoFornecedorVinculado').style.display = 'block';
+            } else {
+                document.getElementById('secaoFornecedorVinculado').style.display = 'none';
+            }
+
+            document.getElementById('modalDetalhesVisita').classList.add('active');
+        }
+
+        function fecharModalDetalhes() {
+            document.getElementById('modalDetalhesVisita').classList.remove('active');
+        }
+
+        carregarPagina();
+    </script>
+</body>
+</html>

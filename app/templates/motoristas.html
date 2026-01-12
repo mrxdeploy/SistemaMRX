@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motoristas - MRX Systems</title>
+
+    <style>
+        /* Ajustes de espaçamento para header fixo e bottom nav */
+        body {
+            padding-bottom: 80px; /* Espaço para bottom nav em mobile */
+        }
+
+        main.container {
+            padding-top: 80px; /* Espaço para header fixo */
+            padding-bottom: 100px; /* Espaço para bottom nav */
+        }
+
+        /* Ajustes específicos para desktop */
+        @media (min-width: 1024px) {
+            main.container {
+                padding-top: 90px; /* Header um pouco maior no desktop */
+                padding-bottom: 100px; /* Mantém espaço para bottom nav */
+            }
+        }
+
+        /* Garantir que modais não sejam cortados */
+        .modal {
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+    </style>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Motoristas</span>
+            </div>
+            <button class="btn btn-secondary" onclick="window.location.href='/administracao.html'">
+                <i class="fas fa-arrow-left"></i> Voltar
+            </button>
+        </div>
+    </header>
+
+    <main class="container" style="padding-top: 80px; padding-bottom: 100px;">
+        <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-md); justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg); margin-top: var(--spacing-md);">
+            <h1 style="margin: 0;">Gerenciar Motoristas</h1>
+            <button class="btn btn-primary" onclick="abrirModalNovoMotorista()">
+                <i class="fas fa-plus"></i> Novo Motorista
+            </button>
+        </div>
+
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>CPF</th>
+                            <th>CNH</th>
+                            <th>Email</th>
+                            <th>Veículo</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaMotoristas">
+                        <tr><td colspan="7" class="loading">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Novo Motorista -->
+    <div class="modal" id="modalNovoMotorista">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Novo Motorista</h2>
+                <span class="modal-close" onclick="fecharModalNovoMotorista()">&times;</span>
+            </div>
+            <form id="formNovoMotorista">
+                <div class="form-group">
+                    <label>Nome *</label>
+                    <input type="text" id="nomeMotorista" required>
+                </div>
+                <div class="form-group">
+                    <label>CPF *</label>
+                    <input type="text" id="cpfMotorista" required>
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" id="emailMotorista" required>
+                </div>
+                <div class="form-group">
+                    <label>Senha (deixe vazio para usar últimos 4 dígitos do CPF)</label>
+                    <input type="password" id="senhaMotorista" minlength="4">
+                </div>
+                <div class="form-group">
+                    <label>Telefone</label>
+                    <input type="text" id="telefoneMotorista">
+                </div>
+                <div class="form-group">
+                    <label>CNH</label>
+                    <input type="text" id="cnhMotorista">
+                </div>
+                <div class="form-group">
+                    <label>Categoria CNH</label>
+                    <select id="categoriaCnhMotorista">
+                        <option value="">Selecione...</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="AB">AB</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Veículo</label>
+                    <select id="veiculoMotorista">
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Criar Motorista</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Editar Motorista -->
+    <div class="modal" id="modalEditarMotorista">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Editar Motorista</h2>
+                <span class="modal-close" onclick="fecharModalEditarMotorista()">&times;</span>
+            </div>
+            <form id="formEditarMotorista">
+                <input type="hidden" id="editMotoristaId">
+                <div class="form-group">
+                    <label>Nome *</label>
+                    <input type="text" id="editNomeMotorista" required>
+                </div>
+                <div class="form-group">
+                    <label>CPF *</label>
+                    <input type="text" id="editCpfMotorista" required>
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" id="editEmailMotorista" required>
+                </div>
+                <div class="form-group">
+                    <label>Telefone</label>
+                    <input type="text" id="editTelefoneMotorista">
+                </div>
+                <div class="form-group">
+                    <label>CNH</label>
+                    <input type="text" id="editCnhMotorista">
+                </div>
+                <div class="form-group">
+                    <label>Categoria CNH</label>
+                    <select id="editCategoriaCnhMotorista">
+                        <option value="">Selecione...</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="AB">AB</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Veículo</label>
+                    <select id="editVeiculoMotorista">
+                        <option value="">Selecione...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="editAtivoMotorista">
+                        Ativo
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Salvar Alterações</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation (Mobile) -->
+    {% include 'includes/_bottom_nav.html' %}
+
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/layout.js"></script>
+    <script src="/static/js/rbac.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script>
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user || user.tipo !== 'admin') {
+                window.location.href = '/acesso-negado.html';
+                return;
+            }
+
+            await carregarVeiculos();
+            await carregarMotoristas();
+        }
+
+        async function carregarVeiculos() {
+            try {
+                const response = await fetchAPI('/veiculos');
+                const veiculos = await response.json();
+
+                const select = document.getElementById('veiculoMotorista');
+                select.innerHTML = '<option value="">Selecione...</option>' + 
+                    veiculos.filter(v => v.ativo).map(v => 
+                        `<option value="${v.id}">${v.placa} - ${v.modelo}</option>`
+                    ).join('');
+            } catch (error) {
+                console.error('Erro ao carregar veículos:', error);
+            }
+        }
+
+        async function carregarMotoristas() {
+            try {
+                const response = await fetchAPI('/motoristas');
+                const motoristas = await response.json();
+
+                const tbody = document.getElementById('tabelaMotoristas');
+
+                if (motoristas.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7">Nenhum motorista cadastrado</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = motoristas.map(m => `
+                    <tr>
+                        <td>${m.nome}</td>
+                        <td>${m.cpf}</td>
+                        <td>${m.cnh || '-'}</td>
+                        <td>${m.email || '-'}</td>
+                        <td>${m.veiculo_placa || '-'}</td>
+                        <td><span class="badge ${m.ativo ? 'badge-success' : 'badge-danger'}">${m.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                        <td>
+                            <button class="btn btn-small btn-secondary" onclick="editarMotorista(${m.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-small ${m.ativo ? 'btn-danger' : 'btn-success'}" onclick="toggleMotorista(${m.id}, '${m.nome}', ${m.ativo})">
+                                <i class="fas fa-${m.ativo ? 'ban' : 'check'}"></i> ${m.ativo ? 'Desativar' : 'Ativar'}
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Erro ao carregar motoristas:', error);
+            }
+        }
+
+        function abrirModalNovoMotorista() {
+            document.getElementById('modalNovoMotorista').style.display = 'flex';
+        }
+
+        function fecharModalNovoMotorista() {
+            document.getElementById('modalNovoMotorista').style.display = 'none';
+            document.getElementById('formNovoMotorista').reset();
+        }
+
+        document.getElementById('formNovoMotorista').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const dados = {
+                nome: document.getElementById('nomeMotorista').value,
+                cpf: document.getElementById('cpfMotorista').value,
+                email: document.getElementById('emailMotorista').value,
+                senha: document.getElementById('senhaMotorista').value || undefined,
+                telefone: document.getElementById('telefoneMotorista').value,
+                cnh: document.getElementById('cnhMotorista').value,
+                categoria_cnh: document.getElementById('categoriaCnhMotorista').value,
+                veiculo_id: document.getElementById('veiculoMotorista').value || undefined
+            };
+
+            try {
+                const response = await fetchAPI('/motoristas', {
+                    method: 'POST',
+                    body: JSON.stringify(dados)
+                });
+
+                const result = await response.json();
+
+                alert(`Motorista criado com sucesso!\nEmail: ${dados.email}\nSenha: ${result.senha_gerada}\n\nGuarde estas credenciais!`);
+                fecharModalNovoMotorista();
+                await carregarMotoristas();
+            } catch (error) {
+                alert('Erro ao criar motorista: ' + error.message);
+            }
+        });
+
+        async function editarMotorista(id) {
+            try {
+                const response = await fetchAPI(`/motoristas/${id}`);
+                const motorista = await response.json();
+                
+                document.getElementById('editMotoristaId').value = motorista.id;
+                document.getElementById('editNomeMotorista').value = motorista.nome;
+                document.getElementById('editCpfMotorista').value = motorista.cpf;
+                document.getElementById('editEmailMotorista').value = motorista.email || '';
+                document.getElementById('editTelefoneMotorista').value = motorista.telefone || '';
+                document.getElementById('editCnhMotorista').value = motorista.cnh || '';
+                document.getElementById('editCategoriaCnhMotorista').value = motorista.categoria_cnh || '';
+                document.getElementById('editVeiculoMotorista').value = motorista.veiculo_id || '';
+                document.getElementById('editAtivoMotorista').checked = motorista.ativo;
+                
+                await carregarVeiculosParaEdicao();
+                
+                document.getElementById('modalEditarMotorista').style.display = 'flex';
+            } catch (error) {
+                alert('Erro ao carregar dados do motorista: ' + error.message);
+            }
+        }
+
+        async function carregarVeiculosParaEdicao() {
+            try {
+                const response = await fetchAPI('/veiculos');
+                const veiculos = await response.json();
+
+                const select = document.getElementById('editVeiculoMotorista');
+                const valorAtual = select.value;
+                select.innerHTML = '<option value="">Selecione...</option>' + 
+                    veiculos.filter(v => v.ativo).map(v => 
+                        `<option value="${v.id}">${v.placa} - ${v.modelo}</option>`
+                    ).join('');
+                select.value = valorAtual;
+            } catch (error) {
+                console.error('Erro ao carregar veículos:', error);
+            }
+        }
+
+        function fecharModalEditarMotorista() {
+            document.getElementById('modalEditarMotorista').style.display = 'none';
+            document.getElementById('formEditarMotorista').reset();
+        }
+
+        document.getElementById('formEditarMotorista').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById('editMotoristaId').value;
+            const dados = {
+                nome: document.getElementById('editNomeMotorista').value,
+                cpf: document.getElementById('editCpfMotorista').value,
+                email: document.getElementById('editEmailMotorista').value,
+                telefone: document.getElementById('editTelefoneMotorista').value,
+                cnh: document.getElementById('editCnhMotorista').value,
+                categoria_cnh: document.getElementById('editCategoriaCnhMotorista').value,
+                veiculo_id: document.getElementById('editVeiculoMotorista').value || null,
+                ativo: document.getElementById('editAtivoMotorista').checked
+            };
+            
+            try {
+                await fetchAPI(`/motoristas/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(dados)
+                });
+                
+                alert('Motorista atualizado com sucesso!');
+                fecharModalEditarMotorista();
+                await carregarMotoristas();
+            } catch (error) {
+                alert('Erro ao atualizar motorista: ' + error.message);
+            }
+        });
+
+        async function toggleMotorista(id, nome, ativo) {
+            const acao = ativo ? 'desativar' : 'ativar';
+            if (!confirm(`Tem certeza que deseja ${acao} o motorista ${nome}?`)) {
+                return;
+            }
+
+            try {
+                if (ativo) {
+                    await fetchAPI(`/motoristas/${id}`, { method: 'DELETE' });
+                    alert('Motorista desativado com sucesso!');
+                } else {
+                    await fetchAPI(`/motoristas/${id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ ativo: true })
+                    });
+                    alert('Motorista ativado com sucesso!');
+                }
+                await carregarMotoristas();
+            } catch (error) {
+                alert(`Erro ao ${acao} motorista: ` + error.message);
+            }
+        }
+
+        carregarPagina();
+    </script>
+</body>
+</html>

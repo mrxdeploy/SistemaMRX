@@ -1,0 +1,109 @@
+❌ ERRO: Falha ao inicializar banco de dados
+   Verifique se o PostgreSQL está ativo no Railway
+📋 Verificando variáveis de ambiente...
+✅ DATABASE_URL está configurado
+   URL: postgresql://postgre...
+⚠️  AVISO: SESSION_SECRET não definido (usando valor padrão)
+⚠️  AVISO: JWT_SECRET_KEY não definido (usando valor padrão)
+==========================================
+🐍 Testando importação da aplicação...
+🚀 Iniciando aplicação Railway MRX
+==========================================
+ℹ️  PORT configurado: 8000
+✅ App importado com sucesso
+📊 Inicializando banco de dados...
+    admin_count = Usuario.query.filter_by(tipo='admin').count()
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 3146, in count
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+The above exception was the direct cause of the following exception:
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+Traceback (most recent call last):
+psycopg2.errors.UndefinedColumn: column usuarios.foto_data does not exist
+LINE 2: ...do_por, usuarios.foto_path AS usuarios_foto_path, usuarios.f...
+  File "/app/init_db.py", line 26, in init_database
+                                                             ^
+HINT:  Perhaps you meant to reference the column "usuarios.foto_path".
+    app = create_app()
+          ^^^^^^^^^^^^
+  File "/app/app/__init__.py", line 175, in create_app
+    criar_admin_padrao()
+  File "/app/app/auth.py", line 299, in criar_admin_padrao
+           ^^^^^^^^^^^^^^^^^^^^^^^
+             ^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+    self._legacy_from_self(col).enable_eagerloads(False).scalar()
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2835, in scalar
+    result = conn.execute(
+    ret = self.one()
+          ^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2808, in one
+    return self._iter().one()  # type: ignore
+           ^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+(Background on this error at: https://sqlalche.me/e/20/f405)
+    return meth(
+           ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+❌ ERRO: Falha ao inicializar banco de dados
+    self._handle_dbapi_exception(
+   Verifique se o PostgreSQL está ativo no Railway
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column usuarios.foto_data does not exist
+LINE 2: ...do_por, usuarios.foto_path AS usuarios_foto_path, usuarios.f...
+                                                             ^
+HINT:  Perhaps you meant to reference the column "usuarios.foto_path".
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT usuarios.id AS usuarios_id, usuarios.nome AS usuarios_nome, usuarios.email AS usuarios_email, usuarios.senha_hash AS usuarios_senha_hash, usuarios.tipo AS usuarios_tipo, usuarios.perfil_id AS usuarios_perfil_id, usuarios.data_cadastro AS usuarios_data_cadastro, usuarios.ativo AS usuarios_ativo, usuarios.criado_por AS usuarios_criado_por, usuarios.foto_path AS usuarios_foto_path, usuarios.foto_data AS usuarios_foto_data, usuarios.foto_mimetype AS usuarios_foto_mimetype, usuarios.percentual_comissao AS usuarios_percentual_comissao, usuarios.telefone AS usuarios_telefone, usuarios.cpf AS usuarios_cpf, usuarios.data_atualizacao AS usuarios_data_atualizacao 
+FROM usuarios 
+WHERE usuarios.tipo = %(tipo_1)s) AS anon_1]
+[parameters: {'tipo_1': 'admin'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+🔗 Conectando ao banco de dados...
+   URL: postgresql://postgres:JLNFuhSF...
+❌ Erro ao inicializar banco de dados: (psycopg2.errors.UndefinedColumn) column usuarios.foto_data does not exist
+LINE 2: ...do_por, usuarios.foto_path AS usuarios_foto_path, usuarios.f...
+                                                             ^
+HINT:  Perhaps you meant to reference the column "usuarios.foto_path".
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT usuarios.id AS usuarios_id, usuarios.nome AS usuarios_nome, usuarios.email AS usuarios_email, usuarios.senha_hash AS usuarios_senha_hash, usuarios.tipo AS usuarios_tipo, usuarios.perfil_id AS usuarios_perfil_id, usuarios.data_cadastro AS usuarios_data_cadastro, usuarios.ativo AS usuarios_ativo, usuarios.criado_por AS usuarios_criado_por, usuarios.foto_path AS usuarios_foto_path, usuarios.foto_data AS usuarios_foto_data, usuarios.foto_mimetype AS usuarios_foto_mimetype, usuarios.percentual_comissao AS usuarios_percentual_comissao, usuarios.telefone AS usuarios_telefone, usuarios.cpf AS usuarios_cpf, usuarios.data_atualizacao AS usuarios_data_atualizacao 
+FROM usuarios 
+WHERE usuarios.tipo = %(tipo_1)s) AS anon_1]
+[parameters: {'tipo_1': 'admin'}]
+==========================================
+🚀 Iniciando aplicação Railway MRX
+==========================================
+ℹ️  PORT configurado: 8000
+📋 Verificando variáveis de ambiente...
+✅ DATABASE_URL está configurado
+   URL: postgresql://postgre...
+⚠️  AVISO: SESSION_SECRET não definido (usando valor padrão)
+⚠️  AVISO: JWT_SECRET_KEY não definido (usando valor padrão)
+🐍 Testando importação da aplicação...
+✅ App importado com sucesso
+📊 Inicializando banco de dados...

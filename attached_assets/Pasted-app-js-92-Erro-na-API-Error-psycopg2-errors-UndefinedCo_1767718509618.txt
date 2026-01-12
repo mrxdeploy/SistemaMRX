@@ -1,0 +1,28 @@
+app.js:92 Erro na API: Error: (psycopg2.errors.UndefinedColumn) column bags_producao.responsavel_id does not exist
+LINE 1: ...cao.criado_por_id AS bags_producao_criado_por_id, bags_produ...
+                                                             ^
+
+[SQL: SELECT bags_producao.id AS bags_producao_id, bags_producao.codigo AS bags_producao_codigo, bags_producao.classificacao_grade_id AS bags_producao_classificacao_grade_id, bags_producao.peso_acumulado AS bags_producao_peso_acumulado, bags_producao.quantidade_itens AS bags_producao_quantidade_itens, bags_producao.peso_capacidade_max AS bags_producao_peso_capacidade_max, bags_producao.lotes_origem AS bags_producao_lotes_origem, bags_producao.status AS bags_producao_status, bags_producao.data_envio_refinaria AS bags_producao_data_envio_refinaria, bags_producao.enviado_por_id AS bags_producao_enviado_por_id, bags_producao.numero_remessa AS bags_producao_numero_remessa, bags_producao.criado_por_id AS bags_producao_criado_por_id, bags_producao.responsavel_id AS bags_producao_responsavel_id, bags_producao.data_criacao AS bags_producao_data_criacao, bags_producao.data_atualizacao AS bags_producao_data_atualizacao, bags_producao.observacoes AS bags_producao_observacoes, bags_producao.categoria_manual AS bags_producao_categoria_manual, bags_producao.categorias_mistas AS bags_producao_categorias_mistas 
+FROM bags_producao 
+WHERE bags_producao.classificacao_grade_id = %(classificacao_grade_id_1)s AND bags_producao.status = %(status_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'classificacao_grade_id_1': 32, 'status_1': 'aberto', 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+    at fetchAPI (app.js:87:19)
+    at async salvarItem (13:412:34)
+fetchAPI @ app.js:92
+await in fetchAPI
+salvarItem @ 13:412
+onsubmit @ 13:135Understand this error
+13:426 Erro: Error: (psycopg2.errors.UndefinedColumn) column bags_producao.responsavel_id does not exist
+LINE 1: ...cao.criado_por_id AS bags_producao_criado_por_id, bags_produ...
+                                                             ^
+
+[SQL: SELECT bags_producao.id AS bags_producao_id, bags_producao.codigo AS bags_producao_codigo, bags_producao.classificacao_grade_id AS bags_producao_classificacao_grade_id, bags_producao.peso_acumulado AS bags_producao_peso_acumulado, bags_producao.quantidade_itens AS bags_producao_quantidade_itens, bags_producao.peso_capacidade_max AS bags_producao_peso_capacidade_max, bags_producao.lotes_origem AS bags_producao_lotes_origem, bags_producao.status AS bags_producao_status, bags_producao.data_envio_refinaria AS bags_producao_data_envio_refinaria, bags_producao.enviado_por_id AS bags_producao_enviado_por_id, bags_producao.numero_remessa AS bags_producao_numero_remessa, bags_producao.criado_por_id AS bags_producao_criado_por_id, bags_producao.responsavel_id AS bags_producao_responsavel_id, bags_producao.data_criacao AS bags_producao_data_criacao, bags_producao.data_atualizacao AS bags_producao_data_atualizacao, bags_producao.observacoes AS bags_producao_observacoes, bags_producao.categoria_manual AS bags_producao_categoria_manual, bags_producao.categorias_mistas AS bags_producao_categorias_mistas 
+FROM bags_producao 
+WHERE bags_producao.classificacao_grade_id = %(classificacao_grade_id_1)s AND bags_producao.status = %(status_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'classificacao_grade_id_1': 32, 'status_1': 'aberto', 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+    at fetchAPI (app.js:87:19)
+    at async salvarItem (13:412:34)

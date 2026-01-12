@@ -1,0 +1,87 @@
+<!-- Modal de Funcionalidades (Administração) -->
+<div class="modal" id="modalFuncionalidades">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2> Ações Rápidas</h2>
+            <button class="modal-close" onclick="fecharModalFuncionalidades()">&times;</button>
+        </div>
+        <div style="display: grid; gap: 1rem; padding: 1rem 0;">
+            
+            <button class="btn btn-success" onclick="navegarParaOuAbrir('/solicitacoes.html', 'abrirModalNovaSolicitacao')" style="display: flex; align-items: center; gap: 0.75rem; justify-content: flex-start; padding: 1rem; color: #fff;">
+                <i class="fas fa-plus-circle" style="font-size: 1.5rem;"></i>
+                <div style="text-align: left;">
+                    <div style="font-weight: 600;">Nova Solicitação</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">Criar solicitação de compra</div>
+                </div>
+            </button>
+
+            <button class="btn btn-primary" onclick="navegarPara('/solicitacoes.html')" style="display: flex; align-items: center; gap: 0.75rem; justify-content: flex-start; padding: 1rem;">
+                <i class="fas fa-file-alt" style="font-size: 1.5rem;"></i>
+                <div style="text-align: left;">
+                    <div style="font-weight: 600;">Compra</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">Gerenciar solicitações de compra</div>
+                </div>
+            </button>
+
+            <button class="btn btn-success" onclick="navegarPara('/fornecedores.html')" style="display: flex; align-items: center; gap: 0.75rem; justify-content: flex-start; padding: 1rem;">
+                <i class="fas fa-building" style="font-size: 1.5rem;"></i>
+                <div style="text-align: left;">
+                    <div style="font-weight: 600;">Fornecedores</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">Cadastrar e gerenciar fornecedores</div>
+                </div>
+            </button>
+
+            <button class="btn btn-info" onclick="navegarPara('/lotes.html')" style="display: flex; align-items: center; gap: 0.75rem; justify-content: flex-start; padding: 1rem;">
+                <i class="fas fa-boxes" style="font-size: 1.5rem;"></i>
+                <div style="text-align: left;">
+                    <div style="font-weight: 600;">Lotes</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">Gerenciar lotes de compra</div>
+                </div>
+            </button>
+
+            <button class="btn btn-warning" onclick="navegarPara('/entradas.html')" style="display: flex; align-items: center; gap: 0.75rem; justify-content: flex-start; padding: 1rem; color: #fff;">
+                <i class="fas fa-warehouse" style="font-size: 1.5rem;"></i>
+                <div style="text-align: left;">
+                    <div style="font-weight: 600;">Entradas de Estoque</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">Processar entradas</div>
+                </div>
+            </button>
+
+            <button class="btn btn-secondary" onclick="navegarPara('/dashboard.html')" style="display: flex; align-items: center; gap: 0.75rem; justify-content: flex-start; padding: 1rem;">
+                <i class="fas fa-chart-line" style="font-size: 1.5rem;"></i>
+                <div style="text-align: left;">
+                    <div style="font-weight: 600;">Dashboard</div>
+                    <div style="font-size: 0.85rem; opacity: 0.8;">Visualizar indicadores</div>
+                </div>
+            </button>
+
+        </div>
+    </div>
+</div>
+
+<script>
+function abrirModalFuncionalidades() {
+    document.getElementById('modalFuncionalidades').classList.add('active');
+}
+
+function fecharModalFuncionalidades() {
+    document.getElementById('modalFuncionalidades').classList.remove('active');
+}
+
+function navegarPara(url) {
+    window.location.href = url;
+}
+
+function navegarParaOuAbrir(url, funcao) {
+    // Se já estamos na página, tenta chamar a função diretamente
+    if (window.location.pathname.includes(url.split('.')[0])) {
+        fecharModalFuncionalidades();
+        if (typeof window[funcao] === 'function') {
+            window[funcao]();
+        }
+    } else {
+        // Senão, navega para a página
+        window.location.href = url;
+    }
+}
+</script>

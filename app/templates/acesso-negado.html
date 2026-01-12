@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso Negado - MRX Systems</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .access-denied-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            text-align: center;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        .access-denied-box {
+            background: white;
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .access-denied-icon {
+            font-size: 80px;
+            color: var(--danger-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .access-denied-title {
+            font-size: 28px;
+            color: var(--gray-900);
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .access-denied-message {
+            font-size: 16px;
+            color: var(--gray-600);
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .access-denied-info {
+            background: var(--gray-100);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .access-denied-info p {
+            margin: 0.5rem 0;
+            font-size: 14px;
+            color: var(--gray-700);
+        }
+
+        .access-denied-info strong {
+            color: var(--gray-900);
+        }
+
+        .access-denied-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .access-denied-box {
+                padding: 2rem 1.5rem;
+            }
+
+            .access-denied-title {
+                font-size: 24px;
+            }
+
+            .access-denied-actions {
+                flex-direction: column;
+            }
+
+            .access-denied-actions .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="access-denied-container">
+        <div class="access-denied-box">
+            <div class="access-denied-icon"></div>
+            <h1 class="access-denied-title">Acesso Negado</h1>
+            <p class="access-denied-message">
+                Você não tem permissão para acessar esta área do sistema.
+            </p>
+            
+            <div class="access-denied-info" id="userInfo">
+                <p><strong>Perfil:</strong> <span id="userProfile">Carregando...</span></p>
+                <p><strong>Email:</strong> <span id="userEmail">Carregando...</span></p>
+            </div>
+
+            <div class="access-denied-actions">
+                <button class="btn btn-primary" onclick="voltarParaInicio()">
+                    Voltar para Início
+                </button>
+                <button class="btn btn-secondary" onclick="logout()">
+                    Sair do Sistema
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/layout.js"></script>
+    <script>
+        async function carregarInfoUsuario() {
+            const token = getToken();
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+
+            try {
+                const response = await fetchAPI('/auth/me');
+                if (response && response.ok) {
+                    const usuario = await response.json();
+                    document.getElementById('userProfile').textContent = usuario.perfil || 'Não definido';
+                    document.getElementById('userEmail').textContent = usuario.email || '';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar informações do usuário:', error);
+            }
+        }
+
+        function voltarParaInicio() {
+            const token = getToken();
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+
+            fetchAPI('/auth/me')
+                .then(response => response.json())
+                .then(usuario => {
+                    const telaInicial = usuario.tela_inicial || '/dashboard.html';
+                    window.location.href = telaInicial;
+                })
+                .catch(() => {
+                    window.location.href = '/dashboard.html';
+                });
+        }
+
+        carregarInfoUsuario();
+    </script>
+</body>
+</html>

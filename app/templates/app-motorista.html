@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>App Motorista - MRX</title>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#059669">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f9fafb;
+            padding-bottom: 70px;
+        }
+
+        .header {
+            background: #059669;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 20px;
+        }
+
+        .badge {
+            background: #dc2626;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .tabs {
+            display: flex;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #4b5563;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #059669;
+            border-bottom: 3px solid #059669;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 15px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .os-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .os-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .os-numero {
+            font-weight: 700;
+            color: #059669;
+            font-size: 16px;
+        }
+
+        .os-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-agendada { background: #059669; color: #fff; }
+        .status-em_rota { background: #0891b2; color: #fff; }
+        .status-finalizada { background: #10b981; color: #fff; }
+        .status-impedido { background: #dc2626; color: #fff; }
+        .status-no_fornecedor { background: #f59e0b; color: #fff; }
+        .status-coletado { background: #8b5cf6; color: #fff; }
+        .status-a_caminho_matriz { background: #06b6d4; color: #fff; }
+        .status-entregue { background: #22c55e; color: #fff; }
+
+        .os-info {
+            margin: 10px 0;
+            font-size: 14px;
+            color: #4b5563;
+        }
+
+        .os-info strong {
+            color: #374151;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #059669;
+            color: white;
+        }
+
+        .btn-primary:active {
+            background: #047857;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .gps-indicator {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .gps-indicator.offline {
+            background: #dc2626;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 20% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .modal-header {
+            font-size: 18px;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #9ca3af;
+        }
+
+        .empty-state h3 {
+            color: #4b5563;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>App Motorista</h1>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="badge" id="os-count">0</div>
+            <button onclick="sairApp()" style="background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem;">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="trocarTab('pendentes')">Pendentes</button>
+        <button class="tab" onclick="trocarTab('em-rota')">Em Rota</button>
+        <button class="tab" onclick="trocarTab('finalizadas')">Finalizadas</button>
+    </div>
+
+    <div id="pendentes" class="tab-content active"></div>
+    <div id="em-rota" class="tab-content"></div>
+    <div id="finalizadas" class="tab-content"></div>
+
+    <div class="gps-indicator offline" id="gps-status">
+        <i class="fas fa-spinner fa-spin"></i> Aguardando GPS...
+    </div>
+
+    <div id="evento-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" id="modal-titulo">Registrar Evento</div>
+            <form id="form-evento">
+                <div class="form-group" id="motivo-group" style="display: none;">
+                    <label>Motivo *</label>
+                    <textarea id="evento-motivo" placeholder="Informe o motivo (obrigatório)"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Observação</label>
+                    <textarea id="evento-obs" placeholder="Adicione observações (opcional)"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Confirmar</button>
+                <button type="button" class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentOS = null;
+        let currentEvento = null;
+        let gpsAtivo = false;
+        let ultimaLocalizacao = null;
+        let gpsWatchId = null;
+
+        function inicializarGPS() {
+            if ('geolocation' in navigator) {
+                console.log('🌍 Inicializando GPS...');
+                
+                gpsWatchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        ultimaLocalizacao = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            precisao: position.coords.accuracy
+                        };
+                        gpsAtivo = true;
+                        const statusEl = document.getElementById('gps-status');
+                        statusEl.innerHTML = '<i class="fas fa-check-circle"></i> GPS Ativo';
+                        statusEl.classList.remove('offline');
+                        console.log('✅ GPS ativo:', ultimaLocalizacao);
+                    },
+                    (error) => {
+                        gpsAtivo = false;
+                        const statusEl = document.getElementById('gps-status');
+                        statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> GPS Inativo';
+                        statusEl.classList.add('offline');
+                        console.error('❌ Erro GPS:', error.message);
+                        
+                        if (error.code === 1) {
+                            console.warn('Permissão de localização negada');
+                        } else if (error.code === 2) {
+                            console.warn('Posição indisponível');
+                        } else if (error.code === 3) {
+                            console.warn('Timeout ao obter localização');
+                        }
+                    },
+                    { 
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                console.error('❌ Geolocalização não suportada pelo navegador');
+                alert('Seu navegador não suporta geolocalização. Use um navegador mais recente.');
+            }
+        }
+
+        inicializarGPS();
+
+        async function carregarMinhasOS() {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    console.error('Token não encontrado. Redirecionando para login...');
+                    window.location.href = '/';
+                    return;
+                }
+                const response = await fetch('/api/os', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        console.error('Token inválido. Redirecionando para login...');
+                        localStorage.removeItem('token');
+                        window.location.href = '/';
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const os_list = await response.json();
+
+                const pendentes = os_list.filter(os => os.status === 'AGENDADA' || os.status === 'PENDENTE');
+                const emRota = os_list.filter(os => os.status === 'EM_ROTA' || os.status === 'NO_FORNECEDOR' || os.status === 'COLETADO' || os.status === 'A_CAMINHO_MATRIZ' || os.status === 'ENTREGUE' || os.status === 'IMPEDIDO');
+                const finalizadas = os_list.filter(os => os.status === 'FINALIZADA');
+
+                document.getElementById('os-count').textContent = os_list.length;
+
+                renderizarOS('pendentes', pendentes);
+                renderizarOS('em-rota', emRota);
+                renderizarOS('finalizadas', finalizadas);
+            } catch (error) {
+                console.error('Erro ao carregar OS:', error);
+            }
+        }
+
+        function renderizarOS(containerId, os_list) {
+            const container = document.getElementById(containerId);
+            
+            if (os_list.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>Nenhuma OS encontrada</h3>
+                        <p>Você não possui ordens de serviço neste status</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+            os_list.forEach(os => {
+                const card = criarCardOS(os);
+                container.appendChild(card);
+            });
+        }
+
+        function criarCardOS(os) {
+            const div = document.createElement('div');
+            div.className = 'os-card';
+
+            let acoes = '';
+            if (os.status === 'AGENDADA' || os.status === 'PENDENTE') {
+                acoes = `<button class="btn btn-primary" onclick="iniciarRota(${os.id})">Iniciar Rota</button>`;
+            } else if (os.status === 'EM_ROTA') {
+                acoes = `
+                    <button class="btn btn-warning" onclick="registrarEvento(${os.id}, 'CHEGUEI')">Cheguei no Fornecedor</button>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn btn-danger" style="flex: 1;" onclick="registrarEvento(${os.id}, 'FORNECEDOR_FECHADO')">Fornecedor Fechado</button>
+                        <button class="btn btn-secondary" style="flex: 1;" onclick="registrarEvento(${os.id}, 'FORNECEDOR_NAO_ENCONTRADO')">Não Encontrado</button>
+                    </div>
+                `;
+            } else if (os.status === 'NO_FORNECEDOR') {
+                acoes = `
+                    <button class="btn btn-primary" onclick="registrarEvento(${os.id}, 'COLETEI')">Material Coletado</button>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button class="btn btn-danger" style="flex: 1;" onclick="registrarEvento(${os.id}, 'FORNECEDOR_FECHADO')">Fornecedor Fechado</button>
+                        <button class="btn btn-secondary" style="flex: 1;" onclick="registrarEvento(${os.id}, 'FORNECEDOR_NAO_ENCONTRADO')">Não Encontrado</button>
+                    </div>
+                `;
+            } else if (os.status === 'COLETADO') {
+                acoes = `<button class="btn btn-secondary" onclick="registrarEvento(${os.id}, 'SAI')">Saí do Fornecedor</button>`;
+            } else if (os.status === 'A_CAMINHO_MATRIZ') {
+                acoes = `<button class="btn btn-primary" onclick="registrarEvento(${os.id}, 'CHEGUEI_MRX')">Cheguei na MRX</button>`;
+            } else if (os.status === 'ENTREGUE') {
+                acoes = `<button class="btn btn-primary" onclick="registrarEvento(${os.id}, 'FINALIZEI')">Finalizar OS</button>`;
+            } else if (os.status === 'IMPEDIDO') {
+                acoes = `<div style="color: #dc2626; font-weight: 600; text-align: center; padding: 10px;">OS Impedida - Aguardando ação do administrador</div>`;
+            }
+
+            div.innerHTML = `
+                <div class="os-card-header">
+                    <span class="os-numero">${os.numero_os}</span>
+                    <span class="os-status status-${os.status.toLowerCase()}">${os.status.replace('_', ' ')}</span>
+                </div>
+                <div class="os-info"><strong>Fornecedor:</strong> ${os.fornecedor_snapshot.nome}</div>
+                <div class="os-info"><strong>Tipo:</strong> ${os.tipo}</div>
+                <div class="os-info"><strong>Veículo:</strong> ${os.veiculo_placa || 'Não atribuído'}</div>
+                ${os.janela_coleta_inicio ? `<div class="os-info"><strong>Janela:</strong> ${new Date(os.janela_coleta_inicio).toLocaleString('pt-BR')}</div>` : ''}
+                ${acoes}
+            `;
+
+            return div;
+        }
+
+        async function iniciarRota(osId) {
+            console.log('🚗 Tentando iniciar rota...', { gpsAtivo, ultimaLocalizacao });
+            
+            if (!gpsAtivo || !ultimaLocalizacao) {
+                let mensagem = 'GPS não está ativo.';
+                
+                if (!navigator.geolocation) {
+                    mensagem = 'Seu navegador não suporta GPS.';
+                } else if (!ultimaLocalizacao) {
+                    mensagem = 'Aguardando primeira localização GPS. Por favor, aguarde alguns segundos e tente novamente.';
+                }
+                
+                alert(mensagem);
+                console.warn('⚠️ GPS não disponível:', { gpsAtivo, ultimaLocalizacao });
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('token');
+                const deviceId = localStorage.getItem('device_id') || generateDeviceId();
+                
+                console.log('📍 Iniciando rota com GPS:', ultimaLocalizacao);
+                
+                const response = await fetch(`/api/os/${osId}/iniciar-rota`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        gps: ultimaLocalizacao,
+                        device_id: deviceId
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Rota iniciada com sucesso!');
+                    carregarMinhasOS();
+                } else {
+                    const error = await response.json();
+                    alert('Erro: ' + error.erro);
+                }
+            } catch (error) {
+                console.error('Erro ao iniciar rota:', error);
+                alert('Erro ao iniciar rota');
+            }
+        }
+
+        function registrarEvento(osId, evento) {
+            console.log('📝 Tentando registrar evento...', { evento, gpsAtivo, ultimaLocalizacao });
+            
+            if (!gpsAtivo || !ultimaLocalizacao) {
+                let mensagem = 'GPS não está ativo.';
+                
+                if (!navigator.geolocation) {
+                    mensagem = 'Seu navegador não suporta GPS.';
+                } else if (!ultimaLocalizacao) {
+                    mensagem = 'Aguardando primeira localização GPS. Por favor, aguarde alguns segundos e tente novamente.';
+                }
+                
+                alert(mensagem);
+                console.warn('⚠️ GPS não disponível para evento:', { evento, gpsAtivo, ultimaLocalizacao });
+                return;
+            }
+
+            currentOS = osId;
+            currentEvento = evento;
+            
+            const motivoGroup = document.getElementById('motivo-group');
+            const modalTitulo = document.getElementById('modal-titulo');
+            
+            if (evento === 'FORNECEDOR_FECHADO') {
+                motivoGroup.style.display = 'block';
+                modalTitulo.textContent = 'Fornecedor Fechado';
+                document.getElementById('evento-motivo').placeholder = 'Ex: Estabelecimento fechado, sem expediente hoje...';
+            } else if (evento === 'FORNECEDOR_NAO_ENCONTRADO') {
+                motivoGroup.style.display = 'block';
+                modalTitulo.textContent = 'Fornecedor Não Encontrado';
+                document.getElementById('evento-motivo').placeholder = 'Ex: Endereço incorreto, local não existe...';
+            } else {
+                motivoGroup.style.display = 'none';
+                modalTitulo.textContent = 'Registrar Evento';
+            }
+            
+            document.getElementById('evento-modal').style.display = 'block';
+        }
+
+        document.getElementById('form-evento').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            try {
+                const token = localStorage.getItem('token');
+                const deviceId = localStorage.getItem('device_id') || generateDeviceId();
+                const observacao = document.getElementById('evento-obs').value;
+                const motivo = document.getElementById('evento-motivo').value;
+                
+                const eventosQueRequeremMotivo = ['FORNECEDOR_FECHADO', 'FORNECEDOR_NAO_ENCONTRADO'];
+                if (eventosQueRequeremMotivo.includes(currentEvento) && !motivo.trim()) {
+                    alert('Por favor, informe o motivo.');
+                    return;
+                }
+
+                const response = await fetch(`/api/os/${currentOS}/evento`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        evento: currentEvento,
+                        gps: ultimaLocalizacao,
+                        device_id: deviceId,
+                        observacao: observacao,
+                        motivo: motivo
+                    })
+                });
+
+                if (response.ok) {
+                    if (eventosQueRequeremMotivo.includes(currentEvento)) {
+                        alert('Registro enviado! O administrador foi notificado.');
+                    } else {
+                        alert('Evento registrado com sucesso!');
+                    }
+                    fecharModal();
+                    carregarMinhasOS();
+                } else {
+                    const error = await response.json();
+                    alert('Erro: ' + error.erro);
+                }
+            } catch (error) {
+                console.error('Erro ao registrar evento:', error);
+                alert('Erro ao registrar evento');
+            }
+        });
+
+        function fecharModal() {
+            document.getElementById('evento-modal').style.display = 'none';
+            document.getElementById('evento-obs').value = '';
+            document.getElementById('evento-motivo').value = '';
+            document.getElementById('motivo-group').style.display = 'none';
+        }
+
+        function trocarTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        function generateDeviceId() {
+            const id = 'device_' + Math.random().toString(36).substr(2, 9) + Date.now();
+            localStorage.setItem('device_id', id);
+            return id;
+        }
+
+        function sairApp() {
+            if (confirm('Deseja realmente sair do aplicativo?')) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('device_id');
+                window.location.href = '/';
+            }
+        }
+
+        carregarMinhasOS();
+        setInterval(carregarMinhasOS, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+Quero que você substitua toda a parte de visão/imagem do meu sistema de scanner de placas eletrônicas (PCBs) para usar apenas a API do Google Gemini, que aceita imagem diretamente.
+
+Requisitos gerais:
+
+A análise da FOTO da placa (reconhecer tipo de placa, densidade de componentes, conectores dourados, LOW / MEDIUM / HIGH) deve ser feita exclusivamente pela API do Gemini (modelo multimodal que aceita imagem).​
+
+A API da Perplexity pode ser removida ou deixada apenas para texto, mas a classificação principal deve vir do Gemini.
+
+Escolha e uso do modelo Gemini
+
+Trocar qualquer chamada de IA atual (Perplexity ou outra) que tente analisar IMAGEM por:
+
+Um modelo Gemini multimodal que aceite texto + imagem, por exemplo um modelo atual da documentação como gemini-2.5-flash ou equivalente adequado.​
+
+Centralizar o nome do modelo em uma constante, por exemplo:
+
+GEMINI_MODEL = "NOME_DO_MODELO_MULTIMODAL_ATUAL"
+
+Configurar a chamada conforme a documentação oficial da Gemini API para image understanding (envio de imagem + prompt textual).​
+
+Fluxo do backend /api/scanner/analyze
+
+Este endpoint deve:
+
+Receber a imagem da placa (upload ou base64).
+
+Montar a requisição para a Gemini API com:
+
+A imagem (no formato aceito – base64 ou file, conforme docs).​
+
+Um prompt de texto pedindo:
+
+Identificação do tipo provável de placa (celular, motherboard de PC, fonte, telecom, roteador, etc.).
+
+Descrição de:
+
+Quantidade aproximada de CIs/chips grandes.
+
+Se há muitos componentes SMD pequenos ou poucos componentes grandes.
+
+Se existem conectores ou dedos dourados visíveis (slots, contatos de borda, pinos banhados).
+
+Classificação final da placa em três classes de valor relacionadas a metais preciosos:
+
+LOW
+
+MEDIUM
+
+HIGH
+
+Resposta somente em JSON, no seguinte formato:
+
+json
+{
+  "grade": "LOW | MEDIUM | HIGH",
+  "type_guess": "ex: placa de celular, motherboard de PC, fonte, telecom etc.",
+  "visual_analysis": "resumo do que foi visto: quantidade de componentes, conectores, fingers dourados etc.",
+  "explanation": "por que essa placa foi classificada nessa grade, com base no que foi visto",
+  "confidence": 0.0,
+  "metal_value_comment": "comentário curto sobre o potencial de metais preciosos",
+  "notes": "campo livre opcional"
+}
+O backend deve:
+
+Chamar a Gemini API.
+
+Fazer o parse da resposta JSON.
+
+Retornar para o frontend exatamente esses campos (grade, type_guess, visual_analysis, explanation, confidence, metal_value_comment, notes).
+
+Configuração da Gemini API
+
+Ler a chave da Gemini API de variável de ambiente (por exemplo, GEMINI_API_KEY).​
+
+Adicionar/ou atualizar o código de autenticação conforme a documentação oficial (HTTP ou client da linguagem usada).​
+
+Comentar no código onde trocar o modelo e a chave.
+
+Remoção/ajuste da Perplexity
+
+Remover qualquer tentativa de enviar imagens para a Perplexity (a API pública não suporta imagem).
+
+Se ainda quiser manter a Perplexity, deixe apenas para casos em que o backend envia texto (opcional, mas fora do fluxo principal de IMAGEM).
+
+A classificação LOW / MEDIUM / HIGH no fluxo de foto deve vir do Gemini.
+
+Frontend (popup + página de consulta)
+
+Não mudar o fluxo do usuário: ele só tira a foto ou faz upload, e não precisa escrever descrição manual.
+
+O frontend continua chamando /api/scanner/analyze com a imagem.
+
+Exibir o JSON retornado:
+
+grade com cores (LOW / MEDIUM / HIGH).
+
+type_guess.
+
+visual_analysis.
+
+explanation.
+
+metal_value_comment.
+
+Garantias
+
+Ajustar o código até que:
+
+A chamada à Gemini API funcione corretamente com imagem (seguir formato recomendado para image understanding).​
+
+A resposta seja sempre um JSON válido no formato definido (tratando casos em que o modelo escreva algo a mais ao redor do JSON).
+
+Entregue:
+
+Código de backend atualizado com:
+
+Integração completa com Gemini para análise de imagem.
+
+Remoção da tentativa de visão pela Perplexity.
+
+Comentários claros de como trocar o modelo Gemini e configurar a chave.
+
+Sem alterar o contrato do endpoint /api/scanner/analyze além de passar a usar Gemini internamente.”

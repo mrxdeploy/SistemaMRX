@@ -1,0 +1,112 @@
+Quando o usuário tocar no botão "Capturar Placa", a câmera deve abrir.
+O usuário enquadra apenas a placa (sem mesa, mão ou fundo externo).
+Após a foto ser tirada, o app deve analisar a placa e classificar em:
+
+Leve (poucos componentes)
+
+Média (quantidade moderada de componentes)
+
+Grande/Pesada (muitos componentes, alta densidade)
+
+Depois preencher automaticamente um campo já existente na interface com o resultado, mas permitindo edição manual pelo usuário.
+Por fim, exibir a mensagem:
+
+"Analisada com sucesso! A placa foi classificada como: NÍVEL"
+
+O Que o Agent Deve Implementar
+1. Abertura da câmera
+
+Verificar se seu app já tem o botão "Capturar Placa" conectado a uma função.
+
+Substituir/Adicionar na função do botão a chamada da câmera do celular (pode ser via biblioteca como opencv-python + APIs internas do app ou câmera nativa via framework móvel que você estiver usando).
+
+2. Exigir enquadramento correto
+
+Antes de capturar a foto:
+
+Mostrar overlay ou mensagem na tela:
+
+"Centralize somente a placa eletrônica na área da câmera, evitando fundo externo."
+
+Opcional: desenhar contorno retangular ou mensagem fixa na câmera.
+
+3. Processar a imagem
+
+Após capturar:
+
+Converter a imagem para HSV (Python OpenCV):
+
+cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+
+Detectar a cor verde predominante da placa usando máscara:
+
+lower_green = (35, 40, 40)
+upper_green = (85, 255, 255)
+mask = cv2.inRange(hsv, lower_green, upper_green)
+
+
+Recortar ou ignorar áreas fora da placa com base na máscara (quanto mais verde contínuo, mais certeza de recorte correto).
+
+4. Identificar Componentes Eletrônicos
+
+Procura por componentes através de detecção de bordas e contagem de contornos:
+
+edges = cv2.Canny(img, 100, 200)
+contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+component_count = len(contours)
+
+
+Esse valor não é perfeito, mas funciona muito bem como estimativa de densidade.
+
+5. Classificar a placa
+
+Criar faixas simples (ajustáveis no código):
+
+if component_count < 150:
+    classification = "Leve"
+elif component_count < 500:
+    classification = "Média"
+else:
+    classification = "Pesada"
+
+
+Esses números podem ser ajustados conforme testes em placas reais.
+
+6. Preencher o Campo no App
+
+Após obter classification, o código precisa:
+
+Inserir automaticamente o texto no campo já existente (por exemplo, um input).
+
+Mas o campo deve continuar editável pelo usuário → o valor deve ser apenas um valor padrão, não travado.
+
+Exemplo:
+
+inputPlacaValor.value = classification  // preenchido automaticamente, mas editável
+
+7. Exibir Mensagem de Confirmação
+
+Após preencher:
+
+Mostrar ao usuário:
+
+✅ Analisada com sucesso! A placa foi classificada como: Leve / Média / Pesada
+
+Isso pode ser em:
+
+Toast
+
+Pop-up
+
+Mensagem abaixo do campo
+
+Fluxo Resumido
+Etapa	Ação
+Botão Capturar	Abre câmera
+Usuário enquadra placa	Mensagem orienta enquadramento
+Foto tirada	App processa imagem
+Calcula contornos (componentes)	Determina densidade
+Classifica	Leve / Média / Pesada
+Preenche Campo	Mantém editável
+Mostra mensagem	"Analisada com sucesso..."

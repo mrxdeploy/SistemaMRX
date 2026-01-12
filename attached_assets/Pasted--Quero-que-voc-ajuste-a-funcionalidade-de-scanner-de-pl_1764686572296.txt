@@ -1,0 +1,132 @@
+“Quero que você ajuste a funcionalidade de scanner de placas do meu sistema da seguinte forma:
+
+1. Análise da imagem só com Python (sem IA externa)
+A foto da placa deve ser analisada apenas com bibliotecas Python, sem chamar nenhuma API de visão (nem Gemini, nem Roboflow, nem Google Vision, etc.).
+
+Use principalmente:
+
+opencv-python (OpenCV)
+
+numpy
+
+opcional: scikit-image
+
+Lógica de análise (densidade de componentes)
+Implemente no backend (Python) um módulo, por exemplo pcb_analyzer.py, com uma função:
+
+python
+def analyze_pcb_image(image_path_or_bytes) -> dict:
+    """
+    Lê a imagem de uma placa e retorna um dicionário com:
+      - components_count: número aproximado de “blobs/contornos” de componentes
+      - density_score: valor numérico de densidade
+      - grade: 'LOW' | 'MEDIUM' | 'HIGH'
+      - debug: campos auxiliares se precisar
+    """
+Dentro dessa função:
+
+Carregar a imagem (arquivo ou bytes) com OpenCV.
+
+Converter para HSV.
+
+Isolar a cor típica do fundo da placa (verde/azul de PCB) com uma máscara HSV.
+
+Inverter a máscara para obter regiões que NÃO são fundo (componentes).
+
+Aplicar filtro (blur) + Canny ou limiarização para destacar objetos.
+
+Usar cv2.findContours() para localizar contornos e:
+
+filtrar por área mínima/máxima para evitar ruído.
+
+contar os contornos restantes → components_count.
+
+Calcular um density_score simples (por exemplo, igual a components_count ou normalizado pela área da placa).
+
+Definir faixas fixas para grade:
+
+LOW se components_count < LIMIAR_1
+
+MEDIUM se LIMIAR_1 <= components_count < LIMIAR_2
+
+HIGH se components_count >= LIMIAR_2
+
+Deixe constantes configuráveis no topo do arquivo, por exemplo:
+
+python
+LOW_THRESHOLD = 10
+HIGH_THRESHOLD = 40
+e use essas constantes na lógica.
+
+2. Endpoint do scanner usando só essa análise
+O endpoint /api/scanner/analyze deve:
+
+Receber a imagem (upload ou base64).
+
+Passar a imagem para analyze_pcb_image.
+
+Obter de volta components_count, density_score e grade.
+
+Sem chamar nenhuma API de visão externa.
+
+3. Uso da Perplexity APENAS para formular texto
+Depois da análise com Python, opcionalmente chamar a API do Perplexity apenas para gerar um texto amigável explicando o resultado.
+
+A Perplexity NÃO recebe a imagem, só texto.
+
+Crie um módulo, por exemplo perplexity_formatter.py, com algo como:
+
+python
+def build_explanation_with_perplexity(grade: str, components_count: int, density_score: float) -> str:
+    """
+    Usa a API do Perplexity para gerar um parágrafo curto explicando o resultado
+    (sem analisar imagem, apenas a partir desses números).
+    """
+Nesta função:
+
+Montar um prompt textual do tipo:
+
+System: algo como
+“Você é um especialista em reciclagem de placas eletrônicas. Receberá dados numéricos sobre densidade de componentes de uma placa e deve explicar para um usuário leigo por que ela foi classificada como LOW, MEDIUM ou HIGH em termos de valor em metais preciosos.”
+
+User: algo como
+“grade: HIGH; components_count: 57; density_score: 0.78. Explique em poucas frases, em português simples, por que essa placa provavelmente tem valor alto em metais preciosos (principalmente ouro), citando a densidade de componentes e conectores.”
+
+Chamar a API do Perplexity (modelo válido segundo a documentação) com esse prompt somente em texto.​
+
+Retornar apenas o texto gerado.
+
+A chave da Perplexity deve vir de variável de ambiente, por exemplo PPLX_API_KEY.
+
+4. Resposta final do endpoint
+O endpoint /api/scanner/analyze deve devolver JSON com:
+
+json
+{
+  "grade": "LOW | MEDIUM | HIGH",
+  "components_count": <int>,
+  "density_score": <float>,
+  "explanation": "texto curto vindo da Perplexity (ou gerado localmente se Perplexity não estiver disponível)"
+}
+Se a chamada à Perplexity falhar, o backend ainda deve:
+
+Devolver grade, components_count, density_score.
+
+Gerar uma explanation simples localmente (sem IA) como fallback.
+
+5. Integração com o front-end do scanner
+O front-end (popup flutuante e página de consulta) continua só enviando a imagem para /api/scanner/analyze.
+
+Mostrar:
+
+grade com cor.
+
+components_count e, opcionalmente, density_score.
+
+explanation vinda do backend (que pode ter sido gerada pela Perplexity).
+
+Implemente todo esse fluxo:
+
+análise de placa apenas com OpenCV/NumPy (e opcionalmente scikit-image) no Python;
+
+Perplexity API usada somente para transformar os resultados numéricos em texto explicativo para o usuário, sem receber a imagem.”

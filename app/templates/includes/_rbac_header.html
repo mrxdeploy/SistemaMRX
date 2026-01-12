@@ -1,0 +1,38 @@
+<header>
+    <div class="header-content" style="justify-content: space-between;">
+        <div class="logo">
+            <img src="/static/images/mrx-logo.png" alt="MRX">
+            <span>{{ page_title | default('MRX Systems') }}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div class="user-info" style="display: none; flex-direction: column; align-items: flex-end; margin-right: 1rem;">
+                <span data-user-name style="font-size: 0.875rem; font-weight: 600; color: var(--gray-900);"></span>
+                <span data-user-profile style="font-size: 0.75rem; color: var(--gray-600);"></span>
+            </div>
+            <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                <i class="fas fa-bell"></i>
+                <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+            </div>
+            <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+        </div>
+    </div>
+</header>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    const userInfo = document.querySelector('.user-info');
+    if (userInfo && typeof fetchAPI === 'function') {
+        try {
+            const response = await fetchAPI('/auth/me');
+            if (response && response.ok) {
+                const usuario = await response.json();
+                if (usuario.nome || usuario.email) {
+                    userInfo.style.display = 'flex';
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao carregar informações do usuário no header:', error);
+        }
+    }
+});
+</script>

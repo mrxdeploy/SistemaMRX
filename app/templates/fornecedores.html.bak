@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fornecedores - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Fornecedores</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Bottom Navigation (Mobile) -->
+    <nav class="bottom-nav">
+        <a href="/administracao.html" class="bottom-nav-item">
+            <i class="fas fa-cog icon"></i>
+            <span>Administração</span>
+        </a>
+        <a href="/dashboard.html" class="bottom-nav-item">
+            <i class="fas fa-chart-line icon"></i>
+            <span>Dashboard</span>
+        </a>
+        <div class="fab-container">
+            <button class="fab-button" onclick="window.location.href='/funcionario.html'" aria-label="Nova Solicitação">
+                <i class="fas fa-plus icon"></i>
+            </button>
+        </div>
+        <a href="/solicitacoes.html" class="bottom-nav-item">
+            <i class="fas fa-file-alt icon"></i>
+            <span>Solicitações</span>
+        </a>
+        <a href="/fornecedores.html" class="bottom-nav-item active">
+            <i class="fas fa-building icon"></i>
+            <span>Fornecedores</span>
+        </a>
+    </nav>
+
+    <main class="container mt-4">
+        <div class="flex justify-between items-center mb-3" style="flex-wrap: wrap; gap: var(--spacing-md);">
+            <h1 style="font-size: clamp(1.5rem, 6vw, 2rem);">Gerenciar Fornecedores</h1>
+            <button class="btn btn-primary" onclick="abrirModalNovoFornecedor()">+ Novo Fornecedor</button>
+        </div>
+
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>CNPJ/CPF</th>
+                            <th>Telefone</th>
+                            <th>Cidade</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaFornecedores">
+                        <tr><td colspan="5" class="loading">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Fornecedor -->
+    <div class="modal" id="modalFornecedor">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2 id="tituloModal">Novo Fornecedor</h2>
+                <button class="modal-close" onclick="fecharModal()">&times;</button>
+            </div>
+            <form id="formFornecedor">
+                <input type="hidden" id="fornecedorId">
+                
+                <div class="form-group">
+                    <label>CNPJ</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="cnpj" placeholder="00.000.000/0000-00" style="flex: 1;">
+                        <button type="button" class="btn btn-secondary" onclick="buscarCNPJ()" id="btnBuscarCNPJ">
+                            🔍 Buscar
+                        </button>
+                    </div>
+                    <small style="color: #666;">Digite o CNPJ e clique em Buscar para preencher automaticamente</small>
+                </div>
+
+                <div class="form-group">
+                    <label>CPF (Alternativo)</label>
+                    <input type="text" id="cpf" placeholder="000.000.000-00">
+                </div>
+                
+                <div id="dadosCNPJ" style="display: none; background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <h4 style="margin: 0 0 1rem 0; color: #0369a1;">📋 Dados da Receita Federal</h4>
+                    
+                    <div class="form-group">
+                        <label>Nome / Razão Social</label>
+                        <input type="text" id="nome" required>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.75rem;">
+                        <div class="form-group">
+                            <label>Rua</label>
+                            <input type="text" id="rua">
+                        </div>
+                        <div class="form-group">
+                            <label>Número</label>
+                            <input type="text" id="numero">
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
+                        <div class="form-group">
+                            <label>Cidade</label>
+                            <input type="text" id="cidade">
+                        </div>
+                        <div class="form-group">
+                            <label>Estado</label>
+                            <input type="text" id="estado" maxlength="2">
+                        </div>
+                        <div class="form-group">
+                            <label>CEP</label>
+                            <input type="text" id="cep">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Bairro</label>
+                        <input type="text" id="bairro">
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <div class="form-group">
+                            <label>Telefone</label>
+                            <input type="tel" id="telefone">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="email">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Observações</label>
+                    <textarea id="observacoes" rows="2"></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-full">💾 Salvar Fornecedor</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Configurar Preços -->
+    <div class="modal" id="modalPrecos">
+        <div class="modal-content" style="max-width: 1200px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2 id="tituloModalPrecos">Configurar Preços</h2>
+                <button class="modal-close" onclick="fecharModalPrecos()">&times;</button>
+            </div>
+            
+            <div style="background: #fffbeb; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #f59e0b;">
+                <p style="margin: 0; font-size: 0.9rem;">
+                    <strong>💡 Como funciona:</strong> Configure os preços por kg para cada tipo de lote e estrela (1-5 ⭐).
+                    Você pode configurar até 150 tipos de lote diferentes, com 5 níveis de preço cada (por estrela).
+                </p>
+            </div>
+
+            <div class="form-group">
+                <input type="text" id="buscaTipoLote" placeholder="🔍 Buscar tipo de lote..." onkeyup="filtrarTiposLote()" style="width: 100%;">
+            </div>
+
+            <div id="listaTiposLote" style="max-height: 500px; overflow-y: auto;">
+                <p style="text-align: center; color: #666;">Carregando tipos de lote...</p>
+            </div>
+
+            <div style="margin-top: 1.5rem; padding: 1rem; background: #f3f4f6; border-radius: 8px;">
+                <h4 style="margin: 0 0 0.5rem 0;">📊 Resumo</h4>
+                <p id="resumoPrecos" style="margin: 0; font-size: 0.9rem;">Nenhum preço configurado ainda</p>
+            </div>
+
+            <button class="btn btn-primary w-full mt-3" onclick="salvarPrecos()">💾 Salvar Todos os Preços</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script>
+        let fornecedorAtual = null;
+        let todosTiposLote = [];
+        let precosConfigurados = {};
+
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+
+            await carregarFornecedores();
+            await atualizarNotificacoes();
+        }
+
+        async function carregarFornecedores() {
+            try {
+                const response = await fetchAPI('/fornecedores');
+                if (!response || !response.ok) return;
+                const fornecedores = await response.json();
+
+                const tbody = document.getElementById('tabelaFornecedores');
+
+                if (fornecedores.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Nenhum fornecedor cadastrado</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = fornecedores.map(f => `
+                    <tr>
+                        <td>${f.nome}</td>
+                        <td>${f.cnpj || f.cpf || '-'}</td>
+                        <td>${f.telefone || '-'}</td>
+                        <td>${f.cidade || '-'}</td>
+                        <td>
+                            <button class="btn btn-secondary" onclick="editarFornecedor(${f.id})" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">Editar</button>
+                            <button class="btn btn-primary" onclick="configurarPrecos(${f.id}, '${f.nome}')" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">💰 Preços</button>
+                            <button class="btn btn-danger" onclick="deletarFornecedor(${f.id}, '${f.nome}')" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">Excluir</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Erro ao carregar fornecedores:', error);
+                const tbody = document.getElementById('tabelaFornecedores');
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">Erro ao carregar fornecedores.</td></tr>';
+            }
+        }
+
+        function abrirModalNovoFornecedor() {
+            fornecedorAtual = null;
+            document.getElementById('tituloModal').textContent = 'Novo Fornecedor';
+            document.getElementById('formFornecedor').reset();
+            document.getElementById('fornecedorId').value = '';
+            document.getElementById('dadosCNPJ').style.display = 'block';
+            document.getElementById('modalFornecedor').classList.add('active');
+        }
+
+        async function buscarCNPJ() {
+            const cnpjInput = document.getElementById('cnpj');
+            const cnpj = cnpjInput.value.replace(/\D/g, '');
+            
+            if (!cnpj || cnpj.length !== 14) {
+                showAlert('Digite um CNPJ válido com 14 dígitos', 'error');
+                return;
+            }
+            
+            const btn = document.getElementById('btnBuscarCNPJ');
+            btn.disabled = true;
+            btn.textContent = '⏳ Buscando...';
+            
+            try {
+                const response = await fetchAPI(`/fornecedores/consultar-cnpj/${cnpj}`);
+                
+                if (response && response.ok) {
+                    const data = await response.json();
+                    
+                    document.getElementById('nome').value = data.nome || '';
+                    document.getElementById('rua').value = data.rua || '';
+                    document.getElementById('numero').value = data.numero || '';
+                    document.getElementById('cidade').value = data.cidade || '';
+                    document.getElementById('estado').value = data.estado || '';
+                    document.getElementById('cep').value = data.cep || '';
+                    document.getElementById('bairro').value = data.bairro || '';
+                    document.getElementById('telefone').value = data.telefone || '';
+                    document.getElementById('email').value = data.email || '';
+                    
+                    document.getElementById('dadosCNPJ').style.display = 'block';
+                    showAlert('✅ Dados do CNPJ carregados com sucesso!', 'success');
+                } else {
+                    showAlert('CNPJ não encontrado. Preencha os dados manualmente.', 'error');
+                    document.getElementById('dadosCNPJ').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Erro ao buscar CNPJ:', error);
+                showAlert('Erro ao buscar CNPJ. Preencha os dados manualmente.', 'error');
+                document.getElementById('dadosCNPJ').style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Buscar';
+            }
+        }
+
+        document.getElementById('formFornecedor').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('fornecedorId').value;
+            const data = {
+                nome: document.getElementById('nome').value,
+                cnpj: document.getElementById('cnpj').value || null,
+                cpf: document.getElementById('cpf').value || null,
+                rua: document.getElementById('rua').value || null,
+                numero: document.getElementById('numero').value || null,
+                cidade: document.getElementById('cidade').value || null,
+                estado: document.getElementById('estado').value || null,
+                cep: document.getElementById('cep').value || null,
+                bairro: document.getElementById('bairro').value || null,
+                telefone: document.getElementById('telefone').value || null,
+                email: document.getElementById('email').value || null,
+                observacoes: document.getElementById('observacoes').value || null
+            };
+
+            try {
+                let response;
+                if (id) {
+                    response = await fetchAPI(`/fornecedores/${id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(data)
+                    });
+                } else {
+                    response = await fetchAPI('/fornecedores', {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                }
+
+                if (response && response.ok) {
+                    showAlert(id ? 'Fornecedor atualizado com sucesso!' : 'Fornecedor criado com sucesso!', 'success');
+                    fecharModal();
+                    await carregarFornecedores();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao salvar fornecedor', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar fornecedor:', error);
+                showAlert('Erro ao salvar fornecedor', 'error');
+            }
+        });
+
+        async function editarFornecedor(id) {
+            try {
+                const response = await fetchAPI(`/fornecedores/${id}`);
+                if (!response || !response.ok) {
+                    showAlert('Erro ao carregar fornecedor');
+                    return;
+                }
+                fornecedorAtual = await response.json();
+
+                document.getElementById('tituloModal').textContent = 'Editar Fornecedor';
+                document.getElementById('fornecedorId').value = fornecedorAtual.id;
+                document.getElementById('nome').value = fornecedorAtual.nome || '';
+                document.getElementById('cnpj').value = fornecedorAtual.cnpj || '';
+                document.getElementById('cpf').value = fornecedorAtual.cpf || '';
+                document.getElementById('rua').value = fornecedorAtual.rua || '';
+                document.getElementById('numero').value = fornecedorAtual.numero || '';
+                document.getElementById('cidade').value = fornecedorAtual.cidade || '';
+                document.getElementById('estado').value = fornecedorAtual.estado || '';
+                document.getElementById('cep').value = fornecedorAtual.cep || '';
+                document.getElementById('bairro').value = fornecedorAtual.bairro || '';
+                document.getElementById('telefone').value = fornecedorAtual.telefone || '';
+                document.getElementById('email').value = fornecedorAtual.email || '';
+                document.getElementById('observacoes').value = fornecedorAtual.observacoes || '';
+
+                document.getElementById('dadosCNPJ').style.display = 'block';
+                document.getElementById('modalFornecedor').classList.add('active');
+            } catch (error) {
+                console.error('Erro ao editar fornecedor:', error);
+                showAlert('Erro ao carregar dados do fornecedor', 'error');
+            }
+        }
+
+        async function deletarFornecedor(id, nome) {
+            if (!confirm(`Tem certeza que deseja excluir o fornecedor "${nome}"?`)) return;
+
+            try {
+                const response = await fetchAPI(`/fornecedores/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response && response.ok) {
+                    showAlert('Fornecedor excluído com sucesso!', 'success');
+                    await carregarFornecedores();
+                } else {
+                    showAlert('Erro ao excluir fornecedor', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao excluir fornecedor:', error);
+                showAlert('Erro ao excluir fornecedor', 'error');
+            }
+        }
+
+        function fecharModal() {
+            document.getElementById('modalFornecedor').classList.remove('active');
+        }
+
+        async function configurarPrecos(fornecedorId, fornecedorNome) {
+            fornecedorAtual = { id: fornecedorId, nome: fornecedorNome };
+            precosConfigurados = {};
+            
+            document.getElementById('tituloModalPrecos').textContent = `Configurar Preços - ${fornecedorNome}`;
+            
+            await carregarTiposLote();
+            await carregarPrecosExistentes(fornecedorId);
+            
+            renderizarListaTiposLote();
+            atualizarResumoPrecos();
+            
+            document.getElementById('modalPrecos').classList.add('active');
+        }
+
+        async function carregarTiposLote() {
+            try {
+                const response = await fetchAPI('/tipos-lote');
+                if (response && response.ok) {
+                    todosTiposLote = await response.json();
+                } else {
+                    showAlert('Erro ao carregar tipos de lote', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar tipos de lote:', error);
+                showAlert('Erro ao carregar tipos de lote', 'error');
+            }
+        }
+
+        async function carregarPrecosExistentes(fornecedorId) {
+            try {
+                const response = await fetchAPI(`/fornecedores/${fornecedorId}/precos`);
+                if (response && response.ok) {
+                    const precos = await response.json();
+                    precos.forEach(preco => {
+                        const key = `${preco.tipo_lote_id}_${preco.estrelas}`;
+                        precosConfigurados[key] = preco.preco_por_kg;
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar preços:', error);
+            }
+        }
+
+        function renderizarListaTiposLote(filtro = '') {
+            const container = document.getElementById('listaTiposLote');
+            
+            let tiposFiltrados = todosTiposLote;
+            if (filtro) {
+                tiposFiltrados = todosTiposLote.filter(t => 
+                    t.nome.toLowerCase().includes(filtro.toLowerCase()) ||
+                    (t.codigo && t.codigo.toLowerCase().includes(filtro.toLowerCase()))
+                );
+            }
+            
+            if (tiposFiltrados.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">Nenhum tipo de lote encontrado</p>';
+                return;
+            }
+            
+            container.innerHTML = tiposFiltrados.map(tipo => {
+                const temPreco = [1,2,3,4,5].some(e => precosConfigurados[`${tipo.id}_${e}`]);
+                return `
+                    <div style="padding: 1rem; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 1rem; ${temPreco ? 'background: #f0fdf4; border-color: #86efac;' : ''}">
+                        <div style="margin-bottom: 0.75rem;">
+                            <strong style="font-size: 1.1rem;">${tipo.nome}</strong>
+                            ${tipo.codigo ? `<span style="color: #666; font-size: 0.85rem; margin-left: 0.5rem;">(${tipo.codigo})</span>` : ''}
+                            ${tipo.descricao ? `<br><small style="color: #666;">${tipo.descricao}</small>` : ''}
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem;">
+                            ${[1,2,3,4,5].map(estrelas => {
+                                const key = `${tipo.id}_${estrelas}`;
+                                const preco = precosConfigurados[key] || '';
+                                return `
+                                    <div>
+                                        <label style="font-size: 0.85rem; display: block; margin-bottom: 0.25rem;">
+                                            ${'⭐'.repeat(estrelas)}
+                                        </label>
+                                        <input 
+                                            type="number" 
+                                            step="0.01" 
+                                            placeholder="R$/kg"
+                                            value="${preco}"
+                                            onchange="atualizarPreco(${tipo.id}, ${estrelas}, this.value)"
+                                            style="width: 100%; padding: 0.4rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.9rem;">
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filtrarTiposLote() {
+            const filtro = document.getElementById('buscaTipoLote').value;
+            renderizarListaTiposLote(filtro);
+        }
+
+        function atualizarPreco(tipoLoteId, estrelas, valor) {
+            const key = `${tipoLoteId}_${estrelas}`;
+            if (valor && parseFloat(valor) > 0) {
+                precosConfigurados[key] = parseFloat(valor);
+            } else {
+                delete precosConfigurados[key];
+            }
+            atualizarResumoPrecos();
+        }
+
+        function atualizarResumoPrecos() {
+            const total = Object.keys(precosConfigurados).length;
+            const tiposConfigurados = new Set(Object.keys(precosConfigurados).map(k => k.split('_')[0])).size;
+            
+            document.getElementById('resumoPrecos').textContent = 
+                total > 0 
+                ? `${total} preço(s) configurado(s) para ${tiposConfigurados} tipo(s) de lote` 
+                : 'Nenhum preço configurado ainda';
+        }
+
+        async function salvarPrecos() {
+            if (Object.keys(precosConfigurados).length === 0) {
+                showAlert('Configure pelo menos um preço antes de salvar', 'error');
+                return;
+            }
+
+            const precos = Object.entries(precosConfigurados).map(([key, preco]) => {
+                const [tipo_lote_id, estrelas] = key.split('_');
+                return {
+                    tipo_lote_id: parseInt(tipo_lote_id),
+                    estrelas: parseInt(estrelas),
+                    preco_por_kg: parseFloat(preco)
+                };
+            });
+
+            try {
+                const response = await fetchAPI(`/fornecedores/${fornecedorAtual.id}/precos`, {
+                    method: 'POST',
+                    body: JSON.stringify({ precos })
+                });
+
+                if (response && response.ok) {
+                    showAlert('Preços salvos com sucesso!', 'success');
+                    fecharModalPrecos();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao salvar preços', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar preços:', error);
+                showAlert('Erro ao salvar preços', 'error');
+            }
+        }
+
+        function fecharModalPrecos() {
+            document.getElementById('modalPrecos').classList.remove('active');
+        }
+
+        carregarPagina();
+    </script>
+</body>
+</html>

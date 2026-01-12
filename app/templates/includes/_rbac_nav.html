@@ -1,0 +1,71 @@
+<nav class="bottom-nav" id="rbacBottomNav">
+</nav>
+
+<script>
+async function renderizarNavegacaoRBAC() {
+    const nav = document.getElementById('rbacBottomNav');
+    if (!nav) return;
+
+    try {
+        const response = await fetchAPI('/auth/menus');
+        if (!response || !response.ok) return;
+
+        const data = await response.json();
+        const menus = data.menus || [];
+        const ocultarMenu = data.ocultar_menu_inferior || false;
+
+        // Se o perfil deve ocultar o menu inferior, remove e ajusta padding
+        if (ocultarMenu || menus.length === 0) {
+            nav.style.display = 'none';
+            const main = document.querySelector('main');
+            if (main) {
+                main.style.paddingBottom = '20px';
+            }
+            return;
+        }
+
+        nav.innerHTML = '';
+        nav.style.display = 'flex';
+
+        menus.slice(0, 5).forEach((menu, index) => {
+            const a = document.createElement('a');
+            a.href = menu.url;
+            a.className = 'bottom-nav-item';
+            
+            if (window.location.pathname.includes(menu.url)) {
+                a.classList.add('active');
+            }
+
+            const i = document.createElement('i');
+            i.className = 'fas fa-' + (menu.icone || 'circle') + ' icon';
+
+            const span = document.createElement('span');
+            span.textContent = menu.nome;
+
+            a.appendChild(i);
+            a.appendChild(span);
+            nav.appendChild(a);
+
+            if (index === 2 && menus.length > 3) {
+                const fabContainer = document.createElement('div');
+                fabContainer.className = 'fab-container';
+                const fabButton = document.createElement('button');
+                fabButton.className = 'fab-button';
+                fabButton.setAttribute('aria-label', 'Menu');
+                fabButton.innerHTML = '<i class="fas fa-plus icon"></i>';
+                fabButton.onclick = () => {
+                    if (typeof abrirModalNovaSolicitacao === 'function') {
+                        abrirModalNovaSolicitacao();
+                    }
+                };
+                fabContainer.appendChild(fabButton);
+                nav.appendChild(fabContainer);
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao renderizar navegação RBAC:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', renderizarNavegacaoRBAC);
+</script>

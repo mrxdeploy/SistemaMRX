@@ -1,0 +1,138 @@
+Prompt completo para o Replit – Sistema MRX_Gestão (Módulo de Cadastros + RBAC)
+🎯 **Objetivo do Prompt**
+Gerar um sistema completo em Python (FastAPI) + React (frontend) que implemente o módulo de **cadastros base e controle de acesso (RBAC)** do sistema **MRX_Gestão**, conforme o blueprint oficial.
+
+---
+
+## ⚙️ Contexto Geral
+
+O sistema MRX_Gestão é responsável por gerenciar toda a operação logística e comercial da MRX do Brasil — uma empresa especializada em compra, separação, conferência, estoque e faturamento de resíduos eletrônicos.
+
+Este módulo corresponde à **Fase 1 – Cadastros Base e Controle de Acesso**.
+
+---
+
+## 🧩 Escopo deste prompt
+
+### 1️⃣ Implementar **cadastros base**:
+- Usuários  
+- Perfis (roles)  
+- Fornecedores  
+- Produtos (Materiais)  
+- Veículos  
+- Motoristas  
+
+Cada cadastro deve ter:
+- CRUD completo (criar, listar, editar, excluir)  
+- Validação de campos (ex: CNPJ, CPF, e-mail, duplicidade)  
+- Registro de data de criação e usuário que criou  
+- Logs de alterações para auditoria futura  
+
+---
+
+### 2️⃣ Implementar **controle de acesso (RBAC)** com os perfis descritos:
+
+| Perfil | Descrição / Permissões |
+|--------|-------------------------|
+| **Administrador** | Acesso total; define limites; aprova exceções; autoriza descarte; fecha inventário; gerencia usuários e perfis. |
+| **Comprador (PJ)** | Abre solicitações de compra, cadastra fornecedores, informa entregas/coletas e registra preço pago. |
+| **Conferente / Estoque** | Valida chegada, pesa, confere itens e qualidade; cria lotes e dá entrada no estoque. |
+| **Separação** | Separa lotes por material/condição; gera sublotes e resíduos para descarte (com aprovação ADM). |
+| **Motorista** | Recebe rotas, realiza coletas e envia comprovantes/fotos. |
+| **Financeiro** | Emite notas, controla pagamentos e conciliação bancária. |
+| **Auditoria / BI** | Acesso apenas leitura aos painéis e trilhas de auditoria. |
+
+---
+
+## 🧱 Requisitos técnicos
+
+- **Backend:** FastAPI + SQLAlchemy + PostgreSQL  
+- **Frontend:** React + Tailwind + Axios  
+- **Autenticação:** JWT + Refresh Token  
+- **Autorização:** Middleware RBAC (baseado no campo `perfil`)  
+- **Banco:** PostgreSQL  
+- **Validação:** Pydantic (CPF/CNPJ/email únicos)  
+- **Auditoria:** Registrar IP, device e timestamp em cada ação crítica  
+
+---
+
+## 🧮 Estrutura de entidades (modelo inicial)
+
+### 🔹 Usuário
+```python
+id, nome, email, senha_hash, perfil_id, ativo, criado_em, criado_por
+
+🔹 Perfil (Role)
+id, nome (Administrador, Comprador, etc), descricao, permissoes (lista JSON)
+
+🔹 Fornecedor
+id, nome, cnpj, endereco_coleta, endereco_emissao, contato, banco, agencia, conta, pix, criado_por
+
+🔹 Produto (Material)
+id, nome, categoria, unidade, ativo
+
+🔹 Veículo
+id, placa, renavam, tipo, capacidade
+
+🔹 Motorista
+id, nome, cpf, telefone, veiculo_id (FK), ativo
+
+🔒 Regras de acesso (RBAC)
+
+Apenas Administrador pode criar/editar usuários e perfis.
+
+Comprador pode criar fornecedores.
+
+Conferente e Separação não podem criar fornecedores.
+
+Motorista só pode acessar suas próprias rotas e dados pessoais.
+
+Financeiro tem acesso apenas a módulos de faturamento/pagamento.
+
+Auditoria/BI possui acesso leitura total e bloqueio de edição.
+
+🧭 Requisitos funcionais adicionais
+
+ Tela de login (email + senha)
+
+ Tela de listagem de usuários com filtro por perfil
+
+ Tela de cadastro de fornecedor
+
+ Tela de cadastro de produto/material
+
+ Tela de cadastro de veículo e motorista (com vínculo entre ambos)
+
+ Painel de administração para gerenciar perfis e permissões
+
+ Endpoint /me para retornar dados do usuário logado
+
+ Endpoint /auditoria para registrar logs
+
+🧰 Estrutura de pastas sugerida
+backend/
+ ├── app/
+ │   ├── main.py
+ │   ├── models/
+ │   ├── routes/
+ │   ├── schemas/
+ │   ├── services/
+ │   ├── core/
+ │   │   ├── auth.py
+ │   │   ├── security.py
+ │   │   └── rbac.py
+frontend/
+ ├── src/
+ │   ├── pages/
+ │   ├── components/
+ │   ├── services/
+ │   ├── hooks/
+ │   └── contexts/
+
+🧩 Entregáveis esperados
+
+✅ CRUD funcional para todas as entidades base.
+✅ Middleware RBAC ativo com permissões corretas.
+✅ Login com JWT + refresh token.
+✅ Validações de campos e mensagens de erro amigáveis.
+✅ Interface React responsiva com formulários e tabelas.

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validação de Solicitações - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Validação</span>
+            </div>
+            <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                <i class="fas fa-bell"></i>
+                <span class="notification-count" style="display: none;">0</span>
+            </div>
+        </div>
+    </header>
+
+    <nav class="bottom-nav">
+        <a href="/administracao.html" class="bottom-nav-item">
+            <i class="fas fa-cog icon"></i>
+            <span>Admin</span>
+        </a>
+        <a href="/dashboard.html" class="bottom-nav-item">
+            <i class="fas fa-chart-line icon"></i>
+            <span>Dashboard</span>
+        </a>
+        <div class="fab-container">
+            <button class="fab-button" onclick="window.location.href='/solicitacoes.html'" aria-label="Solicitações">
+                <i class="fas fa-plus icon"></i>
+            </button>
+        </div>
+        <a href="/validacao.html" class="bottom-nav-item active">
+            <i class="fas fa-check-circle icon"></i>
+            <span>Validação</span>
+        </a>
+        <a href="/entradas.html" class="bottom-nav-item">
+            <i class="fas fa-inbox icon"></i>
+            <span>Entradas</span>
+        </a>
+    </nav>
+
+    <main class="container mt-4">
+        <h1 style="font-size: clamp(1.5rem, 6vw, 2rem); margin-bottom: var(--spacing-lg);">Validação de Solicitações</h1>
+
+        <div class="stats-grid" style="margin-bottom: var(--spacing-lg);">
+            <div class="stat-card">
+                <div class="stat-label">Pendentes</div>
+                <div class="stat-value" id="totalPendentes">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Placas para Validar</div>
+                <div class="stat-value" id="totalPlacas">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Peso Total</div>
+                <div class="stat-value" id="pesoTotal">0 kg</div>
+            </div>
+        </div>
+
+        <div id="listaSolicitacoes">
+            <div class="loading" style="text-align: center; padding: 2rem;">Carregando...</div>
+        </div>
+    </main>
+
+    <div class="modal" id="modalReprovar">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Reprovar Solicitação</h2>
+                <button class="modal-close" onclick="fecharModalReprovar()">&times;</button>
+            </div>
+            <form id="formReprovar">
+                <input type="hidden" id="solicitacaoIdReprovar">
+                <div class="form-group">
+                    <label>Motivo da Reprovação *</label>
+                    <textarea id="motivoReprovacao" rows="4" required placeholder="Descreva o motivo da reprovação..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-danger w-full">Reprovar</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user || user.tipo !== 'admin') {
+                window.location.href = '/dashboard.html';
+                return;
+            }
+
+            await carregarSolicitacoes();
+            await atualizarNotificacoes();
+        }
+
+        async function carregarSolicitacoes() {
+            try {
+                const response = await fetchAPI('/validacao/pendentes');
+                const solicitacoes = await response.json();
+
+                const container = document.getElementById('listaSolicitacoes');
+                
+                if (solicitacoes.length === 0) {
+                    container.innerHTML = '<div class="card"><p style="text-align: center; padding: 2rem; color: #666;">Nenhuma solicitação pendente de validação</p></div>';
+                    document.getElementById('totalPendentes').textContent = '0';
+                    document.getElementById('totalPlacas').textContent = '0';
+                    document.getElementById('pesoTotal').textContent = '0 kg';
+                    return;
+                }
+
+                let totalPlacas = 0;
+                let pesoTotal = 0;
+
+                container.innerHTML = solicitacoes.map(sol => {
+                    totalPlacas += sol.total_placas_pendentes || 0;
+                    pesoTotal += sol.peso_total || 0;
+
+                    return `
+                        <div class="card" style="margin-bottom: var(--spacing-lg);">
+                            <div class="card-header">
+                                <h3>Solicitação #${sol.id}</h3>
+                                <span class="badge badge-warning">${sol.status}</span>
+                            </div>
+                            <div style="padding: var(--spacing-md);">
+                                <p><strong>Funcionário:</strong> ${sol.funcionario?.nome || 'N/A'}</p>
+                                <p><strong>Empresa:</strong> ${sol.empresa?.nome || 'N/A'}</p>
+                                <p><strong>Data:</strong> ${new Date(sol.data_envio).toLocaleDateString('pt-BR')}</p>
+                                <p><strong>Placas Pendentes:</strong> ${sol.total_placas_pendentes}</p>
+                                <p><strong>Peso Total:</strong> ${sol.peso_total?.toFixed(2)} kg</p>
+                                <p><strong>Valor Total:</strong> R$ ${sol.valor_total?.toFixed(2)}</p>
+                                
+                                ${sol.placas && sol.placas.length > 0 ? `
+                                    <div style="margin-top: var(--spacing-md);">
+                                        <h4>Placas:</h4>
+                                        <div class="table-container">
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Tag</th>
+                                                        <th>Tipo</th>
+                                                        <th>Peso (kg)</th>
+                                                        <th>Valor</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${sol.placas.map(placa => `
+                                                        <tr>
+                                                            <td>${placa.tag || 'N/A'}</td>
+                                                            <td>${placa.tipo_placa}</td>
+                                                            <td>${placa.peso_kg}</td>
+                                                            <td>R$ ${placa.valor.toFixed(2)}</td>
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                
+                                <div style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-md); flex-wrap: wrap;">
+                                    <button class="btn btn-success" onclick="aprovarSolicitacao(${sol.id})" style="flex: 1;">
+                                        <i class="fas fa-check"></i> Aprovar
+                                    </button>
+                                    <button class="btn btn-danger" onclick="abrirModalReprovar(${sol.id})" style="flex: 1;">
+                                        <i class="fas fa-times"></i> Reprovar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                document.getElementById('totalPendentes').textContent = solicitacoes.length;
+                document.getElementById('totalPlacas').textContent = totalPlacas;
+                document.getElementById('pesoTotal').textContent = `${pesoTotal.toFixed(2)} kg`;
+
+            } catch (error) {
+                console.error('Erro ao carregar solicitações:', error);
+                showNotification('Erro ao carregar solicitações', 'error');
+            }
+        }
+
+        async function aprovarSolicitacao(id) {
+            if (!confirm('Tem certeza que deseja aprovar esta solicitação?')) return;
+
+            try {
+                await fetchAPI(`/validacao/solicitacao/${id}/aprovar`, { method: 'PUT' });
+                showNotification('Solicitação aprovada com sucesso!', 'success');
+                await carregarSolicitacoes();
+            } catch (error) {
+                showNotification(error.message || 'Erro ao aprovar solicitação', 'error');
+            }
+        }
+
+        function abrirModalReprovar(id) {
+            document.getElementById('solicitacaoIdReprovar').value = id;
+            document.getElementById('modalReprovar').classList.add('active');
+        }
+
+        function fecharModalReprovar() {
+            document.getElementById('modalReprovar').classList.remove('active');
+            document.getElementById('formReprovar').reset();
+        }
+
+        document.getElementById('formReprovar').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('solicitacaoIdReprovar').value;
+            const observacoes = document.getElementById('motivoReprovacao').value;
+
+            try {
+                await fetchAPI(`/validacao/solicitacao/${id}/reprovar`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ observacoes })
+                });
+
+                showNotification('Solicitação reprovada', 'success');
+                fecharModalReprovar();
+                await carregarSolicitacoes();
+            } catch (error) {
+                showNotification(error.message || 'Erro ao reprovar solicitação', 'error');
+            }
+        });
+
+        carregarPagina();
+    </script>
+</body>
+</html>

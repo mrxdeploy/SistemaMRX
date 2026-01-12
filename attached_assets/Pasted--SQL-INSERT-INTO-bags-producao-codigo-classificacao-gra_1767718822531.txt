@@ -1,0 +1,17 @@
+[SQL: INSERT INTO bags_producao (codigo, classificacao_grade_id, peso_acumulado, quantidade_itens, peso_capacidade_max, lotes_origem, status, data_envio_refinaria, enviado_por_id, numero_remessa, criado_por_id, responsavel_id, data_criacao, data_atualizacao, observacoes, categoria_manual, categorias_mistas) VALUES (%(codigo)s, %(classificacao_grade_id)s, %(peso_acumulado)s, %(quantidade_itens)s, %(peso_capacidade_max)s, %(lotes_origem)s::JSON, %(status)s, %(data_envio_refinaria)s, %(enviado_por_id)s, %(numero_remessa)s, %(criado_por_id)s, %(responsavel_id)s, %(data_criacao)s, %(data_atualizacao)s, %(observacoes)s, %(categoria_manual)s, %(categorias_mistas)s) RETURNING bags_producao.id]
+[parameters: {'codigo': 'BAG-SUCATA_APA-0005', 'classificacao_grade_id': 32, 'peso_acumulado': 0, 'quantidade_itens': 0, 'peso_capacidade_max': 50, 'lotes_origem': '[]', 'status': 'aberto', 'data_envio_refinaria': None, 'enviado_por_id': None, 'numero_remessa': None, 'criado_por_id': None, 'responsavel_id': '1', 'data_criacao': datetime.datetime(2026, 1, 6, 17, 0, 25, 47447), 'data_atualizacao': datetime.datetime(2026, 1, 6, 17, 0, 25, 48187), 'observacoes': None, 'categoria_manual': None, 'categorias_mistas': False}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+    at fetchAPI (app.js:87:19)
+    at async salvarItem (13:412:34)
+fetchAPI @ app.js:92
+await in fetchAPI
+salvarItem @ 13:412
+onsubmit @ 13:135Understand this error
+13:426 Erro: Error: (psycopg2.errors.NotNullViolation) null value in column "criado_por_id" of relation "bags_producao" violates not-null constraint
+DETAIL:  Failing row contains (13, BAG-SUCATA_APA-0005, 32, 0.000, 0, 50.000, [], aberto, null, null, null, null, 2026-01-06 17:00:25.047447, 2026-01-06 17:00:25.048187, null, null, f, 1).
+
+[SQL: INSERT INTO bags_producao (codigo, classificacao_grade_id, peso_acumulado, quantidade_itens, peso_capacidade_max, lotes_origem, status, data_envio_refinaria, enviado_por_id, numero_remessa, criado_por_id, responsavel_id, data_criacao, data_atualizacao, observacoes, categoria_manual, categorias_mistas) VALUES (%(codigo)s, %(classificacao_grade_id)s, %(peso_acumulado)s, %(quantidade_itens)s, %(peso_capacidade_max)s, %(lotes_origem)s::JSON, %(status)s, %(data_envio_refinaria)s, %(enviado_por_id)s, %(numero_remessa)s, %(criado_por_id)s, %(responsavel_id)s, %(data_criacao)s, %(data_atualizacao)s, %(observacoes)s, %(categoria_manual)s, %(categorias_mistas)s) RETURNING bags_producao.id]
+[parameters: {'codigo': 'BAG-SUCATA_APA-0005', 'classificacao_grade_id': 32, 'peso_acumulado': 0, 'quantidade_itens': 0, 'peso_capacidade_max': 50, 'lotes_origem': '[]', 'status': 'aberto', 'data_envio_refinaria': None, 'enviado_por_id': None, 'numero_remessa': None, 'criado_por_id': None, 'responsavel_id': '1', 'data_criacao': datetime.datetime(2026, 1, 6, 17, 0, 25, 47447), 'data_atualizacao': datetime.datetime(2026, 1, 6, 17, 0, 25, 48187), 'observacoes': None, 'categoria_manual': None, 'categorias_mistas': False}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+    at fetchAPI (app.js:87:19)
+    at async salvarItem (13:412:34)

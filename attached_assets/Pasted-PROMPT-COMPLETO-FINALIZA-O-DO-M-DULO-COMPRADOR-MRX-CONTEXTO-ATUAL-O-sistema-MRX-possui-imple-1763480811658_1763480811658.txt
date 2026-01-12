@@ -1,0 +1,314 @@
+PROMPT COMPLETO - FINALIZAÇÃO DO MÓDULO COMPRADOR MRX
+🎯 CONTEXTO ATUAL
+O sistema MRX possui implementado:
+
+✅ Backend completo: MaterialBase, TabelaPreco, TabelaPrecoItem, SolicitacaoAutorizacaoPreco
+✅ APIs REST funcionais: /api/materiais-base, /api/tabelas-preco, /api/autorizacoes-preco
+✅ Seed database: 50 materiais + 3 tabelas de preço + 150 itens de preço
+✅ Sistema de autorização: Quando preço negociado > tabela
+✅ Excel import/export: Materiais e preços
+❌ O QUE AINDA FALTA IMPLEMENTAR
+1. REFORMULAÇÃO COMPLETA DE /tipos-lote.html
+OBJETIVO: Transformar a tela atual em um sistema completo de gestão de preços por classificação × estrelas.
+
+1.1. Nova Estrutura da Tela
+┌─────────────────────────────────────────────────────────┐
+│  [🏠 Header] Tipos de Lote - MRX Systems                │
+├─────────────────────────────────────────────────────────┤
+│  [+ Novo Material] [📥 Importar Excel] [📤 Exportar]    │
+├─────────────────────────────────────────────────────────┤
+│  🔍 Buscar: [___________] Classificação: [Todas ▼]      │
+├─────────────────────────────────────────────────────────┤
+│  LISTA DE MATERIAIS (Card-based, mobile-friendly)       │
+│                                                          │
+│  ┌────────────────────────────────────────────────┐    │
+│  │ MAT001 - SUCATA PROCESSADOR CERÂMICO A         │    │
+│  │ Classificação: Pesado                           │    │
+│  │                                                  │    │
+│  │ PREÇOS (R$/kg):                                 │    │
+│  │ ⭐ 1★: R$ 12,50 | 2★: R$ 15,00 | 3★: R$ 18,50  │    │
+│  │                                                  │    │
+│  │ ✏️ Editar Preços] [📊 Ver Histórico]           │    │
+│  └────────────────────────────────────────────────┘    │
+│                                                          │
+│  [... mais materiais ...]                               │
+└─────────────────────────────────────────────────────────┘
+1.2. Modal de Edição de Material
+┌─────────────────────────────────────────────────────────┐
+│  ✏️ Editar Material: MAT001                            │
+├─────────────────────────────────────────────────────────┤
+│  Nome: [SUCATA PROCESSADOR CERÂMICO A               ]  │
+│  Código: [MAT001] (gerado automaticamente)             │
+│  Classificação: [Pesado ▼]                             │
+│  Descrição: [________________________________]          │
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │ 💰 TABELA DE PREÇOS (R$/kg)                      │  │
+│  ├──────────────────────────────────────────────────┤  │
+│  │            1★        2★        3★                │  │
+│  │  [12.50]   [15.00]   [18.50]                     │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                          │
+│  [Cancelar] [💾 Salvar]                                │
+└─────────────────────────────────────────────────────────┘
+1.3. JavaScript da Tela
+Funcionalidades necessárias:
+
+// 1. Carregar materiais com seus preços
+async function carregarMateriais() {
+    const response = await fetch('/api/materiais-base', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const materiais = await response.json();
+    renderizarCards(materiais);
+}
+// 2. Editar preços de um material
+async function editarMaterial(id) {
+    // Buscar material com preços
+    const material = await buscarMaterial(id);
+    
+    // Preencher modal com:
+    // - Nome, código, classificação
+    // - 3 inputs de preço (1★, 2★, 3★)
+    preencherModal(material);
+}
+// 3. Salvar alterações
+async function salvarMaterial(id) {
+    const dados = {
+        nome: document.getElementById('nome').value,
+        classificacao: document.getElementById('classificacao').value,
+        descricao: document.getElementById('descricao').value,
+        precos: {
+            preco_1_estrela: parseFloat($('#preco_1').val()),
+            preco_2_estrela: parseFloat($('#preco_2').val()),
+            preco_3_estrela: parseFloat($('#preco_3').val())
+        }
+    };
+    
+    await fetch(`/api/materiais-base/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(dados)
+    });
+}
+2. FLUXO DE SOLICITAÇÃO DE COMPRA COM VALIDAÇÃO AUTOMÁTICA
+OBJETIVO: Integrar o sistema de materiais base no fluxo de solicitações.
+
+2.1. Nova Tela de Solicitação de Compra
+Localização: /templates/funcionario.html ou criar /templates/compra-rapida.html
+
+Fluxo:
+
+1. Comprador seleciona FORNECEDOR
+   ↓
+2. Sistema busca TABELA DE PREÇO do fornecedor (1★, 2★ ou 3★)
+   ↓
+3. Comprador adiciona materiais:
+   - Seleciona material da lista (50+ tipos)
+   - Informa PESO (kg)
+   - Sistema CALCULA VALOR automaticamente (peso × preço_tabela)
+   ↓
+4. Comprador pode ALTERAR o preço negociado
+   ↓
+5. Sistema COMPARA:
+   - Se preço ≤ tabela → ✅ APROVADO automaticamente
+   - Se preço > tabela → ⚠️ SOLICITA AUTORIZAÇÃO ADM
+   ↓
+6. Se houver itens pendentes de autorização:
+   - Mostra alerta: "2 itens aguardam aprovação do ADM"
+   - Cria registros em SolicitacaoAutorizacaoPreco
+   - Envia notificação WebSocket para admins
+2.2. Código da Tela
+// Passo 1: Selecionar fornecedor e carregar tabela
+async function selecionarFornecedor(fornecedorId) {
+    const response = await fetch(`/api/fornecedores/${fornecedorId}`);
+    const fornecedor = await response.json();
+    
+    // Exibir tabela vigente
+    document.getElementById('tabelaVigente').textContent = 
+        `Tabela ${fornecedor.tabela_preco_estrelas}★`;
+    
+    currentTabelaId = fornecedor.tabela_preco_id;
+}
+// Passo 2: Adicionar material
+async function adicionarMaterial() {
+    const materialId = document.getElementById('material').value;
+    const peso = parseFloat(document.getElementById('peso').value);
+    
+    // Buscar preço da tabela
+    const response = await fetch(
+        `/api/tabelas-preco/${currentTabelaId}/precos`
+    );
+    const precos = await response.json();
+    const precoItem = precos.find(p => p.material_id == materialId);
+    
+    const valorAutomatico = peso * precoItem.preco_por_kg;
+    
+    // Adicionar à lista
+    itensCompra.push({
+        material_id: materialId,
+        material_nome: precoItem.material_nome,
+        peso_kg: peso,
+        preco_tabela: precoItem.preco_por_kg,
+        preco_negociado: valorAutomatico,
+        valor_total: valorAutomatico
+    });
+    
+    renderizarLista();
+}
+// Passo 3: Validar ao finalizar
+async function finalizarCompra() {
+    const itensComAutorizacao = [];
+    const itensAprovados = [];
+    
+    for (const item of itensCompra) {
+        if (item.preco_negociado > item.preco_tabela) {
+            itensComAutorizacao.push(item);
+        } else {
+            itensAprovados.push(item);
+        }
+    }
+    
+    if (itensComAutorizacao.length > 0) {
+        // Criar solicitações de autorização
+        for (const item of itensComAutorizacao) {
+            await criarSolicitacaoAutorizacao(item);
+        }
+        
+        alert(`${itensComAutorizacao.length} itens enviados para aprovação do ADM`);
+    }
+    
+    // Criar solicitação com itens aprovados
+    if (itensAprovados.length > 0) {
+        await criarSolicitacao(itensAprovados);
+    }
+}
+3. DASHBOARD DE AUTORIZAÇÕES PARA ADMIN
+OBJETIVO: Tela para admin aprovar/rejeitar preços acima da tabela.
+
+3.1. Nova Tela /templates/autorizacoes-preco.html
+┌─────────────────────────────────────────────────────────┐
+│  🔐 Autorizações de Preço Pendentes                     │
+├─────────────────────────────────────────────────────────┤
+│  Filtros: [Pendentes ▼] Comprador: [Todos ▼]           │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌────────────────────────────────────────────────┐    │
+│  │ 🔴 #001 - AGUARDANDO DECISÃO                    │    │
+│  │                                                  │    │
+│  │ Comprador: João Silva                           │    │
+│  │ Fornecedor: Sucatas XYZ (Tabela 1★)            │    │
+│  │ Material: PROCESSADOR CERÂMICO A                │    │
+│  │ Peso: 15 kg                                     │    │
+│  │                                                  │    │
+│  │ Preço Tabela: R$ 12,50/kg                       │    │
+│  │ Preço Negociado: R$ 15,00/kg (+20%)            │    │
+│  │                                                  │    │
+│  │ Justificativa:                                  │    │
+│  │ "Material de alta qualidade, cerâmica premium"  │    │
+│  │                                                  │    │
+│  │ ┌──────────────────────────────────────────┐   │    │
+│  │ │ 🎯 DECISÃO                                │   │    │
+│  │ │ ○ Aprovar sem promoção                    │   │    │
+│  │ │ ● Aprovar e promover fornecedor para 2★   │   │    │
+│  │ │ ○ Reprovar                                │   │    │
+│  │ │                                            │   │    │
+│  │ │ Motivo: [_________________________]       │   │    │
+│  │ │                                            │   │    │
+│  │ │ [❌ Rejeitar] [✅ Aprovar]                │   │    │
+│  │ └──────────────────────────────────────────┘   │    │
+│  └────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────┘
+3.2. JavaScript
+async function aprovarAutorizacao(id) {
+    const promover = document.querySelector('input[name="decisao"]:checked').value === 'promover';
+    const novaTabela = promover ? currentTabelaId + 1 : null;
+    
+    await fetch(`/api/autorizacoes-preco/${id}/aprovar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            promover_fornecedor: promover,
+            nova_tabela_id: novaTabela,
+            motivo_decisao: document.getElementById('motivo').value
+        })
+    });
+    
+    alert('Autorização aprovada! Fornecedor promovido para 2★');
+    carregarAutorizacoes();
+}
+4. IMPORTAÇÃO EM MASSA DE MATERIAIS
+OBJETIVO: Permitir importar 150+ materiais via Excel de uma vez.
+
+4.1. Template Excel
+| Nome do Material              | Classificação | 1★ (R$/kg) | 2★ (R$/kg) | 3★ (R$/kg) |
+|-------------------------------|---------------|------------|------------|------------|
+| SUCATA PROCESSADOR CERÂMICO A | pesado        | 12.50      | 15.00      | 18.50      |
+| SUCATA PLACA MÃE SERVIDOR     | pesado        | 8.30       | 10.00      | 12.00      |
+| SUCATA HD SATA                | medio         | 3.50       | 4.00       | 5.00       |
+4.2. Endpoint de Importação (JÁ EXISTE)
+# /api/materiais-base/importar-excel
+# - Valida colunas
+# - Cria materiais novos
+# - Atualiza materiais existentes
+# - Gera 3 preços por material
+# - Retorna estatísticas
+5. INTEGRAÇÃO FINAL NO FLUXO COMPLETO
+FLUXO COMPLETO DO MÓDULO COMPRADOR:
+1. ADM importa 50-150 materiais via Excel
+   ↓
+2. ADM configura preços base nas 3 tabelas (1★, 2★, 3★)
+   ↓
+3. Fornecedor novo é criado → recebe Tabela 1★
+   ↓
+4. Comprador vai em campo:
+   - Seleciona fornecedor
+   - Adiciona materiais (lista de 50+)
+   - Sistema calcula valores automaticamente
+   - Comprador pode negociar preço maior
+   ↓
+5. Se preço > tabela:
+   - Sistema bloqueia
+   - Cria solicitação de autorização
+   - Notifica admin via WebSocket
+   ↓
+6. Admin analisa:
+   - Aprova → libera compra
+   - Aprova + Promove → fornecedor sobe para 2★ ou 3★
+   - Rejeita → comprador não pode comprar com aquele valor
+   ↓
+7. Compra aprovada → gera OC → gera OS → coleta → conferência → lote
+📝 CHECKLIST DE IMPLEMENTAÇÃO
+ Reformular /tipos-lote.html com cards de materiais
+ Implementar modal de edição com 3 inputs de preço
+ Criar /templates/compra-rapida.html ou integrar em /funcionario.html
+ Implementar seletor de fornecedor + materiais
+ Adicionar validação automática de preços
+ Criar /templates/autorizacoes-preco.html
+ Implementar aprovação/rejeição com promoção de fornecedor
+ Adicionar notificações WebSocket em tempo real
+ Testar fluxo completo: importação → compra → autorização → aprovação
+ Documentar fluxo no README
+🎨 DESIGN SYSTEM
+Cores:
+
+Verde primário: #059669 (aprovado)
+Amarelo alerta: #f59e0b (pendente)
+Vermelho: #ef4444 (acima da tabela)
+Ícones:
+
+1★ = Tabela Base (verde claro)
+2★ = Tabela Intermediária (amarelo)
+3★ = Tabela Premium (dourado)
+🚀 PRÓXIMOS PASSOS
+Implementar tela de materiais com visualização card-based
+Criar fluxo de compra integrado com validação
+Desenvolver dashboard de autorizações para admin
+Testar fluxo end-to-end com dados reais
+Documentar e treinar usuários

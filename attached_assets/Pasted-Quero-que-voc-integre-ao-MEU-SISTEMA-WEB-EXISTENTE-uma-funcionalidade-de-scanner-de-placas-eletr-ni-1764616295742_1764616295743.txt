@@ -1,0 +1,159 @@
+Quero que você integre ao MEU SISTEMA WEB EXISTENTE uma funcionalidade de scanner de placas eletrônicas (PCBs) para reciclagem, usando a API do Perplexity como agente inteligente de classificação e sugestão de preço.
+
+Contexto do sistema:
+
+Já existe um sistema web que controla cadastros e preços de sucata de metais/placas.
+
+Existe uma página de administração (admin) onde o usuário ajusta configurações do sistema.
+
+O que eu preciso que você construa:
+
+Integração com a API do Perplexity
+
+Um módulo/serviço no backend para chamar a API do Perplexity (vision + texto).
+
+Este serviço deve:
+
+Receber uma imagem (placa eletrônica).
+
+Enviar essa imagem + um prompt interno explicando que é uma placa para reciclagem de metais preciosos.
+
+Pedir para o Perplexity responder em formato JSON com:
+
+grade: ‘LOW’ | ‘MEDIUM’ | ‘HIGH’.
+
+type_guess: tipo provável de placa (ex.: ‘placa de celular’, ‘motherboard de PC’, ‘fonte’, ‘telecom’).
+
+explanation: texto curto com o motivo da classificação (densidade de componentes, conectores dourados, etc.).
+
+confidence: entre 0 e 1.
+
+Ler a chave da API de variável de ambiente (por exemplo, PPLX_API_KEY).
+
+Endpoints de backend
+
+Endpoint público/autenticado para análise:
+
+POST /api/scanner/analyze
+
+Entrada: imagem (upload ou base64) e, opcionalmente, peso estimado da placa em kg.
+
+Saída: JSON com:
+
+grade
+
+type_guess
+
+explanation
+
+confidence
+
+price_suggestion (quando existir configuração para calcular preço).
+
+Endpoints de configuração do scanner na administração:
+
+GET /api/admin/scanner-config
+
+POST /api/admin/scanner-config
+
+Campos de configuração:
+
+enabled (ativar/desativar popup flutuante).
+
+price_low_min / price_low_max (R$/kg).
+
+price_medium_min / price_medium_max (R$/kg).
+
+price_high_min / price_high_max (R$/kg).
+
+prompt_rules (texto adicional a ser anexado ao prompt do Perplexity, por exemplo, regras internas de classificação).
+
+api_key_perplexity (se for armazenada no banco ou só em variável de ambiente, deixe claro no código/comentários).
+
+Página de administração do scanner
+
+Rota na área admin, por exemplo: /admin/scanner-config.
+
+Tela com:
+
+Checkbox ou switch para ativar/desativar o scanner.
+
+Inputs numéricos para as faixas de preço LOW / MEDIUM / HIGH (min e max, em R$/kg).
+
+Textarea para prompt_rules.
+
+Campo para configurar/visualizar o uso da API key do Perplexity (por exemplo, campo de texto com máscara ou indicação de que está configurado via env).
+
+Botão ‘Salvar’ que usa os endpoints /api/admin/scanner-config.
+
+Popup flutuante de scanner
+
+Um componente global que apareça em todas (ou quase todas) as páginas do sistema.
+
+Botão/ícone de scanner fixo na lateral (por exemplo, canto inferior direito).
+
+Ao clicar no ícone:
+
+Abrir um painel ou modal lateral contendo:
+
+Campo para upload de imagem ou captura via câmera.
+
+Campo opcional para peso estimado (kg).
+
+Botão ‘Analisar placa’.
+
+Ao enviar:
+
+Chamar POST /api/scanner/analyze.
+
+Exibir na interface:
+
+grade (LOW / MEDIUM / HIGH) com cores diferentes.
+
+type_guess.
+
+explanation.
+
+price_suggestion (quando existir).
+
+O popup deve respeitar o parâmetro enabled da configuração do scanner.
+
+Página de ferramenta de consulta
+
+Rota dedicada, por exemplo: /scanner ou /consulta-placa.
+
+Página com:
+
+Formulário de envio de imagem (e peso opcional).
+
+Exibição do resultado de /api/scanner/analyze.
+
+Espaço para mostrar mais detalhes retornados pelo Perplexity, se o JSON trouxer campos adicionais no futuro.
+
+Pode reutilizar o mesmo componente de resultado do popup.
+
+Uso de referências de placa na web
+
+O prompt interno enviado ao Perplexity deve:
+
+Informar que é uma foto de placa eletrônica para reciclagem.
+
+Pedir para considerar tipos comuns de placas (celular, motherboard de PC, fontes, telecom, etc.).
+
+Pedir classificação em LOW / MEDIUM / HIGH de acordo com densidade de componentes e probabilidade de conter metais preciosos (ouro, prata, paládio).
+
+Pedir resposta rigidamente em JSON com os campos definidos acima.
+
+Estrutura de código e documentação
+
+Gerar todos os arquivos necessários de backend e frontend para essa funcionalidade.
+
+Incluir/atualizar arquivos de dependências.
+
+Incluir/atualizar README.md com seção:
+
+Como configurar PPLX_API_KEY.
+
+Como acessar a página de administração do scanner.
+
+Como usar o popup flutuante e a página /scanner.

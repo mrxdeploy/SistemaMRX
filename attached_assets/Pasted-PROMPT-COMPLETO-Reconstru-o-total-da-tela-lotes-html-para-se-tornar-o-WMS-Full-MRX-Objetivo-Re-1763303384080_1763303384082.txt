@@ -1,0 +1,401 @@
+PROMPT COMPLETO — Reconstrução total da tela /lotes.html para se tornar o WMS Full MRX
+
+Objetivo:
+Reformular completamente a tela /lotes.html para transformá-la no WMS (Warehouse Management System) central da MRX, atendendo 100% dos requisitos definidos no arquivo MRX_Gestão.md, incluindo:
+
+Entrada de estoque
+
+Movimentações internas
+
+Localizações
+
+Histórico por lote
+
+Reservas
+
+Bloqueios (QC/Inventário)
+
+Sublotes (Separação)
+
+Divergências
+
+Auditoria
+
+Integração com conferência e separação
+
+Inventário (3 contagens)
+
+Visualizações operacionais e gerenciais
+
+Permissões por perfil
+
+A nova tela deve substituir completamente a interface atual e organizar todo o fluxo de estoque da MRX.
+
+🟦 1. REFORMULAÇÃO TOTAL DA INTERFACE /lotes.html
+
+A tela deve ser reestruturada em 5 grandes seções, todas acessíveis via tabs ou cards superiores:
+
+TAB 1 — “Visão Geral do Estoque (WMS Overview)”
+Elementos obrigatórios:
+
+Cards com métricas:
+
+Total de lotes ativos
+
+Total em kg
+
+Lotes bloqueados
+
+Lotes divergentes
+
+Lotes aguardando separação
+
+Lotes reservados
+
+Lotes em inventário
+
+Gráfico por tipo de material
+
+Gráfico por localização
+
+Linha do tempo das últimas 20 movimentações
+
+Filtros:
+
+Material
+
+Fornecedor
+
+Status
+
+Localização
+
+Divergência
+
+Data da conferência
+
+TAB 2 — “Lotes Ativos” (principal)
+Tabela deve ter:
+
+Número do lote (YYYY-XXXXX)
+
+Material
+
+Peso líquido
+
+Fornecedor
+
+Origem (SC/OC/OS)
+
+Status (cores)
+
+Localização atual
+
+Indicador de divergência
+
+Indicador de bloqueio
+
+Data de criação
+
+Ações
+
+Status obrigatórios:
+
+EM_ESTOQUE
+
+BLOQUEADO_QC
+
+BLOQUEADO_INVENTARIO
+
+AGUARDANDO_SEPARACAO
+
+EM_SEPARACAO
+
+PROCESSADO
+
+DIVERGENTE_AGUARDANDO_ADM
+
+ENCERRADO
+
+Ações por lote:
+
+Ver detalhes
+
+Mover lote (WMS movimentação)
+
+Reservar
+
+Liberar reserva
+
+Enviar para separação
+
+Bloquear lote (QC) (ADM)
+
+Desbloquear QC (ADM)
+
+Bloquear para inventário (ADM)
+
+Desbloquear inventário (ADM)
+
+Executar ajuste de estoque (ADM)
+
+Histórico completo do lote
+
+Regras de permissão:
+
+Conferente → apenas visualizar
+
+Separação → apenas lotes próprios
+
+Estoque → movimentar/transferir
+
+ADM → tudo, incluindo ajustes e bloqueios
+
+TAB 3 — “Movimentações WMS”
+Tabela com:
+
+lote_id
+
+movimento_id
+
+tipo (entrada / transferência / separação / ajuste / reserva / desbloqueio / inventário / cancelamento)
+
+origem
+
+destino
+
+quantidade
+
+responsável
+
+motivo
+
+data/hora
+
+GPS
+
+IP
+
+botão “ver antes/depois”
+
+Funções obrigatórias:
+
+Transferência entre endereços
+
+Movimentação parcial (ex.: mover só parte do lote)
+
+Reversão de movimentação
+
+Registrar motivo obrigatório
+
+Proteção contra movimentar lote bloqueado
+
+Endereços pré-configurados:
+
+RECEBIMENTO
+
+DOCK 1
+
+DOCK 2
+
+SEPARAÇÃO
+
+PICKING
+
+BULK
+
+INVENTARIO
+
+QC
+
+TAB 4 — “Detalhes do Lote” (visualização completa)
+
+Ao clicar em qualquer lote:
+
+Seções obrigatórias:
+
+Cabeçalho com:
+
+lote_id
+
+material
+
+origem SC → OC → OS
+
+fornecedor
+
+conferência (peso/qualidade e fotos)
+
+Status atual + indicadores
+
+Localização atual
+
+Composição (se possui sublotes)
+
+Divergências detectadas na conferência
+
+Sublotes criados na separação
+
+Resíduos gerados
+
+Histórico completo (timeline) do lote
+
+Auditoria completa das alterações
+
+before / after
+
+user
+
+gps / ip
+
+timestamp
+
+Ações
+
+movimentar
+
+reservar
+
+bloquear/desbloquear
+
+enviar para separação
+
+ajuste de estoque (ADM)
+
+TAB 5 — “Inventário”
+Funcionalidades exigidas:
+
+Gerar inventário de local ou geral
+
+Três contagens independentes (1ª, 2ª e 3ª)
+
+Lista cega (não mostrar quantidade atual)
+
+Bloqueio automático de movimentações enquanto inventário estiver ativo
+
+Consolidação automática das diferenças
+
+Divergências → ADM precisa aprovar antes de ajustar
+
+Auditoria de inventário
+
+Tabela inclui:
+
+lote_id
+
+material
+
+localização
+
+quantidades da 1ª, 2ª e 3ª contagem
+
+status
+
+diferença consolidada
+
+quem realizou cada contagem
+
+ações
+
+🟥 2. NOVOS ENDPOINTS NECESSÁRIOS (BACKEND)
+Lotes
+
+GET /lotes
+
+GET /lotes/{id}
+
+PATCH /lotes/{id}/status
+
+PATCH /lotes/{id}/bloquear
+
+PATCH /lotes/{id}/desbloquear
+
+Movimentações
+
+POST /lotes/{id}/movimentar
+
+POST /lotes/{id}/reservar
+
+POST /lotes/{id}/liberar-reserva
+
+POST /movimentacoes/{id}/reverter
+
+Inventário
+
+POST /inventario/iniciar
+
+POST /inventario/{id}/contagem
+
+POST /inventario/{id}/finalizar
+
+POST /inventario/{id}/consolidar
+
+Separação (integração)
+
+POST /separacao/{id}/iniciar
+
+POST /separacao/{id}/finalizar
+
+POST /separacao/{id}/sublotes
+
+POST /separacao/{id}/residuos
+
+Auditoria
+
+GET /auditoria/lotes/{id}
+
+🟩 3. LÓGICA QUE DEVE SER IMPLEMENTADA
+✔ Entrada automática em estoque após conferência
+✔ Movimentações só possíveis se lote não estiver bloqueado
+✔ Auditoria completa (before/after, gps, ip)
+✔ Reserva impede separação e saída
+✔ Inventário bloqueia movimentações
+✔ FIFO/FEFO sugeridos automaticamente
+✔ Sublotes herdam custo e origem do lote pai
+✔ Divergências exigem aprovação ADM
+🟦 4. DESIGN/UI ESTILO
+Deve incluir:
+
+cores por status
+
+ícones intuitivos
+
+modal para detalhes
+
+filtros avançados
+
+tooltips explicativos
+
+tabelas ordenáveis
+
+UI leve e responsiva
+
+experiência profissional tipo ERP
+
+🟧 5. CRITÉRIOS DE ACEITE (QUALIDADE/TESTES)
+
+Conseguir criar lote e visualizar na tela
+
+Transferir lote e ver histórico completo
+
+Bloquear e desbloquear lote corretamente
+
+Criar inventário e bloquear movimentações
+
+Finalizar inventário com consolidação
+
+Criar sublotes e aparecerem na árvore de composição
+
+A tela /lotes.html substituir completamente o modelo antigo
+
+🟩 Entrega esperada
+
+Ao final deste prompt, o sistema deve ter:
+
+✔ um WMS completo
+✔ controles de estoque reais
+✔ movimentações com auditoria
+✔ inventário funcional
+✔ integração com separação
+✔ UI profissional e clara
+✔ tudo alinhado ao MRX_Gestão.md

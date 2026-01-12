@@ -1,0 +1,54 @@
+IMPLEMENTAR INVENTÁRIO WMS - PROMPT DIRETO
+OBJETIVO
+Corrigir e implementar completamente o módulo de inventário no sistema MRX.
+
+PROBLEMAS ATUAIS
+Endpoint /api/wms/inventarios não retorna dados
+Endpoint /api/estoque/movimentacoes retornando erro
+Interface não carrega inventários
+Movimentações não aparecem
+O QUE FAZER
+1. CRIAR INVENTÁRIO
+Endpoint: POST /api/wms/inventarios
+
+Gerar número único: INV-{ANO}-{5CHARS}
+Ao criar inventário → bloquear todos os lotes da localização (ou todos se GERAL)
+Campos: tipo (GERAL/LOCAL), localizacao, observacoes
+2. REGISTRAR CONTAGENS
+Endpoint: POST /api/wms/inventarios/{id}/contagem
+
+Permitir 3 contagens por lote
+Campos: lote_id, numero_contagem (1-3), peso_contado, localizacao_encontrada
+Validar: não duplicar contagem (mesmo lote + mesmo número)
+3. CONSOLIDAR
+Endpoint: POST /api/wms/inventarios/{id}/consolidar
+
+Comparar contagem 1 vs contagem 2
+Se diferentes → registrar divergência
+Salvar em divergencias_consolidadas
+4. FINALIZAR
+Endpoint: POST /api/wms/inventarios/{id}/finalizar
+
+Alterar status para FINALIZADO
+Desbloquear todos os lotes que foram bloqueados por este inventário
+5. LISTAR
+Endpoint: GET /api/wms/inventarios
+
+Retornar todos os inventários ordenados por data
+Incluir: total_contagens, criador, finalizador
+INTERFACE
+Na aba "Inventário" em lotes.html:
+
+Botão "Novo Inventário" → abre modal
+Tabela listando inventários (número, tipo, status, datas, ações)
+Botão "Ver Detalhes" em cada linha
+Modal para registrar contagens
+CORREÇÕES ESPECÍFICAS
+Rota /api/estoque/movimentacoes - verificar se existe e se retorna dados corretos
+Função carregarInventarios() - deve chamar GET /api/wms/inventarios e renderizar tabela
+Modal Before/After - endpoint GET /api/wms/movimentacoes/{id} com dados_before e dados_after
+VALIDAÇÕES
+Inventário só pode ser finalizado por admin
+Contagens só podem ser registradas se inventário está EM_ANDAMENTO
+Não permitir contagem duplicada (mesmo lote + número)
+Implemente de forma funcional e testável. Não modificar estrutura do banco de dados.

@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Produção - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        @media (max-width: 768px) {
+            .container { padding-left: var(--spacing-md); padding-right: var(--spacing-md); }
+            h1 { font-size: clamp(1.25rem, 5vw, 1.75rem) !important; }
+            .card { padding: 1rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem !important; }
+            .stat-number { font-size: 1.5rem !important; }
+        }
+        @media (max-width: 480px) {
+            .stats-grid { grid-template-columns: 1fr !important; }
+        }
+        /* Fix para campos com input + botão lado a lado */
+        .input-group-inline {
+            display: flex;
+            gap: 0.5rem;
+            align-items: stretch;
+        }
+        .input-group-inline input,
+        .input-group-inline select {
+            flex: 1;
+            min-width: 0;
+        }
+        .input-group-inline .btn {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        main.container { min-height: calc(100vh - 140px); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { text-align: center; }
+        .stat-number { font-size: 2rem; font-weight: bold; }
+        .stat-label { color: var(--gray-600); font-size: 0.875rem; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .tab-btn { padding: 0.75rem 1.5rem; border: none; background: var(--gray-200); border-radius: 0.5rem; cursor: pointer; font-weight: 500; transition: all 0.2s; }
+        .tab-btn.active { background: var(--primary-color); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .op-card { border-left: 4px solid var(--primary-color); margin-bottom: 1rem; }
+        .op-card.aberta { border-left-color: var(--warning-color); }
+        .op-card.em_separacao { border-left-color: var(--info-color); }
+        .op-card.finalizada { border-left-color: var(--success-color); }
+        .op-card.cancelada { border-left-color: var(--danger-color); }
+        .bag-card { border-left: 4px solid var(--success-color); margin-bottom: 1rem; }
+        .bag-card.cheio { border-left-color: var(--warning-color); }
+        .bag-card.enviado_refinaria { border-left-color: var(--info-color); }
+        .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-purple { background: #ede9fe; color: #5b21b6; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Produção</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="bottom-nav" id="navMenuMobile"></nav>
+
+    <main class="container mt-4" style="padding-top: calc(70px + 1rem); padding-bottom: calc(80px + 1rem);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+            <h1 style="font-size: clamp(1.5rem, 6vw, 2rem); margin: 0;">Módulo de Produção</h1>
+            <button class="btn btn-primary" onclick="abrirModalNovaOP()">
+                <i class="fas fa-plus"></i> Nova OP
+            </button>
+        </div>
+
+        <div class="stats-grid" id="dashboardStats">
+            <div class="card stat-card">
+                <div class="stat-number" style="color: var(--warning-color);" id="statOpsAbertas">0</div>
+                <div class="stat-label">OPs Abertas</div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-number" style="color: var(--success-color);" id="statOpsFinalizadas">0</div>
+                <div class="stat-label">OPs Finalizadas</div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-number" style="color: #FFD700;" id="statHighGrade">0 kg</div>
+                <div class="stat-label">High Grade em Estoque</div>
+            </div>
+            <div class="card stat-card">
+                <div class="stat-number" style="color: var(--info-color);" id="statProntoRefinaria">0 kg</div>
+                <div class="stat-label">Pronto p/ Refinaria</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="abrirTab('ordens')">Ordens de Produção</button>
+            <button class="tab-btn" onclick="abrirTab('bags')">Bags</button>
+            <button class="tab-btn" onclick="abrirTab('classificacoes')">Classificações</button>
+        </div>
+
+        <div id="tabOrdens" class="tab-content active">
+            <div class="card" style="margin-bottom: 1rem;">
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
+                        <label>Status</label>
+                        <select id="filtroStatusOP" onchange="carregarOrdens()">
+                            <option value="">Todos</option>
+                            <option value="aberta">Abertas</option>
+                            <option value="em_separacao">Em Separação</option>
+                            <option value="finalizada">Finalizadas</option>
+                            <option value="cancelada">Canceladas</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div id="listaOrdens"></div>
+        </div>
+
+        <div id="tabBags" class="tab-content">
+            <div class="card" style="margin-bottom: 1rem;">
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
+                        <label>Status</label>
+                        <select id="filtroStatusBag" onchange="carregarBags()">
+                            <option value="">Todos</option>
+                            <option value="aberto">Abertos</option>
+                            <option value="cheio">Cheios</option>
+                            <option value="enviado_refinaria">Enviados</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
+                        <label>Categoria</label>
+                        <select id="filtroCategoriaBag" onchange="carregarBags()">
+                            <option value="">Todas</option>
+                            <option value="HIGH_GRADE">High Grade</option>
+                            <option value="MID_GRADE">Mid Grade</option>
+                            <option value="LOW_GRADE">Low Grade</option>
+                            <option value="RESIDUO">Resíduo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div id="listaBags"></div>
+        </div>
+
+        <div id="tabClassificacoes" class="tab-content">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+                <button class="btn btn-primary" onclick="abrirModalNovaClassificacao()">
+                    <i class="fas fa-plus"></i> Nova Classificação
+                </button>
+            </div>
+            <div id="listaClassificacoes"></div>
+        </div>
+    </main>
+
+    <div class="modal" id="modalNovaOP">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Nova Ordem de Produção</h3>
+                <span class="modal-close" onclick="fecharModal('modalNovaOP')">&times;</span>
+            </div>
+            <form id="formNovaOP" onsubmit="salvarOP(event)">
+                <div class="form-group">
+                    <label>Origem do Material</label>
+                    <select id="opOrigemTipo" onchange="atualizarOrigemOP()" required>
+                        <option value="">Selecione...</option>
+                        <option value="lote">Lote do Estoque</option>
+                        <option value="fornecedor">Fornecedor Direto</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="grupoFornecedor" style="display: none;">
+                    <label>Fornecedor(es) <small style="color: var(--gray-500);">(Ctrl+click para selecionar múltiplos)</small></label>
+                    <select id="opFornecedor" multiple size="4" style="min-height: 100px;"></select>
+                    <div id="fornecedoresSelecionados" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.25rem;"></div>
+                </div>
+                
+                <div class="form-group" id="grupoLote" style="display: none;">
+                    <label>Lote(s) <small style="color: var(--gray-500);">(Ctrl+click para selecionar múltiplos)</small></label>
+                    <select id="opLote" multiple size="4" style="min-height: 100px;" onchange="atualizarPesoLotes()"></select>
+                    <div id="lotesSelecionados" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.25rem;"></div>
+                    <small id="pesoTotalLotes" style="color: var(--primary-color); font-weight: bold; display: none;"></small>
+                </div>
+                
+                <div class="form-group" id="grupoOutro" style="display: none;">
+                    <label>Descrição da Origem</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="opOutroDescricao" placeholder="Digite a descrição e clique em Adicionar" style="flex: 1;">
+                        <button type="button" class="btn btn-secondary" onclick="adicionarOutraOrigem()">
+                            <i class="fas fa-plus"></i> Adicionar
+                        </button>
+                    </div>
+                    <div id="outrosOrigens" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.25rem;"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Tipo de Material</label>
+                    <div class="input-group-inline">
+                        <input type="text" id="opTipoMaterialInput" placeholder="Ex: Placas-mãe, Processadores">
+                        <button type="button" class="btn btn-secondary" onclick="adicionarTipoMaterial()">
+                            <i class="fas fa-plus"></i> Adicionar
+                        </button>
+                    </div>
+                    <div id="tiposMaterialSelecionados" style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.25rem;"></div>
+                    <input type="hidden" id="opTipoMaterial">
+                </div>
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <textarea id="opDescricao" rows="2" placeholder="Descrição detalhada do material"></textarea>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Peso de Entrada (kg) <span id="pesoLockInfo" style="display: none; color: var(--info-color); font-size: 0.75rem;">(Travado pelo lote)</span></label>
+                        <input type="number" id="opPesoEntrada" step="0.001" min="0" required>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Custo Total (R$) <span id="custoLockInfo" style="display: none; color: var(--info-color); font-size: 0.75rem;">(Travado pelo lote)</span></label>
+                        <input type="number" id="opCustoTotal" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Custo Unitário (R$/kg)</label>
+                        <input type="number" id="opCustoUnitario" step="0.01" min="0" readonly>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Observações</label>
+                    <textarea id="opObservacoes" rows="2"></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharModal('modalNovaOP')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Criar OP</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="modalNovaClassificacao">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="tituloModalClassificacao">Nova Classificação</h3>
+                <span class="modal-close" onclick="fecharModal('modalNovaClassificacao')">&times;</span>
+            </div>
+            <form id="formClassificacao" onsubmit="salvarClassificacao(event)">
+                <input type="hidden" id="classificacaoId">
+                <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" id="classificacaoNome" required>
+                </div>
+                <div class="form-group">
+                    <label>Categoria</label>
+                    <div class="input-group-inline">
+                        <select id="classificacaoCategoria" required>
+                            <option value="HIGH_GRADE">High Grade</option>
+                            <option value="MID_GRADE">Mid Grade</option>
+                            <option value="LOW_GRADE">Low Grade</option>
+                            <option value="RESIDUO">Resíduo</option>
+                            <option value="OUTRO">Outro</option>
+                        </select>
+                        <button type="button" class="btn btn-secondary" onclick="abrirModalNovaCategoria()" title="Adicionar nova categoria">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Código</label>
+                    <input type="text" id="classificacaoCodigo" placeholder="Código interno">
+                </div>
+                <div class="form-group">
+                    <label>Preço Estimado (R$/kg)</label>
+                    <input type="number" id="classificacaoPreco" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <textarea id="classificacaoDescricao" rows="2"></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharModal('modalNovaClassificacao')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/rbac.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script>
+        let fornecedores = [];
+        let lotesEstoque = [];
+        let classificacoes = [];
+
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+            await Promise.all([
+                carregarDashboard(),
+                carregarOrdens(),
+                carregarFornecedoresELotes(),
+                carregarClassificacoes(),
+                carregarCategorias()
+            ]);
+            await atualizarNotificacoes();
+        }
+
+        async function carregarDashboard() {
+            try {
+                const response = await fetchAPI('/producao/dashboard');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('statOpsAbertas').textContent = data.ops_abertas || 0;
+                    document.getElementById('statOpsFinalizadas').textContent = data.ops_finalizadas || 0;
+                    document.getElementById('statHighGrade').textContent = `${(data.total_high_grade_kg || 0).toFixed(2)} kg`;
+                    document.getElementById('statProntoRefinaria').textContent = `${(data.total_pronto_refinaria_kg || 0).toFixed(2)} kg`;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dashboard:', error);
+            }
+        }
+
+        async function carregarOrdens() {
+            try {
+                const status = document.getElementById('filtroStatusOP').value;
+                const url = status ? `/producao/ordens?status=${status}` : '/producao/ordens';
+                const response = await fetchAPI(url);
+                if (response.ok) {
+                    const ordens = await response.json();
+                    renderizarOrdens(ordens);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar ordens:', error);
+            }
+        }
+
+        function renderizarOrdens(ordens) {
+            const container = document.getElementById('listaOrdens');
+            if (!ordens || ordens.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align: center; color: var(--gray-500);">Nenhuma ordem de produção encontrada</div>';
+                return;
+            }
+            container.innerHTML = ordens.map(op => {
+                const tiposMaterial = (op.tipo_material || 'Material não especificado').split(', ').filter(t => t.trim());
+                const tiposHtml = tiposMaterial.length > 1 
+                    ? tiposMaterial.map(t => `<span class="badge badge-success" style="font-size: 0.7rem; margin-right: 0.25rem;">${t.trim()}</span>`).join('')
+                    : `<span style="color: var(--gray-600);">${tiposMaterial[0] || 'Material não especificado'}</span>`;
+                return `
+                <div class="card op-card ${op.status}" onclick="abrirOrdem(${op.id})" style="cursor: pointer;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 0.5rem;">
+                        <div>
+                            <h4 style="margin: 0 0 0.25rem 0; color: var(--primary-color);">${op.numero_op}</h4>
+                            <p style="margin: 0; font-size: 0.875rem; display: flex; flex-wrap: wrap; gap: 0.25rem;">
+                                ${op.observacoes && op.observacoes.startsWith('MATERIAL_MANUAL:') ? `<span class="badge badge-success" style="font-size: 0.7rem; margin-right: 0.25rem;">${op.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').trim()}</span>` : tiposHtml}
+                            </p>
+                        </div>
+                        <span class="badge ${getBadgeClass(op.status)}">${getStatusLabel(op.status)}</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem; margin-top: 1rem; font-size: 0.875rem;">
+                        <div><strong>Entrada:</strong> ${parseFloat(op.peso_entrada || 0).toFixed(2)} kg</div>
+                        <div><strong>Custo:</strong> R$ ${parseFloat(op.custo_total || 0).toFixed(2)}</div>
+                        ${op.peso_total_separado ? `<div><strong>Separado:</strong> ${parseFloat(op.peso_total_separado).toFixed(2)} kg</div>` : ''}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.5rem;">
+                        ${formatarData(op.data_abertura)}
+                    </div>
+                </div>
+            `;
+            }).join('');
+        }
+
+        async function carregarBags() {
+            try {
+                const status = document.getElementById('filtroStatusBag').value;
+                const categoria = document.getElementById('filtroCategoriaBag').value;
+                let url = '/producao/bags?';
+                if (status) url += `status=${status}&`;
+                if (categoria) url += `categoria=${categoria}`;
+                const response = await fetchAPI(url);
+                if (response.ok) {
+                    const bags = await response.json();
+                    renderizarBags(bags);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar bags:', error);
+            }
+        }
+
+        function renderizarBags(bags) {
+            const container = document.getElementById('listaBags');
+            if (!bags || bags.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align: center; color: var(--gray-500);">Nenhum bag encontrado</div>';
+                return;
+            }
+            container.innerHTML = bags.map(bag => `
+                <div class="card bag-card ${bag.status}">
+                    <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 0.5rem;">
+                        <div>
+                            <h4 style="margin: 0 0 0.25rem 0; color: var(--primary-color);">${bag.codigo}</h4>
+                            <p style="margin: 0; font-size: 0.875rem; color: var(--gray-600);">
+                                ${bag.categoria_exibicao ? getCategoriaLabel(bag.categoria_exibicao) : (bag.classificacao_nome || 'Sem classificação')}
+                                ${bag.categorias_mistas ? '<span class="badge badge-warning" style="margin-left: 0.5rem; font-size: 0.65rem;">Misto</span>' : ''}
+                            </p>
+                        </div>
+                        <span class="badge ${getBagBadgeClass(bag.status)}">${getBagStatusLabel(bag.status)}</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem; margin-top: 1rem; font-size: 0.875rem;">
+                        <div><strong>Peso:</strong> ${parseFloat(bag.peso_acumulado || 0).toFixed(2)} kg</div>
+                        <div><strong>Itens:</strong> ${bag.quantidade_itens || 0}</div>
+                    </div>
+                    ${bag.status === 'devolvido_estoque' ? `
+                        <div style="margin-top: 1rem;">
+                            <span class="badge badge-success" style="font-size: 0.8rem;">
+                                <i class="fas fa-check-circle"></i> No Estoque Ativo
+                            </span>
+                        </div>
+                    ` : ''}
+                    ${bag.status === 'cheio' ? `
+                        <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn btn-success btn-sm" onclick="event.stopPropagation(); devolverAoEstoque(${bag.id})">
+                                <i class="fas fa-warehouse"></i> Devolver ao Estoque
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function carregarClassificacoes() {
+            try {
+                const response = await fetchAPI('/producao/classificacoes');
+                if (response.ok) {
+                    classificacoes = await response.json();
+                    renderizarClassificacoes(classificacoes);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar classificações:', error);
+            }
+        }
+
+        function renderizarClassificacoes(lista) {
+            const container = document.getElementById('listaClassificacoes');
+            if (!lista || lista.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align: center; color: var(--gray-500);">Nenhuma classificação cadastrada</div>';
+                return;
+            }
+            const agrupadas = {};
+            lista.forEach(c => {
+                if (!agrupadas[c.categoria]) agrupadas[c.categoria] = [];
+                agrupadas[c.categoria].push(c);
+            });
+            let html = '';
+            Object.keys(agrupadas).sort().forEach(categoria => {
+                html += `<h3 style="margin: 1rem 0 0.5rem 0; color: var(--gray-700);">${getCategoriaLabel(categoria)}</h3>`;
+                html += agrupadas[categoria].map(c => `
+                    <div class="card" style="margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${c.nome}</strong>
+                            ${c.codigo ? `<span style="color: var(--gray-500); font-size: 0.75rem;"> (${c.codigo})</span>` : ''}
+                            ${c.preco_estimado_kg ? `<span style="margin-left: 1rem; color: var(--success-color);">R$ ${parseFloat(c.preco_estimado_kg).toFixed(2)}/kg</span>` : ''}
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-secondary btn-sm" onclick="editarClassificacao(${c.id})" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="deletarClassificacao(${c.id}, '${c.nome.replace(/'/g, "\\'")}')" title="Deletar" style="background: var(--danger-color); color: white;">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            });
+            container.innerHTML = html;
+        }
+
+        async function carregarFornecedoresELotes() {
+            try {
+                console.log('🔄 Carregando fornecedores e lotes...');
+                
+                const [respForn, respLotes] = await Promise.all([
+                    fetchAPI('/producao/fornecedores'),
+                    fetchAPI('/producao/lotes-estoque')
+                ]);
+                
+                if (respForn && respForn.ok) {
+                    const dados = await respForn.json();
+                    fornecedores = Array.isArray(dados) ? dados : [];
+                    console.log(`✅ ${fornecedores.length} fornecedores carregados`, fornecedores);
+                } else {
+                    console.error('❌ Erro ao carregar fornecedores:', respForn ? respForn.status : 'sem resposta');
+                    const erroTexto = respForn ? await respForn.text() : '';
+                    console.error('Detalhes:', erroTexto);
+                    fornecedores = [];
+                }
+                
+                if (respLotes && respLotes.ok) {
+                    const dados = await respLotes.json();
+                    lotesEstoque = Array.isArray(dados) ? dados : [];
+                    console.log(`✅ ${lotesEstoque.length} lotes carregados`, lotesEstoque);
+                } else {
+                    console.error('❌ Erro ao carregar lotes:', respLotes ? respLotes.status : 'sem resposta');
+                    const erroTexto = respLotes ? await respLotes.text() : '';
+                    console.error('Detalhes:', erroTexto);
+                    lotesEstoque = [];
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar dados:', error);
+                fornecedores = [];
+                lotesEstoque = [];
+            }
+        }
+
+        function abrirTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.querySelector(`[onclick="abrirTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.add('active');
+            if (tab === 'bags') carregarBags();
+        }
+
+        async function abrirModalNovaOP() {
+            document.getElementById('formNovaOP').reset();
+            document.getElementById('grupoFornecedor').style.display = 'none';
+            document.getElementById('grupoLote').style.display = 'none';
+            document.getElementById('grupoOutro').style.display = 'none';
+            document.getElementById('pesoLockInfo').style.display = 'none';
+            document.getElementById('pesoTotalLotes').style.display = 'none';
+            document.getElementById('lotesSelecionados').innerHTML = '';
+            document.getElementById('fornecedoresSelecionados').innerHTML = '';
+            document.getElementById('outrosOrigens').innerHTML = '';
+            document.getElementById('tiposMaterialSelecionados').innerHTML = '';
+            document.getElementById('opPesoEntrada').readOnly = false;
+            
+            outrosOrigensLista = [];
+            tiposMaterialLista = [];
+            
+            await carregarFornecedoresELotes();
+            
+            // Popular select de fornecedores
+            const selectFornecedor = document.getElementById('opFornecedor');
+            if (!selectFornecedor) {
+                console.error('❌ Select de fornecedor não encontrado no DOM');
+            } else if (fornecedores && fornecedores.length > 0) {
+                const opcoes = fornecedores.map(f => {
+                    const nome = f.nome || 'Sem nome';
+                    const doc = f.documento || '';
+                    return `<option value="${f.id}">${nome} ${doc ? '(' + doc + ')' : ''}</option>`;
+                }).join('');
+                selectFornecedor.innerHTML = '<option value="">Selecione...</option>' + opcoes;
+                console.log(`✅ Select de fornecedor populado com ${fornecedores.length} opções`);
+            } else {
+                selectFornecedor.innerHTML = '<option value="">Nenhum fornecedor disponível</option>';
+                console.warn('⚠️ Nenhum fornecedor disponível');
+            }
+            
+            // Popular select de lotes
+            const selectLote = document.getElementById('opLote');
+            if (!selectLote) {
+                console.error('❌ Select de lote não encontrado no DOM');
+            } else if (lotesEstoque && lotesEstoque.length > 0) {
+                // Separar lotes principais e sublotes
+                const lotesPrincipais = lotesEstoque.filter(l => !l.is_sublote);
+                const sublotes = lotesEstoque.filter(l => l.is_sublote);
+                
+                // Criar mapa de sublotes por lote pai
+                const sublotesPorPai = {};
+                sublotes.forEach(s => {
+                    if (!sublotesPorPai[s.lote_pai_id]) {
+                        sublotesPorPai[s.lote_pai_id] = [];
+                    }
+                    sublotesPorPai[s.lote_pai_id].push(s);
+                });
+                
+                let opcoes = '';
+                
+                // Primeiro adicionar lotes principais com seus sublotes abaixo
+                lotesPrincipais.forEach(l => {
+                    const numero = l.numero_lote || 'S/N';
+                    const tipo = l.observacoes && l.observacoes.startsWith('MATERIAL_MANUAL:') ? l.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').trim() : (l.tipo_lote_nome || 'N/A');
+                    const peso = parseFloat(l.peso_liquido || 0).toFixed(2);
+                    opcoes += `<option value="${l.id}">${numero} - ${tipo} (${peso} kg)</option>`;
+                    
+                    // Adicionar sublotes deste lote pai
+                    if (sublotesPorPai[l.id]) {
+                        sublotesPorPai[l.id].forEach(s => {
+                            const sNumero = s.numero_lote || 'S/N';
+                            const sTipo = s.observacoes && s.observacoes.startsWith('MATERIAL_MANUAL:') ? s.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').trim() : (s.tipo_lote_nome || 'N/A');
+                            const sPeso = parseFloat(s.peso_liquido || 0).toFixed(2);
+                            opcoes += `<option value="${s.id}">  ↳ ${sNumero} - ${sTipo} (${sPeso} kg)</option>`;
+                        });
+                    }
+                });
+                
+                // Adicionar sublotes órfãos (cujo lote pai não está na lista)
+                sublotes.forEach(s => {
+                    const paiNaLista = lotesPrincipais.some(l => l.id === s.lote_pai_id);
+                    if (!paiNaLista) {
+                        const sNumero = s.numero_lote || 'S/N';
+                        const sTipo = s.observacoes && s.observacoes.startsWith('MATERIAL_MANUAL:') ? s.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').trim() : (s.tipo_lote_nome || 'N/A');
+                        const sPeso = parseFloat(s.peso_liquido || 0).toFixed(2);
+                        opcoes += `<option value="${s.id}">↳ ${sNumero} - ${sTipo} (${sPeso} kg)</option>`;
+                    }
+                });
+                
+                selectLote.innerHTML = '<option value="">Selecione...</option>' + opcoes;
+                console.log(`✅ Select de lote populado com ${lotesEstoque.length} opções`);
+            } else {
+                selectLote.innerHTML = '<option value="">Nenhum lote disponível</option>';
+                console.warn('⚠️ Nenhum lote disponível');
+            }
+            
+            document.getElementById('modalNovaOP').style.display = 'flex';
+        }
+
+        let outrosOrigensLista = [];
+        let tiposMaterialLista = [];
+        
+        function adicionarTipoMaterial() {
+            const input = document.getElementById('opTipoMaterialInput');
+            const tipo = input.value.trim();
+            
+            if (!tipo) {
+                showAlert('Digite um tipo de material', 'error');
+                return;
+            }
+            
+            if (!tiposMaterialLista.includes(tipo)) {
+                tiposMaterialLista.push(tipo);
+                renderizarTiposMaterial();
+            }
+            
+            input.value = '';
+        }
+        
+        function removerTipoMaterial(index) {
+            tiposMaterialLista.splice(index, 1);
+            renderizarTiposMaterial();
+        }
+        
+        function renderizarTiposMaterial() {
+            const container = document.getElementById('tiposMaterialSelecionados');
+            container.innerHTML = tiposMaterialLista.map((tipo, idx) => 
+                `<span class="badge badge-success" style="display: flex; align-items: center; gap: 0.25rem;">
+                    ${tipo}
+                    <button type="button" onclick="removerTipoMaterial(${idx})" style="background: none; border: none; cursor: pointer; padding: 0; color: inherit;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </span>`
+            ).join('');
+            
+            document.getElementById('opTipoMaterial').value = tiposMaterialLista.join(', ');
+        }
+        
+        function atualizarOrigemOP() {
+            const tipo = document.getElementById('opOrigemTipo').value;
+            document.getElementById('grupoFornecedor').style.display = tipo === 'fornecedor' ? 'block' : 'none';
+            document.getElementById('grupoLote').style.display = tipo === 'lote' ? 'block' : 'none';
+            document.getElementById('grupoOutro').style.display = tipo === 'outro' ? 'block' : 'none';
+            
+            const pesoInput = document.getElementById('opPesoEntrada');
+            const pesoLockInfo = document.getElementById('pesoLockInfo');
+            const custoInput = document.getElementById('opCustoTotal');
+            const custoLockInfo = document.getElementById('custoLockInfo');
+            
+            if (tipo === 'lote') {
+                atualizarPesoLotes();
+            } else {
+                pesoInput.readOnly = false;
+                pesoLockInfo.style.display = 'none';
+                custoInput.readOnly = false;
+                custoLockInfo.style.display = 'none';
+            }
+        }
+        
+        function atualizarPesoLotes() {
+            const selectLote = document.getElementById('opLote');
+            const selectedOptions = Array.from(selectLote.selectedOptions);
+            const pesoInput = document.getElementById('opPesoEntrada');
+            const pesoLockInfo = document.getElementById('pesoLockInfo');
+            const custoInput = document.getElementById('opCustoTotal');
+            const custoLockInfo = document.getElementById('custoLockInfo');
+            const pesoTotalInfo = document.getElementById('pesoTotalLotes');
+            const lotesSelecionadosDiv = document.getElementById('lotesSelecionados');
+            
+            if (selectedOptions.length > 0) {
+                let pesoTotal = 0;
+                let custoTotal = 0;
+                let badges = [];
+                
+                selectedOptions.forEach(opt => {
+                    const loteId = parseInt(opt.value);
+                    const lote = lotesEstoque.find(l => l.id === loteId);
+                    if (lote) {
+                        const pesoLote = parseFloat(lote.peso_liquido || 0);
+                        const custoLote = parseFloat(lote.valor_total || 0);
+                        pesoTotal += pesoLote;
+                        custoTotal += custoLote;
+                        badges.push(`<span class="badge badge-info">${lote.numero_lote || 'S/N'} (${pesoLote.toFixed(2)} kg - R$ ${custoLote.toFixed(2)})</span>`);
+                    }
+                });
+                
+                pesoInput.value = pesoTotal.toFixed(3);
+                pesoInput.readOnly = true;
+                pesoLockInfo.style.display = 'inline';
+                
+                custoInput.value = custoTotal.toFixed(2);
+                custoInput.readOnly = true;
+                custoLockInfo.style.display = 'inline';
+                
+                pesoTotalInfo.textContent = `Peso total: ${pesoTotal.toFixed(2)} kg | Custo total: R$ ${custoTotal.toFixed(2)}`;
+                pesoTotalInfo.style.display = 'block';
+                lotesSelecionadosDiv.innerHTML = badges.join('');
+                
+                calcularCustoUnitario();
+            } else {
+                pesoInput.readOnly = false;
+                pesoLockInfo.style.display = 'none';
+                custoInput.readOnly = false;
+                custoLockInfo.style.display = 'none';
+                pesoTotalInfo.style.display = 'none';
+                lotesSelecionadosDiv.innerHTML = '';
+            }
+        }
+        
+        function adicionarOutraOrigem() {
+            const input = document.getElementById('opOutroDescricao');
+            const descricao = input.value.trim();
+            
+            if (!descricao) {
+                showAlert('Digite uma descrição para a origem', 'error');
+                return;
+            }
+            
+            if (!outrosOrigensLista.includes(descricao)) {
+                outrosOrigensLista.push(descricao);
+                renderizarOutrosOrigens();
+            }
+            
+            input.value = '';
+        }
+        
+        function removerOutraOrigem(index) {
+            outrosOrigensLista.splice(index, 1);
+            renderizarOutrosOrigens();
+        }
+        
+        function renderizarOutrosOrigens() {
+            const container = document.getElementById('outrosOrigens');
+            container.innerHTML = outrosOrigensLista.map((desc, idx) => 
+                `<span class="badge badge-info" style="display: flex; align-items: center; gap: 0.25rem;">
+                    ${desc}
+                    <button type="button" onclick="removerOutraOrigem(${idx})" style="background: none; border: none; cursor: pointer; padding: 0; color: inherit;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </span>`
+            ).join('');
+        }
+
+        document.getElementById('opPesoEntrada').addEventListener('input', calcularCustoUnitario);
+        document.getElementById('opCustoTotal').addEventListener('input', calcularCustoUnitario);
+
+        function calcularCustoUnitario() {
+            const peso = parseFloat(document.getElementById('opPesoEntrada').value) || 0;
+            const custo = parseFloat(document.getElementById('opCustoTotal').value) || 0;
+            const unitario = peso > 0 ? custo / peso : 0;
+            document.getElementById('opCustoUnitario').value = unitario.toFixed(2);
+        }
+
+        async function salvarOP(event) {
+            event.preventDefault();
+            try {
+                const origemTipo = document.getElementById('opOrigemTipo').value;
+                const selectFornecedor = document.getElementById('opFornecedor');
+                const selectLote = document.getElementById('opLote');
+                const tipoMaterial = tiposMaterialLista.join(', ');
+                const pesoEntrada = parseFloat(document.getElementById('opPesoEntrada').value) || 0;
+                const custoTotal = parseFloat(document.getElementById('opCustoTotal').value) || 0;
+                
+                const fornecedoresIds = Array.from(selectFornecedor.selectedOptions).map(opt => parseInt(opt.value));
+                const lotesIds = Array.from(selectLote.selectedOptions).map(opt => parseInt(opt.value));
+
+                if (!origemTipo) {
+                    showAlert('Selecione a origem do material', 'error');
+                    return;
+                }
+
+                if (origemTipo === 'fornecedor' && fornecedoresIds.length === 0) {
+                    showAlert('Selecione pelo menos um fornecedor', 'error');
+                    return;
+                }
+
+                if (origemTipo === 'lote' && lotesIds.length === 0) {
+                    showAlert('Selecione pelo menos um lote do estoque', 'error');
+                    return;
+                }
+                
+                if (origemTipo === 'outro' && outrosOrigensLista.length === 0) {
+                    showAlert('Adicione pelo menos uma origem', 'error');
+                    return;
+                }
+
+                if (tiposMaterialLista.length === 0) {
+                    showAlert('Adicione pelo menos um tipo de material', 'error');
+                    return;
+                }
+
+                if (pesoEntrada <= 0) {
+                    showAlert('Peso de entrada deve ser maior que zero', 'error');
+                    return;
+                }
+
+                if (custoTotal < 0) {
+                    showAlert('Custo total não pode ser negativo', 'error');
+                    return;
+                }
+
+                const dados = {
+                    origem_tipo: origemTipo === 'lote' ? 'estoque' : origemTipo,
+                    fornecedor_id: fornecedoresIds.length > 0 ? fornecedoresIds[0] : null,
+                    lote_origem_id: lotesIds.length > 0 ? lotesIds[0] : null,
+                    lotes_ids: lotesIds,
+                    fornecedores_ids: fornecedoresIds,
+                    outros_origens: outrosOrigensLista,
+                    tipo_material: tipoMaterial,
+                    descricao_material: document.getElementById('opDescricao').value,
+                    peso_entrada: pesoEntrada,
+                    custo_total: custoTotal,
+                    custo_unitario: parseFloat(document.getElementById('opCustoUnitario').value) || 0,
+                    observacoes: document.getElementById('opObservacoes').value
+                };
+
+                console.log('Enviando dados da OP:', dados);
+
+                const response = await fetchAPI('/producao/ordens', {
+                    method: 'POST',
+                    body: JSON.stringify(dados)
+                });
+                
+                if (response.ok) {
+                    const ordem = await response.json();
+                    showAlert('Ordem de Produção criada com sucesso!', 'success');
+                    fecharModal('modalNovaOP');
+                    carregarOrdens();
+                    carregarDashboard();
+                    abrirOrdem(ordem.id);
+                } else {
+                    const erro = await response.json();
+                    console.error('Erro na resposta:', erro);
+                    showAlert(erro.erro || 'Erro ao criar OP', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar OP:', error);
+                showAlert('Erro ao criar ordem de produção: ' + error.message, 'error');
+            }
+        }
+
+        function abrirOrdem(id) {
+            window.location.href = `/api/producao/ordem/${id}`;
+        }
+
+        function abrirModalNovaClassificacao() {
+            document.getElementById('formClassificacao').reset();
+            document.getElementById('classificacaoId').value = '';
+            document.getElementById('tituloModalClassificacao').textContent = 'Nova Classificação';
+            document.getElementById('modalNovaClassificacao').style.display = 'flex';
+        }
+
+        function editarClassificacao(id) {
+            const c = classificacoes.find(x => x.id === id);
+            if (!c) return;
+            document.getElementById('classificacaoId').value = c.id;
+            document.getElementById('classificacaoNome').value = c.nome;
+            document.getElementById('classificacaoCategoria').value = c.categoria;
+            document.getElementById('classificacaoCodigo').value = c.codigo || '';
+            document.getElementById('classificacaoPreco').value = c.preco_estimado_kg || '';
+            document.getElementById('classificacaoDescricao').value = c.descricao || '';
+            document.getElementById('tituloModalClassificacao').textContent = 'Editar Classificação';
+            document.getElementById('modalNovaClassificacao').style.display = 'flex';
+        }
+
+        async function salvarClassificacao(event) {
+            event.preventDefault();
+            try {
+                const id = document.getElementById('classificacaoId').value;
+                const dados = {
+                    nome: document.getElementById('classificacaoNome').value,
+                    categoria: document.getElementById('classificacaoCategoria').value,
+                    codigo: document.getElementById('classificacaoCodigo').value,
+                    preco_estimado_kg: parseFloat(document.getElementById('classificacaoPreco').value) || 0,
+                    descricao: document.getElementById('classificacaoDescricao').value
+                };
+                const url = id ? `/producao/classificacoes/${id}` : '/producao/classificacoes';
+                const method = id ? 'PUT' : 'POST';
+                const response = await fetchAPI(url, { method, body: JSON.stringify(dados) });
+                if (response.ok) {
+                    showAlert('Classificação salva com sucesso!', 'success');
+                    fecharModal('modalNovaClassificacao');
+                    carregarClassificacoes();
+                    carregarCategorias();
+                } else {
+                    const erro = await response.json();
+                    showAlert(erro.erro || 'Erro ao salvar', 'error');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert('Erro ao salvar classificação', 'error');
+            }
+        }
+
+        async function deletarClassificacao(id, nome) {
+            if (!confirm(`Tem certeza que deseja deletar a classificação "${nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
+            try {
+                const response = await fetchAPI(`/producao/classificacoes/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    showAlert('Classificação deletada com sucesso!', 'success');
+                    carregarClassificacoes();
+                } else {
+                    const erro = await response.json();
+                    showAlert(erro.erro || 'Erro ao deletar', 'error');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert('Erro ao deletar classificação', 'error');
+            }
+        }
+
+        async function carregarCategorias() {
+            try {
+                const response = await fetchAPI('/producao/categorias');
+                if (response.ok) {
+                    const categorias = await response.json();
+                    const select = document.getElementById('classificacaoCategoria');
+                    const valorAtual = select.value;
+                    select.innerHTML = categorias.map(cat => 
+                        `<option value="${cat}">${getCategoriaLabel(cat)}</option>`
+                    ).join('');
+                    if (valorAtual && categorias.includes(valorAtual)) {
+                        select.value = valorAtual;
+                    }
+                    const selectFiltro = document.getElementById('filtroCategoriaBag');
+                    if (selectFiltro) {
+                        selectFiltro.innerHTML = '<option value="">Todas</option>' + 
+                            categorias.map(cat => `<option value="${cat}">${getCategoriaLabel(cat)}</option>`).join('');
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao carregar categorias:', error);
+            }
+        }
+
+        function abrirModalNovaCategoria() {
+            const nome = prompt('Digite o nome da nova categoria:');
+            if (!nome || !nome.trim()) return;
+            
+            const nomeFormatado = nome.trim().toUpperCase().replace(/\s+/g, '_');
+            const select = document.getElementById('classificacaoCategoria');
+            
+            const opcaoExistente = Array.from(select.options).find(opt => opt.value === nomeFormatado);
+            if (opcaoExistente) {
+                select.value = nomeFormatado;
+                showAlert('Esta categoria já existe. Selecionada automaticamente.', 'info');
+                return;
+            }
+            
+            const novaOpcao = document.createElement('option');
+            novaOpcao.value = nomeFormatado;
+            novaOpcao.textContent = getCategoriaLabel(nomeFormatado);
+            select.appendChild(novaOpcao);
+            select.value = nomeFormatado;
+            
+            showAlert(`Categoria "${getCategoriaLabel(nomeFormatado)}" adicionada!`, 'success');
+        }
+
+        async function enviarParaRefinaria(bagId) {
+            if (!confirm('Confirma envio deste bag para refinaria?')) return;
+            try {
+                const response = await fetchAPI(`/producao/bags/${bagId}/enviar-refinaria`, { method: 'POST' });
+                if (response.ok) {
+                    showAlert('Bag enviado para refinaria!', 'success');
+                    carregarBags();
+                    carregarDashboard();
+                } else {
+                    const erro = await response.json();
+                    showAlert(erro.erro || 'Erro ao enviar', 'error');
+                }
+            } catch (error) {
+                showAlert('Erro ao enviar bag', 'error');
+            }
+        }
+
+        async function devolverAoEstoque(bagId) {
+            if (!confirm('Confirma devolução deste bag ao estoque ativo?')) return;
+            try {
+                const response = await fetchAPI(`/producao/bags/${bagId}/devolver-estoque`, { method: 'POST' });
+                if (response.ok) {
+                    showAlert('Bag devolvido ao estoque!', 'success');
+                    carregarBags();
+                    carregarDashboard();
+                } else {
+                    const erro = await response.json();
+                    showAlert(erro.erro || 'Erro ao devolver', 'error');
+                }
+            } catch (error) {
+                showAlert('Erro ao devolver bag ao estoque', 'error');
+            }
+        }
+
+        function fecharModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function getBadgeClass(status) {
+            const classes = { aberta: 'badge-warning', em_separacao: 'badge-info', finalizada: 'badge-success', cancelada: 'badge-danger' };
+            return classes[status] || 'badge-info';
+        }
+
+        function getStatusLabel(status) {
+            const labels = { aberta: 'Aberta', em_separacao: 'Em Separação', finalizada: 'Finalizada', cancelada: 'Cancelada' };
+            return labels[status] || status;
+        }
+
+        function getBagBadgeClass(status) {
+            const classes = { aberto: 'badge-success', cheio: 'badge-warning', enviado_refinaria: 'badge-info', devolvido_estoque: 'badge-success' };
+            return classes[status] || 'badge-info';
+        }
+
+        function getBagStatusLabel(status) {
+            const labels = { aberto: 'Aberto', cheio: 'Cheio', enviado_refinaria: 'Enviado', devolvido_estoque: 'No Estoque' };
+            return labels[status] || status;
+        }
+
+        function getCategoriaLabel(cat) {
+            const labels = { HIGH_GRADE: 'High Grade', MID_GRADE: 'Mid Grade', LOW_GRADE: 'Low Grade', RESIDUO: 'Resíduo', OUTRO: 'Outro' };
+            if (labels[cat]) return labels[cat];
+            return cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function formatarData(data) {
+            if (!data) return '';
+            return new Date(data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        carregarPagina();
+    </script>
+</body>
+</html>

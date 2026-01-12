@@ -1,0 +1,178 @@
+implementar um módulo completo de solicitação, aprovação e entrada de lotes integrado ao sistema existente de fornecedores e tipos de lote.
+cada fornecedor tem seus próprios tipos de lote e, para cada tipo, há uma configuração de estrelas (1 a 5) para as classificações leve, médio e pesado.
+as estrelas representam o valor relativo pago por kg e são usadas para calcular automaticamente o valor total na solicitação de compra.
+
+resultado desejado:
+
+o fluxo deve funcionar assim:
+
+o usuário acessa a tela "solicitação de compra de lote".
+
+escolhe o fornecedor (empresa).
+
+o sistema lista apenas os tipos de lote vinculados a esse fornecedor (com base na tabela fornecedor_tipos_lote).
+
+o usuário seleciona o tipo de lote e faz upload de uma foto do lote.
+
+a IA analisa a imagem e sugere automaticamente se o lote é leve, médio ou pesado.
+
+o usuário pode editar manualmente a classificação sugerida.
+
+o usuário informa o peso em kg.
+
+o sistema busca a quantidade de estrelas configurada para aquela classificação e tipo de lote do fornecedor.
+
+o sistema calcula automaticamente o valor total da compra com base na quantidade de estrelas e no peso informado.
+
+o usuário confirma e envia a solicitação.
+
+a solicitação fica com status "aguardando aprovação".
+
+um usuário com permissão de aprovação pode aprovar ou rejeitar a solicitação.
+
+quando aprovada, ela aparece na tela "lotes aprovados".
+
+quando o lote é efetivamente recebido, o usuário marca como "recebido", e o sistema move o registro para a tela "entradas".
+
+ao chegar na tela de entradas, o lote é considerado uma compra concluída e deve atualizar o balanço geral de compras.
+
+estrutura de dados:
+
+tabela fornecedores:
+
+id
+
+nome
+
+cnpj
+
+email
+
+telefone
+
+tabela tipos_lote:
+
+id
+
+nome
+
+descricao
+
+tabela fornecedor_tipos_lote:
+
+id
+
+fornecedor_id (foreign key para fornecedores)
+
+tipo_lote_id (foreign key para tipos_lote)
+
+leve_estrelas (1 a 5)
+
+medio_estrelas (1 a 5)
+
+pesado_estrelas (1 a 5)
+
+essa tabela define a relação entre o fornecedor e os tipos de lote que ele vende, incluindo quantas estrelas cada classificação possui.
+o relacionamento fornecedor_id + tipo_lote_id deve ser único.
+
+tabela solicitacoes_compra_lote:
+
+id
+
+fornecedor_id
+
+tipo_lote_id
+
+classificacao (leve, medio, pesado)
+
+peso_kg (decimal)
+
+valor_unitario (decimal)
+
+valor_total (decimal)
+
+imagem_url
+
+status (aguardando_aprovacao, aprovado, rejeitado, recebido)
+
+data_solicitacao
+
+data_aprovacao
+
+usuario_id
+
+tabela entradas_lote:
+
+id
+
+solicitacao_id (foreign key para solicitacoes_compra_lote)
+
+fornecedor_id
+
+tipo_lote_id
+
+peso_kg
+
+valor_total
+
+data_entrada
+
+regras de negócio e cálculos:
+
+as estrelas definem o valor relativo pago por kg para cada classificação.
+
+o sistema deve possuir um valor base configurável por estrela (exemplo: 1 estrela = 1.00 real, 2 estrelas = 2.00 reais, etc).
+
+quando o usuário informa o peso e a classificação, o sistema busca na tabela fornecedor_tipos_lote a quantidade de estrelas configurada e calcula:
+
+valor_unitario = valor_base_por_estrela * numero_de_estrelas
+valor_total = valor_unitario * peso_kg
+
+
+se o valor base não estiver definido, o sistema deve permitir definir um padrão no código ou painel de configuração.
+
+o status muda automaticamente conforme o fluxo:
+
+ao criar: "aguardando_aprovacao"
+
+ao aprovar: "aprovado"
+
+ao receber: "recebido" (e o registro vai para a tabela entradas_lote)
+
+lógica de uso das estrelas com fornecedor e tipo de lote:
+
+cada fornecedor pode ter vários tipos de lote.
+
+cada tipo de lote tem três classificações (leve, médio, pesado).
+
+para cada uma dessas classificações, há uma quantidade de estrelas específica do fornecedor.
+
+exemplo: fornecedor 1, tipo de lote 10 → leve=2, médio=3, pesado=5.
+
+se o lote for classificado como médio, o sistema usa 3 estrelas no cálculo.
+
+isso garante que o mesmo tipo de lote possa ter valores diferentes em fornecedores diferentes.
+
+funcionalidades necessárias:
+
+na tela de solicitação: seleção de fornecedor, tipo de lote, upload de imagem, campo de peso, campo de classificação sugerida (editável), campo de valor calculado e botão para enviar solicitação.
+
+IA para sugerir classificação (leve, médio, pesado) analisando a imagem.
+
+painel de aprovação de solicitações com opção de aprovar ou rejeitar.
+
+tela de lotes aprovados listando todos os registros aprovados, aguardando entrada.
+
+tela de entradas para registrar quando o lote é recebido e atualizar o balanço de compras.
+
+cálculo automático com base nas estrelas configuradas para aquele fornecedor.
+
+resumo da ligação lógica:
+
+fornecedor → fornecedor_tipos_lote → tipos_lote → solicitacao_compra_lote → entrada_lote
+
+fornecedor define quais tipos de lote vende e quantas estrelas cada classificação tem.
+
+solicitação de compra usa essa configuração para calcular o valor com base nas estrelas.
+
+ao receber o lote, ele é registrado em entradas e atualiza o balanço.

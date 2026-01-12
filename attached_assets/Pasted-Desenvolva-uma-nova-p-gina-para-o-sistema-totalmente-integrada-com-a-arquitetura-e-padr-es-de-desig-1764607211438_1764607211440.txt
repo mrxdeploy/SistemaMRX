@@ -1,0 +1,56 @@
+Desenvolva uma nova página para o sistema, totalmente integrada com a arquitetura e padrões de design atuais. O objetivo é criar um módulo de “Planejamento de Conquistas Futuras”, trazendo as seguintes funcionalidades:
+
+Funcionalidades Principais
+Cadastro de conquistas/metas financeiras futuras (ex: comprar casa, fazer viagem, montar reserva).
+
+Campo para o usuário inserir o valor total estimado/necessário para realizar cada conquista.
+
+Campo para aporte/investimento mensal e opção para editar valores previstos mensalmente.
+
+Campo/Seleção de prazo estimado para alcance da meta (em meses ou anos).
+
+Cards individuais para cada conquista cadastrada, exibindo progresso, dados principais e opções para edição/remoção.
+
+Análise automática do progresso de cada meta, considerando valor já investido, valor mensal e prazo.
+
+Recomendações inteligentes com base no perfil e nas metas: sugerir ajustes de valor, prazo ou tipo de investimento.
+
+Gráficos intuitivos para visualização do progresso, separando valores já investidos, previsão de aporte, e projeção de alcance da meta.
+
+Integração com APIs de investimentos (para cotação de ativos, simulações, atualização automática de patrimônio).
+
+Layout responsivo, acessível, com UX/UI moderna e de fácil navegação, para desktop e mobile.
+
+Requisitos de Integração e UI/UX
+A nova página deve estar totalmente integrada ao sistema (front-end/back-end), mantendo consistência visual e técnica.
+
+Seguir padrões de responsividade, acessibilidade e simplicidade, garantindo experiência fluida para todos os perfis de usuários.
+
+Utilizar componentes reutilizáveis já existentes quando possível, e documentar qualquer novo componente criado.
+
+Os cards de conquistas e gráficos devem ser atualizados em tempo real sempre que o usuário inserir/editar dados.
+
+Permitir fácil navegação entre as conquistas, listando e filtrando conforme preferências do usuário.
+
+Exemplos de Gráficos e Recomendações
+Gráfico de barras ou linha mostrando projeção de crescimento dos aportes.
+
+Radar de metas realizadas vs. planejadas.
+
+Recomendação de aumento de aporte, extensão do prazo ou diversificação em diferentes produtos de investimento.
+
+Integração e APIs
+Use endpoints REST já existentes para cadastro, edição e consulta de metas.
+
+Para integração com APIs externas de investimento, crie serviços desacoplados para cotação e simulação.
+
+Garanta documentação de rotas, payloads de entrada/saída e exemplos práticos de integração.
+
+Outros Detalhes
+Escrever código limpo, modular e comentado.
+
+Inclua testes unitários e de integração para as principais funcionalidades.
+
+Entregar documentação breve (Readme.md ou similar) para onboarding de outros devs.
+
+Instruções para o Agente: Implemente a página usando as melhores práticas de integração, priorizando modularidade, responsividade, facilidade de uso e clareza visual. Foque na escalabilidade futura para facilitar a adição de novos tipos de meta e integrações complementares.

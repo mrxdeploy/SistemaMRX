@@ -1,0 +1,180 @@
+# **Objetivo**
+
+## Gerenciar a produção e separação de materiais provenientes de fornecedores ou retirados do estoque, classificando-os automaticamente em High Grade / Mid Grade / Low Grade etc., com geração de bags e controle de estoque.
+
+---
+
+## 🧩 **Tarefas Principais**
+
+---
+
+## 
+
+- [ ]  Criar módulo “Produção” separado do módulo “Separação”
+- [ ]  Implementar Ordens de Produção (OP) com número único
+- [ ]  Permitir entrada de material por fornecedor ou estoque
+- [ ]  Registrar peso, quantidade e custo
+- [ ]  Criar interface de separação de componentes
+- [ ]  Registrar peso e quantidade de cada item separado
+- [ ]  Classificar automaticamente os itens em High / Mid / Low Grade
+- [ ]  Criar Bags com peso acumulado por categoria
+- [ ]  Calcular custo, perda e lucro por OP
+- [ ]  Criar painel de acompanhamento
+- [ ]  Gerar relatórios para envio à refinaria
+- [ ]  Permitir criação de novos nomes de grade quando necessário
+
+# ✅ **CHECKLIST – MÓDULO DE PRODUÇÃO**
+
+---
+
+## 🔷 **1. Criar estrutura principal do Módulo de Produção**
+
+- [ ]  Criar menu "Produção" separado do módulo de Separação
+- [ ]  Permitir iniciar produção com:
+    - [ ]  Material entregue por fornecedor
+    - [ ]  Material retirado do estoque
+- [ ]  Criar tela de **Ordem de Produção (OP)** com número único
+- [ ]  Permitir selecionar o tipo de material a ser processado (ex.: celulares, placas, processadores etc.)
+
+---
+
+## 🔷 **2. Entrada dos materiais na Produção**
+
+- [ ]  Registrar quantidade, peso e lote do material recebido
+- [ ]  Registrar origem:
+    - [ ]  Fornecedor
+    - [ ]  Estoque interno
+- [ ]  Registrar custo total e custo unitário do lote
+- [ ]  Registrar data de entrada e responsável
+
+---
+
+## 🔷 **3. Processo de Separação dentro da Produção**
+
+- [ ]  Criar interface de separação dos componentes
+- [ ]  Permitir registrar peso individual de cada item separado
+- [ ]  Permitir registrar quantidade por item (peças + peso)
+- [ ]  Separação deve gerar automaticamente novos produtos no estoque:
+    - [ ]  Carcaça
+    - [ ]  Bateria
+    - [ ]  Display
+    - [ ]  Placa (A, B, C…)
+    - [ ]  Resíduos
+    - [ ]  High Grade / Low Grade etc.
+
+---
+
+## 🔷 **4. Classificação automática dos itens finais**
+
+- [ ]  Criar tabela oficial com todos os nomes HIGH GRADE válidos (lista enviada)
+- [ ]  Vincular automaticamente cada item separado à sua classificação correta
+- [ ]  Se o nome NÃO existir, criar regra:
+    - [ ]  Mostrar alerta ao usuário
+    - [ ]  Perguntar ao administrador se deseja criar novo nome
+    - [ ]  Registrar “Nome Teste” (ex.: HIGH GRADE TESTE)
+- [ ]  Itens classificados entram automaticamente em seus bags próprios no estoque
+
+---
+
+## 🔷 **5. Controle de Bags e Estoque**
+
+- [ ]  Cada item separado deve gerar entrada automática no estoque
+- [ ]  Criar estrutura de "Bags" com:
+    - [ ]  Nome da classificação (ex.: HIGH GRADE)
+    - [ ]  Peso acumulado
+    - [ ]  Quantidade acumulada
+    - [ ]  Lote de origem
+- [ ]  Permitir visualizar quanto há disponível por categoria para envio à refinaria
+- [ ]  Criar relatório “Pronto para Refinaria” mostrando somente materiais High Grade
+
+---
+
+## 🔷 **6. Cálculo Financeiro da Produção**
+
+- [ ]  Registrar custo do lote original
+- [ ]  Distribuir porcentualmente o custo por peso dos itens separados
+- [ ]  Calcular:
+    - [ ]  Custo individual de cada item separado
+    - [ ]  Valor final estimado (com base nas tabelas internas)
+    - [ ]  Ganho ou prejuízo por OP
+- [ ]  Criar painel financeiro da produção
+
+---
+
+## 🔷 **7. Finalização da Ordem de Produção**
+
+- [ ]  Encerrar OP apenas quando todos os itens separados forem registrados
+- [ ]  Registrar peso total separado x peso de entrada
+- [ ]  Registrar perdas e resíduos
+- [ ]  Gerar relatório completo da produção contendo:
+    - [ ]  Itens gerados
+    - [ ]  Pesos
+    - [ ]  Valores
+    - [ ]  Bags atualizados
+    - [ ]  Lucro/prejuízo
+
+---
+
+## 🔷 **8. Painel de Acompanhamento da Produção**
+
+- [ ]  Criar tabela com todas as OPs abertas e finalizadas
+- [ ]  Filtros por:
+    - [ ]  Data
+    - [ ]  Tipo de material processado
+    - [ ]  Responsável
+    - [ ]  Quantidade gerada por categoria
+- [ ]  Dashboard mostrando:
+    - [ ]  Total de High Grade produzido
+    - [ ]  Total disponível para refinaria
+    - [ ]  Ganho médio por produção
+
+---
+
+## 🔷 **9. Integração com Estoque Geral**
+
+- [ ]  Itens separados devem entrar automaticamente nos estoques corretos
+- [ ]  Itens consumidos devem sair automaticamente do estoque
+- [ ]  Criar rastreabilidade completa do item:
+    - [ ]  Entrada → Separação → Bag → Envio para Refinaria
+
+---
+
+## 🔷 **10. Itens HIGH GRADE – Importação da lista oficial**
+
+- [ ]  Registrar todos os itens da lista fornecida:
+    - SUCATA PROCESSADOR CERÂMICO A
+    - SUCATA PROCESSADOR CERÂMICO B
+    - SUCATA PROCESSADOR CERÂMICO C
+    - SUCATA PROCESSADOR SLOT
+    - SUCATA PROCESSADOR PLÁSTICO A
+    - SUCATA PROCESSADOR PLÁSTICO B
+    - SUCATA PROCESSADOR CHAPA A
+    - SUCATA PROCESSADOR CHAPA B
+    - SUCATA MEMÓRIA DOURADA
+    - SUCATA MEMÓRIA PRATA
+    - SUCATA PLACA DOURADA A
+    - SUCATA PLACA DOURADA B
+    - SUCATA PLACA CENTRAL A
+    - SUCATA PLACA CENTRAL B
+    - SUCATA PLACA CENTRAL S
+    - SUCATA PLACA TAPETE A
+    - SUCATA PLACA TAPETE B
+    - SUCATA PLACA TAPETE C
+    - SUCATA PLACA HD
+    - SUCATA PLACA DE CELULAR
+    - SUCATA APARELHO CELULAR A
+    - SUCATA PLACA NOTEBOOK A
+    - SUCATA PLACA NOTEBOOK B
+    - SUCATA PLACA TABLET
+    - SUCATA PLACA DRIVE
+    - SUCATA METAL PRECIOSO
+    - SUCATA PLACA LEVE A
+- [ ]  Criar possibilidade do administrador adicionar novos nomes para testes
+
+---
+
+## 🔷 **11. Exportações e Relatórios**
+
+- [ ]  Exportar OP para PDF
+- [ ]  Exportar inventário de High Grade para Excel
+- [ ]  Criar relatório “Materiais prontos para Refinaria”

@@ -1,0 +1,136 @@
+Quero que você ajuste o meu módulo de scanner de placas (feito em Python com OpenCV) para:
+
+Tornar a classificação LOW / MEDIUM / HIGH mais sensível (parar de devolver só HIGH).
+
+Detectar quando a imagem não é uma placa e retornar ‘placa não detectada’.
+
+1. Ajustar analyze_pcb_image para usar densidade normalizada
+Hoje a função analyze_pcb_image retorna sempre HIGH na maioria das fotos.
+Quero que você:
+
+Mantenha a estrutura da função, mas altere a lógica de classificação:
+
+python
+def analyze_pcb_image(image_path_or_bytes) -> dict:
+    """
+    Lê a imagem de uma placa e retorna um dicionário com:
+      - components_count: número aproximado de “blobs/contornos” de componentes
+      - density_score: densidade normalizada (componentes / área da placa)
+      - grade: 'LOW' | 'MEDIUM' | 'HIGH' ou None
+      - board_detected: bool
+      - debug: campos auxiliares se precisar
+    """
+Dentro da função:
+
+Depois de criar a máscara da placa (por cor, HSV, etc.), calcule:
+
+python
+board_pixels = mask_board.sum() / 255  # pixels que pertencem à placa
+total_pixels = image.shape[0] * image.shape[1]
+board_ratio = board_pixels / max(total_pixels, 1)
+Defina uma constante para a área mínima de placa detectada:
+
+python
+MIN_BOARD_RATIO = 0.1  # por exemplo, placa precisa ocupar pelo menos 10% da imagem
+Se board_ratio < MIN_BOARD_RATIO, considerar que não há placa:
+
+python
+if board_ratio < MIN_BOARD_RATIO:
+    return {
+        "grade": None,
+        "components_count": 0,
+        "density_score": 0.0,
+        "board_detected": False,
+        "debug": {
+            "board_ratio": board_ratio
+        }
+    }
+Só se board_detected for verdadeiro, seguir para contar componentes com findContours como já está sendo feito.
+
+Depois de obter components_count e a área da placa (board_pixels), calcule a densidade:
+
+python
+board_area = max(board_pixels, 1.0)
+density = components_count / board_area
+Salve density em density_score.
+
+Defina constantes de threshold no topo do arquivo:
+
+python
+LOW_DENSITY_THRESHOLD = 0.00002
+HIGH_DENSITY_THRESHOLD = 0.00008
+(esses valores são um ponto de partida; deixe comentado que podem ser ajustados).
+
+Use essa lógica para grade:
+
+python
+if density < LOW_DENSITY_THRESHOLD:
+    grade = "LOW"
+elif density < HIGH_DENSITY_THRESHOLD:
+    grade = "MEDIUM"
+else:
+    grade = "HIGH"
+Retorne algo assim quando houver placa:
+
+python
+return {
+    "grade": grade,
+    "components_count": int(components_count),
+    "density_score": float(density),
+    "board_detected": True,
+    "debug": {
+        "board_ratio": board_ratio,
+        "board_pixels": int(board_pixels)
+    }
+}
+2. Ajustar o endpoint /api/scanner/analyze
+O endpoint já chama analyze_pcb_image.
+
+Agora, atualize a lógica de resposta:
+
+Se board_detected vier False:
+
+Não chamar a Perplexity.
+
+Retornar JSON:
+
+json
+{
+  "grade": null,
+  "components_count": 0,
+  "density_score": 0.0,
+  "board_detected": false,
+  "explanation": "Placa eletrônica não detectada na imagem."
+}
+Se board_detected for True:
+
+Usar grade, components_count e density_score retornados.
+
+Chamar a função que usa a API do Perplexity (build_explanation_with_perplexity) passando esses valores.
+
+A resposta final do endpoint deve ser:
+
+json
+{
+  "grade": "LOW | MEDIUM | HIGH",
+  "components_count": <int>,
+  "density_score": <float>,
+  "board_detected": true,
+  "explanation": "<texto curto gerado pela Perplexity ou fallback local>"
+}
+Se a chamada à Perplexity falhar, manter grade, components_count, density_score, board_detected e usar um texto padrão como fallback, por exemplo:
+
+LOW: “Poucos componentes detectados na placa, sugerindo baixo valor em metais preciosos.”
+
+MEDIUM: “Quantidade intermediária de componentes na placa, sugerindo valor médio.”
+
+HIGH: “Alta densidade de componentes na placa, sugerindo alto valor em metais preciosos.”
+
+3. Frontend
+O popup do scanner deve:
+
+Mostrar ‘Placa não detectada’ se board_detected for false.
+
+Só mostrar LOW / MEDIUM / HIGH se board_detected for true.
+
+Implemente essas mudanças sem remover a estrutura já existente, apenas ajustando thresholds, densidade normalizada e a lógica de ‘placa não detectada’.”

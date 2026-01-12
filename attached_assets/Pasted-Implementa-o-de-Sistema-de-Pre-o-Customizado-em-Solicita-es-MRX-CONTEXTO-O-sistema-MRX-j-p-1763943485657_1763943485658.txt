@@ -1,0 +1,267 @@
+Implementação de Sistema de Preço Customizado em Solicitações - MRX
+## CONTEXTO
+O sistema MRX já possui um fluxo completo de solicitações de compra onde:
+- Funcionários criam solicitações para fornecedores
+- Itens são adicionados com materiais e pesos
+- Preços são calculados automaticamente baseados na tabela do fornecedor
+- Administradores aprovam/rejeitam solicitações
+- Aprovações geram Ordens de Compra (OC) automaticamente
+## OBJETIVO
+Implementar funcionalidade que permite ao comprador (funcionário) negociar preços ACIMA da tabela padrão do fornecedor, com fluxo de aprovação administrativa.
+## REQUISITOS FUNCIONAIS
+### 1. MODELO DE DADOS (app/models.py)
+Adicionar campos na tabela `solicitacoes`:
+```python
+requer_aprovacao_preco = db.Column(db.Boolean, default=False, nullable=False)
+Adicionar campos na tabela itens_solicitacao:
+
+preco_customizado = db.Column(db.Boolean, default=False, nullable=False)
+preco_customizado_valor = db.Column(db.Float, nullable=True)  # preço por kg customizado
+2. MIGRAÇÃO SQL (migrations/018_add_preco_customizado.sql)
+BEGIN;
+-- Adicionar campos em itens_solicitacao
+ALTER TABLE itens_solicitacao 
+ADD COLUMN IF NOT EXISTS preco_customizado BOOLEAN NOT NULL DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS preco_customizado_valor DOUBLE PRECISION;
+-- Adicionar campo em solicitacoes
+ALTER TABLE solicitacoes 
+ADD COLUMN IF NOT EXISTS requer_aprovacao_preco BOOLEAN NOT NULL DEFAULT FALSE;
+-- Criar índice para otimização
+CREATE INDEX IF NOT EXISTS idx_solicitacoes_aprovacao_preco 
+ON solicitacoes(requer_aprovacao_preco, status);
+COMMIT;
+3. LÓGICA BACKEND (app/routes/solicitacoes.py)
+3.1. Endpoint para criar solicitação (POST /api/solicitacoes)
+
+Modificar a função criar_solicitacao() para:
+
+Aceitar preco_customizado e preco_customizado_valor em cada item
+Validar que preco_customizado_valor seja maior que o preço da tabela
+Se qualquer item tiver preco_customizado=true, marcar a solicitação como requer_aprovacao_preco=true
+Calcular valor_calculado usando o preço customizado quando aplicável
+# Lógica para cada item:
+if item_data.get('preco_customizado'):
+    preco_negociado = item_data.get('preco_customizado_valor')
+    
+    # Buscar preço da tabela para comparação
+    preco_tabela = obter_preco_tabela(fornecedor_id, material_id)
+    
+    # Validar que preço customizado é maior
+    if preco_negociado <= preco_tabela:
+        return erro "Preço customizado deve ser maior que tabela"
+    
+    # Marcar solicitação para aprovação
+    solicitacao.requer_aprovacao_preco = True
+    
+    # Calcular valor com preço customizado
+    item.preco_customizado = True
+    item.preco_customizado_valor = preco_negociado
+    item.valor_calculado = peso_kg * preco_negociado
+    item.preco_por_kg_snapshot = preco_negociado
+else:
+    # Fluxo normal - usar preço da tabela
+    item.valor_calculado = peso_kg * preco_tabela
+3.2. Endpoint de aprovação (POST /api/solicitacoes/<id>/aprovar)
+
+Modificar para NÃO bloquear aprovação se requer_aprovacao_preco=true.
+O admin ao aprovar está AUTORIZANDO o preço diferente automaticamente.
+
+4. FRONTEND (app/templates/solicitacoes.html)
+4.1. Modal de Nova Solicitação - Adicionar checkbox em cada item:
+
+<div class="form-group">
+    <label>
+        <input type="checkbox" 
+               onchange="togglePrecoCustomizado(${item.id}, this.checked)">
+        Negociar preço diferente da tabela
+    </label>
+</div>
+<div id="preco_customizado_${item.id}" style="display: none;">
+    <label>Preço negociado (R$/kg)</label>
+    <input type="number" 
+           step="0.01" 
+           id="preco_customizado_valor_${item.id}"
+           onchange="atualizarItemCampo(${item.id}, 'preco_customizado_valor', parseFloat(this.value))">
+    
+    <small style="color: #f59e0b;">
+        ⚠️ Preço da tabela: R$ <span id="preco_tabela_${item.id}">0.00</span>/kg
+        <br>Diferença: <span id="diferenca_preco_${item.id}">0%</span>
+    </small>
+</div>
+4.2. JavaScript para cálculo automático:
+
+function togglePrecoCustomizado(itemId, ativo) {
+    const item = itensSolicitacao.find(i => i.id === itemId);
+    item.preco_customizado = ativo;
+    
+    const divCustomizado = document.getElementById(`preco_customizado_${itemId}`);
+    divCustomizado.style.display = ativo ? 'block' : 'none';
+    
+    if (ativo) {
+        // Mostrar preço da tabela atual
+        const precoTabela = obterPrecoTabela(item.material_id);
+        document.getElementById(`preco_tabela_${itemId}`).textContent = precoTabela.toFixed(2);
+    } else {
+        item.preco_customizado_valor = null;
+        calcularValorItem(item);
+    }
+    
+    renderizarItens();
+}
+function calcularValorItem(item) {
+    if (!item.material_id || !item.peso_kg) {
+        item.valor_calculado = 0;
+        return;
+    }
+    
+    let preco_por_kg;
+    
+    if (item.preco_customizado && item.preco_customizado_valor) {
+        // Usar preço negociado
+        preco_por_kg = item.preco_customizado_valor;
+        
+        // Calcular diferença percentual
+        const precoTabela = obterPrecoTabela(item.material_id);
+        const diferenca = ((preco_por_kg - precoTabela) / precoTabela) * 100;
+        
+        // Validar que é maior
+        if (preco_por_kg <= precoTabela) {
+            showAlert('Preço customizado deve ser MAIOR que a tabela!', 'error');
+            item.preco_customizado_valor = null;
+            return;
+        }
+        
+        // Mostrar diferença
+        document.getElementById(`diferenca_preco_${item.id}`).textContent = 
+            `+${diferenca.toFixed(1)}% acima da tabela`;
+    } else {
+        // Usar preço da tabela
+        const precoInfo = precosFornecedorSelecionado[item.material_id];
+        preco_por_kg = precoInfo?.preco_por_kg || 0;
+    }
+    
+    item.valor_calculado = item.peso_kg * preco_por_kg;
+    item.preco_por_kg_snapshot = preco_por_kg;
+}
+4.3. Envio da solicitação:
+
+const itensParaEnvio = itensSolicitacao.map(item => ({
+    material_id: item.material_id,
+    peso_kg: item.peso_kg,
+    preco_customizado: item.preco_customizado || false,
+    preco_customizado_valor: item.preco_customizado_valor || null,
+    observacoes: item.observacoes
+}));
+4.4. Badge visual quando solicitação requer aprovação:
+
+<!-- No card de solicitação -->
+${solicitacao.requer_aprovacao_preco ? `
+    <div class="badge badge-warning">
+        <i class="fas fa-exclamation-triangle"></i> 
+        Requer aprovação de preço
+    </div>
+` : ''}
+4.5. Modal de aprovação - mostrar itens com preço diferente:
+
+async function verDetalhes(id) {
+    // ... código existente ...
+    
+    if (solicitacao.requer_aprovacao_preco) {
+        html += `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Atenção:</strong> Esta solicitação possui itens com preço 
+                acima da tabela. Ao aprovar, você estará autorizando o preço negociado.
+            </div>
+        `;
+    }
+    
+    // Listar itens com destaque para customizados
+    solicitacao.itens.forEach(item => {
+        html += `
+            <div class="card ${item.preco_customizado ? 'border-warning' : ''}">
+                <p><strong>Material:</strong> ${item.material_nome}</p>
+                <p><strong>Peso:</strong> ${item.peso_kg} kg</p>
+                
+                ${item.preco_customizado ? `
+                    <div class="alert alert-warning">
+                        <strong>Preço Negociado:</strong> R$ ${item.preco_customizado_valor.toFixed(2)}/kg
+                        <br>
+                        <small>
+                            Preço tabela: R$ ${item.preco_por_kg_snapshot.toFixed(2)}/kg
+                            (${calcularDiferencaPercentual(item)}% acima)
+                        </small>
+                    </div>
+                ` : `
+                    <p><strong>Preço Tabela:</strong> R$ ${item.preco_por_kg_snapshot.toFixed(2)}/kg</p>
+                `}
+                
+                <p><strong>Valor Total:</strong> R$ ${item.valor_calculado.toFixed(2)}</p>
+            </div>
+        `;
+    });
+}
+REGRAS DE NEGÓCIO
+Preço customizado SEMPRE deve ser MAIOR que tabela (validação front + back)
+Solicitações com preço customizado entram em status pendente normalmente
+Campo requer_aprovacao_preco é apenas INFORMATIVO para o admin
+Aprovação do admin autoriza AUTOMATICAMENTE o preço customizado (não há segunda aprovação)
+OC gerada usa o valor já calculado com preço customizado
+Histórico preservado: preco_por_kg_snapshot guarda o preço que foi usado (tabela OU customizado)
+VALIDAÇÕES
+Frontend:
+Checkbox só aparece se material selecionado
+Input de preço só aceita valores > preço da tabela
+Mostrar diferença percentual em tempo real
+Alert se tentar usar preço menor/igual
+Backend:
+Validar que preco_customizado_valor > preço da tabela
+Retornar erro 400 se inválido
+Garantir que valor_calculado está correto
+Marcar requer_aprovacao_preco=true se algum item tiver customização
+FLUXO COMPLETO
+Comprador cria solicitação:
+
+Adiciona itens normalmente
+Para alguns itens, marca "Preço diferente"
+Informa preço negociado (ex: R$ 12,50/kg vs R$ 10,00/kg da tabela)
+Sistema mostra: "+25% acima da tabela"
+Envia solicitação
+Sistema processa:
+
+Valida que preços customizados > tabela
+Calcula valores totais
+Marca solicitacao.requer_aprovacao_preco = true
+Cria solicitação com status pendente
+Admin visualiza:
+
+Vê badge "Requer aprovação de preço"
+Ao abrir detalhes, vê quais itens têm preço customizado
+Vê comparativo: preço negociado vs tabela
+Decide aprovar ou rejeitar
+Admin aprova:
+
+Sistema gera OC com valores já calculados (usando preço customizado)
+Cria lotes normalmente
+Fluxo continua igual ao padrão
+TESTES NECESSÁRIOS
+Criar solicitação SEM preço customizado (fluxo normal deve funcionar)
+Criar solicitação COM preço customizado válido
+Tentar usar preço MENOR que tabela (deve bloquear)
+Aprovar solicitação com preço customizado
+Verificar que OC foi gerada com valor correto
+Verificar que preco_por_kg_snapshot salvou preço customizado
+OBSERVAÇÕES IMPORTANTES
+NÃO criar nova tabela de autorizações
+NÃO criar fluxo duplo de aprovação
+NÃO modificar fluxo de OC/Lotes
+APENAS adicionar flag + valor customizado
+Aprovação do admin JÁ autoriza tudo
+Sistema deve funcionar 100% igual se NÃO usar preço customizado
+ARQUIVOS A MODIFICAR
+✅ migrations/018_add_preco_customizado.sql (criar)
+✅ executar_migracao_018.py (criar)
+✅ app/models.py (adicionar campos + to_dict())
+✅ app/routes/solicitacoes.py (modificar POST e aprovar)
+✅ app/templates/solicitacoes.html (adicionar UI + JS)
+Execute a migração com: python executar_migracao_018.py

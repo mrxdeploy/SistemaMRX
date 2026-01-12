@@ -1,0 +1,473 @@
+PROMPT COMPLETO: REFORMULAÇÃO DO MÓDULO COMPRADOR - SISTEMA MRX
+CONTEXTO ATUAL
+O sistema MRX já possui:
+
+✅ MaterialBase (app/models.py) - Tabela de materiais com:
+
+codigo, nome, classificacao (leve/medio/pesado)
+Vinculado a TabelaPrecoItem para preços por estrelas
+✅ TabelaPreco - 3 tabelas fixas (1★, 2★, 3★)
+
+✅ Fornecedor com tabela_preco_id - Vínculo fornecedor → tabela
+
+✅ SolicitacaoAutorizacaoPreco - Sistema de aprovação de preços acima da tabela
+
+PROBLEMA IDENTIFICADO
+❌ O fluxo atual de criação de solicitações usa TipoLote ao invés de MaterialBase
+❌ O cadastro de fornecedor não captura geolocalização automaticamente
+❌ Falta wizard de compra em campo com scanner de materiais
+
+OBJETIVO
+Reformular completamente:
+
+Cadastro de Fornecedor em Campo com geolocalização
+Wizard de Nova Compra usando MaterialBase + scanner
+Fluxo de Autorização de Preço automático
+IMPLEMENTAÇÃO DETALHADA
+PARTE 1: REFORMULAR CADASTRO DE FORNECEDOR
+Arquivo: app/routes/fornecedores.py
+
+Alterações necessárias:
+
+Adicionar captura de geolocalização no POST /api/fornecedores
+# No endpoint criar_fornecedor(), adicionar:
+data = request.get_json()
+# Capturar geolocalização do frontend
+latitude = data.get('latitude')
+longitude = data.get('longitude')
+fornecedor = Fornecedor(
+    # ... campos existentes ...
+    latitude=latitude,
+    longitude=longitude,
+    tabela_preco_id=1,  # SEMPRE inicia com tabela 1★
+    criado_por_id=usuario_id
+)
+Frontend deve enviar coordenadas
+Novo arquivo: app/templates/cadastro-fornecedor-campo.html
+
+Criar tela mobile-first com:
+
+Formulário rápido (nome, CPF/CNPJ, telefone, endereço)
+Captura automática de GPS via JavaScript Geolocation API
+Validação de CPF/CNPJ
+Consulta automática de endereço por CEP (ViaCEP)
+PARTE 2: WIZARD DE NOVA COMPRA
+Novo arquivo: app/templates/wizard-compra.html
+
+Estrutura em 5 passos:
+
+PASSO 1: Selecionar/Cadastrar Fornecedor
+<div id="passo1">
+  <input type="text" id="buscaFornecedor" placeholder="Buscar por nome ou CPF/CNPJ">
+  <div id="listaFornecedores"></div>
+  <button onclick="abrirCadastroRapido()">➕ Cadastrar Novo Fornecedor</button>
+</div>
+JavaScript:
+
+Busca fornecedores via /api/fornecedores?busca=...
+Modal de cadastro rápido com geolocalização
+Ao selecionar fornecedor, carrega tabela_preco_id e materiais disponíveis
+PASSO 2: Dados de Coleta/Entrega
+<div id="passo2">
+  <h3>Endereço de Coleta</h3>
+  <label>
+    <input type="radio" name="endereco" value="padrao" checked>
+    Usar endereço padrão: <span id="endereçoPadrao"></span>
+  </label>
+  <label>
+    <input type="radio" name="endereco" value="outro">
+    Informar outro endereço para esta compra
+  </label>
+  
+  <h3>Tipo de Retirada</h3>
+  <label>
+    <input type="radio" name="tipo_retirada" value="coleta" checked>
+    🚛 Coleta (MRX busca)
+  </label>
+  <label>
+    <input type="radio" name="tipo_retirada" value="entrega">
+    📦 Entrega (Fornecedor traz)
+  </label>
+</div>
+PASSO 3: Leitura de Peças (PRINCIPAL)
+<div id="passo3">
+  <h3>Escaneie os Materiais</h3>
+  
+  <!-- Scanner -->
+  <div id="scanner">
+    <input type="text" id="codigoScanner" placeholder="Escaneie ou digite o código">
+    <button onclick="buscarMaterial()">🔍 Buscar</button>
+  </div>
+  
+  <!-- Resultado da busca -->
+  <div id="materialEncontrado" style="display:none">
+    <h4>Material: <span id="nomeMaterial"></span></h4>
+    <p>Código: <span id="codigoMaterial"></span></p>
+    <p>Classificação: <span id="classificacaoMaterial"></span></p>
+    
+    <label>Peso (kg):
+      <input type="number" id="pesoMaterial" step="0.01" min="0.01">
+    </label>
+    
+    <button onclick="adicionarItem()">➕ Adicionar</button>
+  </div>
+  
+  <!-- Lista de itens adicionados -->
+  <table id="tabelaItens">
+    <thead>
+      <tr>
+        <th>Material</th>
+        <th>Classificação</th>
+        <th>Peso (kg)</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody id="listaItens"></tbody>
+  </table>
+  
+  <!-- Resumo parcial -->
+  <div class="resumo-parcial">
+    <p>Total de itens: <strong id="totalItens">0</strong></p>
+    <p>Peso total: <strong id="pesoTotal">0.00</strong> kg</p>
+  </div>
+</div>
+JavaScript (buscarMaterial()):
+
+async function buscarMaterial() {
+  const codigo = document.getElementById('codigoScanner').value;
+  
+  // Buscar material via API
+  const response = await fetch(`/api/materiais-base?codigo=${codigo}`);
+  const material = await response.json();
+  
+  if (material) {
+    // Preencher dados do material encontrado
+    document.getElementById('nomeMaterial').textContent = material.nome;
+    document.getElementById('codigoMaterial').textContent = material.codigo;
+    document.getElementById('classificacaoMaterial').textContent = material.classificacao;
+    
+    // Mostrar seção de peso
+    document.getElementById('materialEncontrado').style.display = 'block';
+    materialAtual = material;
+  } else {
+    alert('Material não encontrado. Cadastre-o primeiro.');
+  }
+}
+Nova rota necessária:
+
+Arquivo: app/routes/materiais_base.py
+
+@bp.route('', methods=['GET'])
+@jwt_required()
+def listar_materiais():
+    """Lista materiais com filtro por código ou nome"""
+    busca = request.args.get('busca', '')
+    codigo = request.args.get('codigo', '')
+    
+    query = MaterialBase.query.filter_by(ativo=True)
+    
+    if codigo:
+        query = query.filter_by(codigo=codigo)
+    elif busca:
+        query = query.filter(
+            db.or_(
+                MaterialBase.nome.ilike(f'%{busca}%'),
+                MaterialBase.codigo.ilike(f'%{busca}%')
+            )
+        )
+    
+    materiais = query.all()
+    return jsonify([m.to_dict() for m in materiais]), 200
+PASSO 4: Valores e Validação de Tabela
+<div id="passo4">
+  <h3>Preços Negociados</h3>
+  
+  <div class="info-tabela">
+    <p>Fornecedor está vinculado à tabela: 
+      <strong id="tabelaFornecedor"></strong>
+    </p>
+  </div>
+  
+  <table id="tabelaPrecos">
+    <thead>
+      <tr>
+        <th>Material</th>
+        <th>Classificação</th>
+        <th>Peso (kg)</th>
+        <th>Preço Tabela (R$/kg)</th>
+        <th>Preço Negociado (R$/kg)</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="precosItens"></tbody>
+  </table>
+  
+  <div id="alertaAutorizacao" class="alert alert-warning" style="display:none">
+    ⚠️ Alguns itens estão acima do preço de tabela e precisarão de aprovação do ADM.
+  </div>
+</div>
+JavaScript (validarPrecos()):
+
+async function validarPrecos() {
+  const fornecedor = fornecedorSelecionado;
+  const tabelaId = fornecedor.tabela_preco_id;
+  
+  // Buscar preços da tabela
+  const response = await fetch(`/api/tabelas-preco/${tabelaId}/precos`);
+  const precos = await response.json();
+  
+  let precisaAutorizacao = false;
+  
+  itensCompra.forEach(item => {
+    // Encontrar preço do material na tabela
+    const precoTabela = precos.find(p => 
+      p.material_id === item.material_id
+    );
+    
+    item.preco_tabela = precoTabela.preco_por_kg;
+    
+    // Comprar preço negociado com tabela
+    if (item.preco_negociado > item.preco_tabela) {
+      item.precisaAutorizacao = true;
+      precisaAutorizacao = true;
+    } else {
+      item.precisaAutorizacao = false;
+    }
+  });
+  
+  if (precisaAutorizacao) {
+    document.getElementById('alertaAutorizacao').style.display = 'block';
+  }
+}
+PASSO 5: Resumo e Confirmação
+<div id="passo5">
+  <h3>Resumo da Compra</h3>
+  
+  <div class="resumo-compra">
+    <p><strong>Fornecedor:</strong> <span id="resumoFornecedor"></span></p>
+    <p><strong>Tabela:</strong> <span id="resumoTabela"></span></p>
+    <p><strong>Tipo:</strong> <span id="resumoTipo"></span></p>
+    
+    <table>
+      <thead>
+        <tr>
+          <th>Material</th>
+          <th>Peso (kg)</th>
+          <th>Preço (R$/kg)</th>
+          <th>Valor Total</th>
+        </tr>
+      </thead>
+      <tbody id="resumoItens"></tbody>
+    </table>
+    
+    <p class="total"><strong>VALOR TOTAL: R$ <span id="valorTotal">0.00</span></strong></p>
+  </div>
+  
+  <button class="btn btn-success" onclick="finalizarCompra()">
+    ✅ Confirmar e Gerar Solicitação
+  </button>
+</div>
+PARTE 3: REFORMULAR BACKEND DE SOLICITAÇÕES
+Arquivo: app/routes/solicitacoes_new.py
+
+Modificar endpoint POST /api/solicitacoes:
+
+@bp.route('', methods=['POST'])
+@jwt_required()
+def criar_solicitacao():
+    try:
+        usuario_id = int(get_jwt_identity())
+        data = request.get_json()
+        
+        # Validações básicas
+        if not data.get('fornecedor_id'):
+            return jsonify({'erro': 'Fornecedor é obrigatório'}), 400
+        
+        if not data.get('itens') or len(data['itens']) == 0:
+            return jsonify({'erro': 'Adicione pelo menos um item'}), 400
+        
+        fornecedor = Fornecedor.query.get(data['fornecedor_id'])
+        if not fornecedor or not fornecedor.tabela_preco_id:
+            return jsonify({'erro': 'Fornecedor inválido ou sem tabela vinculada'}), 400
+        
+        # Criar solicitação
+        solicitacao = Solicitacao(
+            funcionario_id=usuario_id,
+            fornecedor_id=data['fornecedor_id'],
+            tipo_retirada=data.get('tipo_retirada', 'buscar'),
+            observacoes=data.get('observacoes', ''),
+            status='pendente'
+        )
+        
+        db.session.add(solicitacao)
+        db.session.flush()
+        
+        # Variáveis de controle
+        precisa_autorizacao = False
+        itens_acima_tabela = []
+        
+        # Processar itens
+        for item_data in data['itens']:
+            material_id = item_data.get('material_id')
+            peso_kg = float(item_data.get('peso_kg', 0))
+            preco_negociado = float(item_data.get('preco_negociado', 0))
+            
+            # Buscar material
+            material = MaterialBase.query.get(material_id)
+            if not material:
+                continue
+            
+            # Buscar preço da tabela do fornecedor
+            preco_item = TabelaPrecoItem.query.filter_by(
+                tabela_preco_id=fornecedor.tabela_preco_id,
+                material_id=material_id
+            ).first()
+            
+            if not preco_item:
+                return jsonify({
+                    'erro': f'Preço não configurado para {material.nome}'
+                }), 400
+            
+            preco_tabela = float(preco_item.preco_por_kg)
+            
+            # VALIDAÇÃO: preço negociado vs tabela
+            if preco_negociado > preco_tabela:
+                precisa_autorizacao = True
+                itens_acima_tabela.append({
+                    'material': material.nome,
+                    'preco_tabela': preco_tabela,
+                    'preco_negociado': preco_negociado,
+                    'peso_kg': peso_kg
+                })
+            
+            # Calcular valor
+            valor_calculado = peso_kg * preco_negociado
+            
+            # Criar item da solicitação
+            item = ItemSolicitacao(
+                solicitacao_id=solicitacao.id,
+                material_id=material_id,  # USAR MaterialBase
+                peso_kg=peso_kg,
+                classificacao=material.classificacao,
+                valor_calculado=valor_calculado,
+                preco_por_kg_snapshot=preco_negociado,
+                observacoes=item_data.get('observacoes', '')
+            )
+            
+            db.session.add(item)
+        
+        # Se precisa autorização, criar solicitações
+        if precisa_autorizacao:
+            for item_info in itens_acima_tabela:
+                autorizacao = SolicitacaoAutorizacaoPreco(
+                    fornecedor_id=fornecedor.id,
+                    comprador_id=usuario_id,
+                    material_id=item_info['material_id'],
+                    peso_kg=item_info['peso_kg'],
+                    tabela_atual_id=fornecedor.tabela_preco_id,
+                    preco_tabela=item_info['preco_tabela'],
+                    preco_negociado=item_info['preco_negociado'],
+                    justificativa=data.get('justificativa', 'Negociação em campo'),
+                    status='pendente'
+                )
+                db.session.add(autorizacao)
+            
+            # Marcar solicitação como aguardando autorização
+            solicitacao.status = 'aguardando_autorizacao'
+            
+            # Notificar ADM
+            notificar_adm_autorizacao_pendente(solicitacao.id)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'mensagem': 'Solicitação criada com sucesso',
+            'solicitacao': solicitacao.to_dict(),
+            'precisa_autorizacao': precisa_autorizacao,
+            'itens_acima_tabela': len(itens_acima_tabela)
+        }), 201
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': str(e)}), 500
+PARTE 4: AJUSTAR MODELO ItemSolicitacao
+Arquivo: app/models.py
+
+Adicionar campo material_id:
+
+class ItemSolicitacao(db.Model):
+    # ... campos existentes ...
+    
+    # ADICIONAR:
+    material_id = db.Column(db.Integer, db.ForeignKey('materiais_base.id'), nullable=True)
+    
+    # Relationships
+    material = db.relationship('MaterialBase', backref='itens_solicitacao')
+Migration SQL:
+
+ALTER TABLE itens_solicitacao ADD COLUMN material_id INTEGER REFERENCES materiais_base(id);
+PARTE 5: TELA DE AUTORIZAÇÕES ADM
+Arquivo: app/templates/autorizacoes-preco.html
+
+Já existe, mas adicionar filtros e ações:
+
+<div class="filtros">
+  <select id="filtroStatus">
+    <option value="">Todos</option>
+    <option value="pendente" selected>Pendentes</option>
+    <option value="aprovada">Aprovadas</option>
+    <option value="rejeitada">Rejeitadas</option>
+  </select>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th>Data</th>
+      <th>Comprador</th>
+      <th>Fornecedor</th>
+      <th>Material</th>
+      <th>Peso (kg)</th>
+      <th>Preço Tabela</th>
+      <th>Preço Negociado</th>
+      <th>Diferença %</th>
+      <th>Ações</th>
+    </tr>
+  </thead>
+  <tbody id="listaAutorizacoes"></tbody>
+</table>
+Modal de aprovação:
+
+<div class="modal" id="modalAprovar">
+  <h3>Aprovar Compra</h3>
+  
+  <label>
+    <input type="checkbox" id="promoverFornecedor">
+    Promover fornecedor para tabela superior
+  </label>
+  
+  <select id="novaTabelaId" disabled>
+    <option value="2">2 Estrelas</option>
+    <option value="3">3 Estrelas</option>
+  </select>
+  
+  <button onclick="aprovarAutorizacao()">✅ Aprovar</button>
+</div>
+RESUMO DAS ALTERAÇÕES
+Arquivos Novos:
+app/templates/cadastro-fornecedor-campo.html
+app/templates/wizard-compra.html
+Arquivos Modificados:
+app/routes/fornecedores.py - Adicionar geolocalização
+app/routes/solicitacoes_new.py - Usar MaterialBase + autorização automática
+app/routes/materiais_base.py - Endpoint de busca
+app/models.py - Adicionar material_id em ItemSolicitacao
+Migration SQL:
+ALTER TABLE itens_solicitacao ADD COLUMN material_id INTEGER REFERENCES materiais_base(id);
+FLUXO COMPLETO IMPLEMENTADO
+Comprador em campo → Abre wizard
+Seleciona/cadastra fornecedor → GPS automático
+Escaneia materiais → Busca MaterialBase
+Informa pesos e preços → Comparação automática com tabela
+Se preço > tabela → Gera SolicitacaoAutorizacaoPreco
+ADM aprova → Pode promover fornecedor (1★→2★→3★)
+Solicitação aprovada → Gera OC e Lote

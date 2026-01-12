@@ -1,0 +1,478 @@
+Implementação Completa das Quatro Etapas (Pós-OC)
+
+(Geração de OS → Logística e Roteirização → App Motorista → Conferência na Chegada)
+
+Utilize este prompt como instrução de implementação.
+Não gere código agora; gere tela, endpoints, modelos e lógica conforme descrito.
+
+🔵 Contexto Geral para a IA (deve ser lido antes de executar):
+
+O sistema MRX_Gestão já está com:
+
+Solicitação de Compra (SC) funcionando
+
+Aprovação de SC por ADM
+
+Conversão de SC em OC
+
+Tela básica de listagem e aprovação/reprovação de OC
+
+A partir daqui, você deve implementar o fluxo completo de logística, exatamente como o documento MRX_Gestão especifica (cadastro de motorista, veículos, OS, rotas, checkpoints, conferência, lote).
+
+🟦 Tarefa 1 — Compra: Recebimento e Integração com Logística (Geração de OS)
+
+Implemente Geração de OS (Ordem de Serviço) vinculada a uma OC aprovada.
+
+🎯 Objetivo
+
+Após OC aprovada, o sistema deve permitir criar uma OS completa, definindo:
+
+previsão de coleta/entrega
+
+motorista
+
+veículo
+
+rota (pontos, ordem, tipo)
+
+status operacional
+
+auditoria completa com GPS
+
+🧱 MODELAGEM (Obrigatória)
+
+Criar entidade OrdemServico (OS) com:
+
+Campo	Descrição
+id	UUID
+oc_id	FK OC
+numero_os	sequencial
+fornecedor_snapshot	nome, CNPJ, endereço
+tipo	COLETA ou ENTREGA
+janela_coleta	início/fim
+motorista_id	FK Motorista
+veiculo_id	FK Veículo
+rota[]	[{ordem, endereço, lat, lon, observacao, tipo_ponto}]
+status	PENDENTE, AGENDADA, EM_ROTA, NO_FORNECEDOR, COLETADO, A_CAMINHO_MATRIZ, ENTREGUE, FINALIZADA, CANCELADA
+gps_logs[]	timeline de eventos GPS
+attachments	fotos, documentos
+created_by	user_id
+auditoria	trilha completa
+🔗 ENDPOINTS OBRIGATÓRIOS
+
+POST /oc/{id}/gerar-os
+
+cria OS vinculada
+
+gera número sequencial
+
+snapshot do fornecedor
+
+status inicial: PENDENTE
+
+GET /os/{id}
+
+detalhes completos (rota, logs, status, motorista etc.)
+
+GET /os
+
+filtros: status, data, motorista, OC, fornecedor
+
+PUT /os/{id}/atribuir-motorista
+
+motorista_id
+
+veiculo_id
+
+registra auditoria e envia notificação
+
+POST /os/{id}/reagendar
+
+nova janela
+
+motivo obrigatório
+
+auditoria
+
+📍 REGRAS DE NEGÓCIO (Obrigatórias)
+
+OS só pode ser criada se OC.status = APROVADA
+
+Geração automática de notificação ao motorista quando atribuído
+
+Ao motorista aceitar, gravar snapshot GPS obrigatório
+
+Permitir reagendamento mantendo histórico
+
+Manter trilha de auditoria completa (IP/GPS/device/usuário)
+
+🖥 UI WEB (Painel Administrativo / Logística)
+
+Criar:
+
+➤ Novo card “Logística” no menu administrativo
+
+Dentro dele:
+
+Tela: Gerenciar OS
+
+tabela com filtros por status
+
+botão “Gerar OS” dentro do detalhe da OC
+
+botão “Atribuir Motorista”
+
+indicador de atraso por janela
+
+abrir OS em modal detalhada
+
+Tela: Agenda / Calendário
+
+calendário com janelas de coleta
+
+arrastar e soltar para reagendar OS
+
+✔ Critérios de aceite
+
+OS vinculada a OC criada com todos os campos obrigatórios
+
+Dashboard Logística mostra todas as OS
+
+Notificação enviada ao motorista ao atribuir
+
+Auditoria registrada corretamente
+
+🟩 Tarefa 2 — Logística: OS + Roteirização
+🎯 Objetivo
+
+Implementar o módulo de logística completo:
+
+roteirização
+
+agrupamento de rotas por proximidade
+
+visão Kanban das OS
+
+histórico GPS por OS
+
+eventos operacionais
+
+🧱 MODELOS / ENTIDADES
+
+Adicionar:
+
+RotaOperacional
+
+os_id
+
+motorista_id
+
+veiculo_id
+
+pontos[]
+
+km_estimado
+
+km_real (preencher após finalização)
+
+GPSLog
+
+os_id
+
+evento (start, arrive, collect, leave, finish)
+
+lat/lon
+
+precisão
+
+timestamp
+
+device_id
+
+ip
+
+🔗 ENDPOINTS ADICIONAIS
+PUT /os/{id}/iniciar-rota
+
+motorista só pode iniciar se GPS ativo
+
+grava evento + GPS
+
+POST /os/{id}/evento
+
+Payload:
+
+{
+  evento: "CHEGUEI" | "COLETEI" | "SAI" | "FINALIZEI",
+  gps: {...},
+  foto: (opcional),
+  observacao: (opcional)
+}
+
+📍 LÓGICA DE ROTEIRIZAÇÃO
+
+Implementar:
+
+Clustering simples para agrupar pontos por proximidade
+
+Ordenação automática da rota (ex. Nearest-Neighbor)
+
+Tela com mapa exibindo sequência da rota
+
+Possibilidade de reordenar manualmente arrastando itens
+
+🖥 UI WEB LOGÍSTICA — OBRIGATÓRIA
+➤ Tela Kanban
+
+Colunas:
+
+PENDENTE
+
+AGENDADA
+
+EM ROTA
+
+ENTREGUE
+
+FINALIZADA
+
+CANCELADA
+
+Itens arrastáveis entre colunas (respeitando restrições de fluxo).
+
+➤ Tela Mapa / Roteirização
+
+mapa com rotas por cor
+
+motorista e veículo atribuído
+
+tempo estimado por rota
+
+botão “Gerar Rota Automática”
+
+✔ Critérios de aceite
+
+Rota gerada com agrupamento por proximidade
+
+Mapa exibindo rotas
+
+Eventos alterando status da OS corretamente
+
+Timeline de GPS visível na OS
+
+🟨 Tarefa 3 — App Motorista (Mobile)
+🎯 Objetivo
+
+Criar o módulo mobile (ou PWA mobile-first) para motoristas operarem a OS.
+
+📱 Telas obrigatórias
+Tela 1 — Login Motorista
+
+Autenticação por token
+
+Captura automática de device_id
+
+Tela 2 — Minhas OS
+
+Lista por status (PENDENTE, AGENDADA, EM ROTA, FINALIZADA)
+
+Mostrar:
+
+Nº OS
+
+Fornecedor
+
+Janela
+
+Distância atual até o fornecedor
+
+Tela 3 — Detalhe da OS
+
+rota completa
+
+fotos associadas
+
+pontos da rota
+
+status da OS
+
+botões operacionais (condicionais a status):
+
+Aceitar
+
+Iniciar rota
+
+Cheguei
+
+Coletado
+
+Cheguei MRX
+
+Finalizar
+
+Tela 4 — Comprovantes
+
+tirar foto (compressão obrigatória)
+
+upload assíncrono
+
+assinatura digital
+
+📍 Regras Obrigatórias
+
+Motorista só pode ver OS atribuídas ao seu id
+
+Para INICIAR ROTA → GPS obrigatório
+
+Toda ação grava:
+
+GPS (lat/lon)
+
+device_id
+
+IP
+
+timestamp
+
+opcional: foto
+
+Modo offline obrigatório:
+
+eventos pendentes ficam em fila
+
+sincronizam quando online
+
+Segurança:
+
+motorista não pode alterar rota
+
+motorista não pode ver OS de outros
+
+dados sensíveis criptografados em trânsito
+
+✔ Critérios de aceite
+
+Motorista finaliza OS sem travar em nenhuma etapa
+
+Eventos sincronizam mesmo em offline
+
+Todas evidências (GPS/foto/assinatura) gravadas
+
+Linha do tempo visível na interface web
+
+🟥 Tarefa 4 — Conferência na Chegada
+🎯 Objetivo
+
+Implementar o módulo de Recepção e Conferência usado pelos conferentes ao material chegar na matriz.
+
+Este módulo inicia automaticamente quando:
+
+OS.status muda para ENTREGUE_MATRIZ ou FINALIZADA (quando o motorista finaliza coleta)
+
+🧱 MODELO: ConferenciaRecebimento
+
+Campos:
+
+Campo	Descrição
+id	UUID
+os_id	FK
+oc_id	FK
+peso_fornecedor	(snap da OC)
+peso_real	informado pelo conferente
+fotos_pesagem[]	evidências
+qualidade	classificação
+divergencia	bool
+tipo_divergencia	PESO / QUALIDADE / ITENS
+percentual_diferenca	automático
+conferencia_status	PENDENTE / DIVERGENTE / AGUARDANDO_ADM / APROVADA / REJEITADA
+conferente_id	usuário
+auditoria	trilha completa
+🔗 ENDPOINTS
+POST /conferencia/{os_id}/iniciar
+
+gera registro de conferência
+
+status inicial: PENDENTE
+
+PUT /conferencia/{id}/registrar-pesagem
+
+peso_real
+
+fotos
+
+qualidade
+
+divergências
+
+PUT /conferencia/{id}/enviar-para-adm
+
+quando divergência > limite configurado
+
+PUT /conferencia/{id}/decisao-adm
+
+ações:
+
+ACEITAR
+
+ACEITAR_COM_DESCONTO
+
+REJEITAR
+
+registrar motivo e auditoria
+
+POST /estoque/entrada
+
+gerado automaticamente após conferência aprovada
+
+cria Lote seguindo regras do MRX_Gestão
+
+🖥 UI WEB — Conferência
+
+Criar nova seção no painel administrativo: “Recebimento / Conferência”
+Com telas:
+
+1 — Lista de Recebimentos Pendentes
+
+origem (fornecedor)
+
+OS
+
+OC
+
+peso previsto
+
+peso real (quando houver)
+
+status da conferência
+
+2 — Tela de Conferência
+
+formulário de pesagem
+
+qualidade
+
+fotos
+
+divergências
+
+envio para ADM (se necessário)
+
+3 — Tela ADM (decisão sobre divergência)
+
+mostrar valores previstos vs recebidos
+
+mostrar fotos e histórico
+
+botões: ACEITAR / ACEITAR COM DESCONTO / REJEITAR
+
+✔ Critérios de aceite
+
+Conferente consegue registrar tudo sem brechas
+
+Divergências abrem fluxo ADM corretamente
+
+Lote criado automaticamente após aprovação
+
+Auditoria completa gravada
+
+Estoque atualizado com custo médio ponderado

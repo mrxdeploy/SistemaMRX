@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow de Separação - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Separação de Lote</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button class="btn btn-danger" onclick="voltarParaFila()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mt-4" style="padding-top: 80px;">
+        <div id="loadingIndicator" class="card" style="text-align: center; padding: 2rem;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary-color);"></i>
+            <p style="margin-top: 1rem; color: var(--gray-600);">Carregando separação...</p>
+        </div>
+
+        <div id="workflowContainer" style="display: none;">
+            <!-- Informações do Lote -->
+            <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid var(--primary-color);">
+                <h2 style="margin: 0 0 1rem 0;">Lote: <span id="numeroLote">-</span></h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                    <div>
+                        <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Fornecedor</p>
+                        <p style="margin: 0.25rem 0 0 0; font-weight: bold;" id="fornecedor">-</p>
+                    </div>
+                    <div>
+                        <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Tipo de Lote</p>
+                        <p style="margin: 0.25rem 0 0 0; font-weight: bold;" id="tipoLote">-</p>
+                    </div>
+                    <div>
+                        <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Peso Total</p>
+                        <p style="margin: 0.25rem 0 0 0; font-weight: bold; font-size: 1.5rem; color: var(--primary-color);" id="pesoTotal">0 kg</p>
+                    </div>
+                    <div>
+                        <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Qualidade</p>
+                        <p style="margin: 0.25rem 0 0 0; font-weight: bold;" id="qualidade">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progresso da Separação -->
+            <div class="card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, var(--info-bg) 0%, var(--success-bg) 100%);">
+                <h3 style="margin: 0 0 1rem 0; color: var(--gray-900);">Progresso da Separação</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                    <div style="text-align: center; background: white; padding: 1rem; border-radius: 8px;">
+                        <div style="font-size: 2rem; font-weight: bold; color: var(--success-color);" id="pesoProcessado">0 kg</div>
+                        <div style="color: var(--gray-600); font-size: 0.875rem;">Processado</div>
+                    </div>
+                    <div style="text-align: center; background: white; padding: 1rem; border-radius: 8px;">
+                        <div style="font-size: 2rem; font-weight: bold; color: var(--info-color);" id="pesoSublotes">0 kg</div>
+                        <div style="color: var(--gray-600); font-size: 0.875rem;">Sublotes</div>
+                    </div>
+                    <div style="text-align: center; background: white; padding: 1rem; border-radius: 8px;">
+                        <div style="font-size: 2rem; font-weight: bold; color: var(--warning-color);" id="pesoResiduos">0 kg</div>
+                        <div style="color: var(--gray-600); font-size: 0.875rem;">Resíduos</div>
+                    </div>
+                    <div style="text-align: center; background: white; padding: 1rem; border-radius: 8px;">
+                        <div style="font-size: 2rem; font-weight: bold; color: var(--primary-color);" id="percentualProcessado">0%</div>
+                        <div style="color: var(--gray-600); font-size: 0.875rem;">Aproveitamento</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div style="display: flex; gap: 1rem; border-bottom: 2px solid var(--gray-200); margin-bottom: 1.5rem;">
+                    <button class="tab-button active" onclick="mostrarTab('sublotes')" id="tabSublotes">
+                        <i class="fas fa-boxes"></i> Sublotes
+                    </button>
+                    <button class="tab-button" onclick="mostrarTab('residuos')" id="tabResiduos">
+                        <i class="fas fa-trash-alt"></i> Resíduos
+                    </button>
+                </div>
+
+                <!-- Tab Sublotes -->
+                <div id="tabContentSublotes" class="tab-content active">
+                    <h3>Criar Sublote</h3>
+                    <form id="formSublote" style="display: grid; gap: 1rem; margin-bottom: 2rem;">
+                        <div class="form-group" style="background: var(--info-bg); padding: 1rem; border-radius: 8px; border-left: 4px solid var(--info-color);">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin: 0;">
+                                <input type="checkbox" id="checkboxMaterialManual" style="width: 18px; height: 18px; cursor: pointer;">
+                                <span style="font-weight: bold; color: var(--gray-900);">
+                                    <i class="fas fa-keyboard"></i> Digitar material manualmente
+                                </span>
+                            </label>
+                            <p style="margin: 0.5rem 0 0 1.75rem; font-size: 0.875rem; color: var(--gray-700);">
+                                Marque esta opção se desejar digitar um novo tipo de material que não está na lista
+                            </p>
+                        </div>
+                        <div class="form-group" id="containerSelectMaterial">
+                            <label>Tipo de Material *</label>
+                            <select id="tipoLoteSublote" required>
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="containerInputMaterial" style="display: none;">
+                            <label>Tipo de Material *</label>
+                            <input type="text" id="tipoLoteSubloteManual" placeholder="Digite o tipo de material (ex: Plástico PET, Alumínio, etc.)">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label>Peso (kg) *</label>
+                                <input type="number" id="pesoSublote" step="0.01" min="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Qualidade *</label>
+                                <select id="qualidadeSublote" required>
+                                    <option value="A">A - Excelente</option>
+                                    <option value="B">B - Boa</option>
+                                    <option value="C">C - Regular</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Observações</label>
+                            <textarea id="observacoesSublote" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Criar Sublote
+                        </button>
+                    </form>
+
+                    <h3>Sublotes Criados</h3>
+                    <div id="listaSublotes">
+                        <p style="text-align: center; color: var(--gray-600); padding: 2rem;">Nenhum sublote criado ainda</p>
+                    </div>
+                </div>
+
+                <!-- Tab Resíduos -->
+                <div id="tabContentResiduos" class="tab-content" style="display: none;">
+                    <h3>Registrar Resíduo</h3>
+                    <form id="formResiduo" style="display: grid; gap: 1rem; margin-bottom: 2rem;">
+                        <div class="form-group">
+                            <label>Material *</label>
+                            <input type="text" id="materialResiduo" placeholder="Ex: Plástico, Metal, Vidro, etc." required>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label>Peso (kg) *</label>
+                                <input type="number" id="pesoResiduo" step="0.01" min="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Classificação</label>
+                                <select id="classificacaoResiduo">
+                                    <option value="">Selecione...</option>
+                                    <option value="Reciclável">Reciclável</option>
+                                    <option value="Não Reciclável">Não Reciclável</option>
+                                    <option value="Perigoso">Perigoso</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Justificativa do Descarte *</label>
+                            <textarea id="justificativaResiduo" rows="3" placeholder="Descreva o motivo pelo qual este material precisa ser descartado" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-trash-alt"></i> Registrar Resíduo
+                        </button>
+                    </form>
+
+                    <h3>Resíduos Registrados</h3>
+                    <div id="listaResiduos">
+                        <p style="text-align: center; color: var(--gray-600); padding: 2rem;">Nenhum resíduo registrado</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Finalizar Separação -->
+            <div class="card" style="background: var(--success-bg); border-left: 4px solid var(--success-color);">
+                <h3 style="margin: 0 0 1rem 0; color: var(--success-color);">Finalizar Separação</h3>
+                <p style="color: var(--gray-700); margin-bottom: 1rem;">
+                    Certifique-se de que todos os sublotes foram criados e todos os resíduos foram registrados antes de finalizar.
+                </p>
+                <div class="form-group">
+                    <label>Observações Finais</label>
+                    <textarea id="observacoesFinais" rows="3" placeholder="Observações opcionais sobre o processo de separação"></textarea>
+                </div>
+                <button class="btn btn-success" onclick="finalizarSeparacao()" style="width: 100%;">
+                    <i class="fas fa-check"></i> Finalizar Separação
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        let separacaoId = null;
+        let separacao = null;
+        let sublotes = [];
+        let residuos = [];
+        let lote = null;
+
+        async function carregarSeparacao() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                separacaoId = urlParams.get('id');
+
+                if (!separacaoId) {
+                    alert('ID de separação não fornecido');
+                    voltarParaFila();
+                    return;
+                }
+
+                const response = await fetch(`/api/separacao/fila?status=EM_SEPARACAO`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                const separacoes = await response.json();
+                separacao = separacoes.find(s => s.id == separacaoId);
+
+                if (!separacao) {
+                    alert('Separação não encontrada ou não está em andamento');
+                    voltarParaFila();
+                    return;
+                }
+
+                lote = separacao.lote_detalhes;
+
+                await carregarTiposLote();
+
+                document.getElementById('numeroLote').textContent = lote.numero_lote;
+                document.getElementById('fornecedor').textContent = lote.fornecedor_nome;
+                document.getElementById('tipoLote').textContent = lote.tipo_lote_nome;
+                document.getElementById('pesoTotal').textContent = `${lote.peso_total_kg?.toFixed(2) || 0} kg`;
+                document.getElementById('qualidade').textContent = lote.qualidade_recebida || '-';
+
+                await carregarSublotes();
+                await carregarResiduos();
+
+                atualizarProgresso();
+
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('workflowContainer').style.display = 'block';
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao carregar separação: ' + error.message);
+                voltarParaFila();
+            }
+        }
+
+        async function carregarSublotes() {
+            try {
+                console.log('🔍 Carregando sublotes do lote PAI:', lote.numero_lote, '(ID:', lote.id, ')');
+
+                // Usar endpoint específico para buscar sublotes do lote
+                const response = await fetch(`/api/wms/lotes/${lote.id}/sublotes`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) {
+                    console.error('❌ Erro na resposta da API de sublotes:', response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error('❌ Erro detalhado:', errorText);
+                    sublotes = [];
+                    renderizarSublotes();
+                    return;
+                }
+
+                sublotes = await response.json();
+                console.log('✅ Total de sublotes encontrados:', sublotes.length);
+                if (sublotes.length > 0) {
+                    console.log('📦 Números dos sublotes:', sublotes.map(s => s.numero_lote).join(', '));
+                    console.log('📊 Dados completos dos sublotes:', sublotes);
+                } else {
+                    console.log('⚠️ Nenhum sublote encontrado para o lote', lote.numero_lote);
+                }
+
+                renderizarSublotes();
+            } catch (error) {
+                console.error('❌ Erro ao carregar sublotes:', error);
+                sublotes = [];
+                renderizarSublotes();
+            }
+        }
+
+        async function carregarResiduos() {
+            try {
+                console.log('🔍 Carregando resíduos da separação ID:', separacaoId);
+                
+                // Usar endpoint específico para buscar resíduos da separação
+                const response = await fetch(`/api/separacao/${separacaoId}/residuos`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) {
+                    console.error('❌ Erro na resposta da API de resíduos:', response.status, response.statusText);
+                    residuos = [];
+                    renderizarResiduos();
+                    return;
+                }
+
+                residuos = await response.json();
+                console.log('✅ Resíduos carregados para separação ID', separacaoId, ':', residuos.length);
+                console.log('📊 Resíduos:', residuos);
+
+                renderizarResiduos();
+            } catch (error) {
+                console.error('❌ Erro ao carregar resíduos:', error);
+                residuos = [];
+                renderizarResiduos();
+            }
+        }
+
+        function renderizarSublotes() {
+            const container = document.getElementById('listaSublotes');
+
+            if (!sublotes || sublotes.length === 0) {
+                console.log('ℹ️ Nenhum sublote para renderizar');
+                container.innerHTML = '<p style="text-align: center; color: var(--gray-600); padding: 2rem;">Nenhum sublote criado ainda</p>';
+                return;
+            }
+
+            console.log('🎨 Renderizando', sublotes.length, 'sublote(s)');
+            container.innerHTML = sublotes.map(sublote => {
+                console.log('📦 Renderizando sublote:', sublote);
+                return `
+                <div class="sublote-card" style="background: var(--success-bg); border-left: 4px solid var(--success-color); padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                        <div>
+                            <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Número do Lote</p>
+                            <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sublote.numero_lote || '-'}</p>
+                        </div>
+                        <div>
+                            <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Tipo de Material</p>
+                            <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sublote.observacoes && sublote.observacoes.startsWith('MATERIAL_MANUAL:') ? sublote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').trim() : (sublote.tipo_lote_nome || sublote.tipo_lote?.nome || '-')}</p>
+                        </div>
+                        <div>
+                            <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Peso</p>
+                            <p style="margin: 0.25rem 0 0 0; font-weight: bold; color: var(--success-color);">${sublote.peso_total_kg?.toFixed(2) || 0} kg</p>
+                        </div>
+                        <div>
+                            <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Qualidade</p>
+                            <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sublote.qualidade_recebida || '-'}</p>
+                        </div>
+                        <div>
+                            <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Status</p>
+                            <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sublote.status || '-'}</p>
+                        </div>
+                    </div>
+                    ${sublote.observacoes ? `
+                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--gray-200);">
+                            <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Observações</p>
+                            <p style="margin: 0.25rem 0 0 0;">${sublote.observacoes}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            }).join('');
+        }
+
+        function renderizarResiduos() {
+            console.log('🎨 Renderizando resíduos:', residuos.length);
+            const container = document.getElementById('listaResiduos');
+
+            if (!residuos || residuos.length === 0) {
+                console.log('ℹ️ Nenhum resíduo para renderizar');
+                container.innerHTML = '<p style="text-align: center; color: var(--gray-600); padding: 2rem;">Nenhum resíduo registrado</p>';
+                return;
+            }
+
+            console.log('✅ Renderizando', residuos.length, 'resíduo(s)');
+            container.innerHTML = residuos.map(residuo => {
+                const statusColor = {
+                    'AGUARDANDO_APROVACAO': 'var(--warning-color)',
+                    'APROVADO': 'var(--success-color)',
+                    'REJEITADO': 'var(--danger-color)'
+                }[residuo.status] || 'var(--gray-600)';
+
+                const statusTexto = {
+                    'AGUARDANDO_APROVACAO': 'Aguardando Aprovação',
+                    'APROVADO': 'Aprovado',
+                    'REJEITADO': 'Rejeitado'
+                }[residuo.status] || residuo.status;
+
+                return `
+                    <div class="residuo-card" style="background: var(--warning-bg); border-left: 4px solid ${statusColor}; padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div>
+                                <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Material</p>
+                                <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${residuo.material || '-'}</p>
+                            </div>
+                            <div>
+                                <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Peso</p>
+                                <p style="margin: 0.25rem 0 0 0; font-weight: bold; color: var(--warning-color);">${residuo.peso?.toFixed(2) || 0} kg</p>
+                            </div>
+                            <div>
+                                <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Classificação</p>
+                                <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${residuo.classificacao || '-'}</p>
+                            </div>
+                            <div>
+                                <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Status</p>
+                                <p style="margin: 0.25rem 0 0 0; font-weight: bold; color: ${statusColor};">${statusTexto}</p>
+                            </div>
+                        </div>
+                        <p style="margin: 0.5rem 0 0 0; color: var(--gray-700); font-size: 0.875rem;"><strong>Justificativa:</strong> ${residuo.justificativa || '-'}</p>
+                        ${residuo.motivo_decisao ? `<p style="margin: 0.5rem 0 0 0; color: var(--gray-700); font-size: 0.875rem;"><strong>Decisão:</strong> ${residuo.motivo_decisao}</p>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function carregarTiposLote() {
+            try {
+                const response = await fetch('/api/tipos-lote', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                const tipos = await response.json();
+                const select = document.getElementById('tipoLoteSublote');
+
+                tipos.forEach(tipo => {
+                    const option = document.createElement('option');
+                    option.value = tipo.id;
+                    option.textContent = tipo.nome;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar tipos de lote:', error);
+            }
+        }
+
+        document.getElementById('checkboxMaterialManual').addEventListener('change', function() {
+            const containerSelect = document.getElementById('containerSelectMaterial');
+            const containerInput = document.getElementById('containerInputMaterial');
+            const selectMaterial = document.getElementById('tipoLoteSublote');
+            const inputMaterial = document.getElementById('tipoLoteSubloteManual');
+
+            if (this.checked) {
+                containerSelect.style.display = 'none';
+                containerInput.style.display = 'block';
+                selectMaterial.removeAttribute('required');
+                inputMaterial.setAttribute('required', 'required');
+                selectMaterial.value = '';
+            } else {
+                containerSelect.style.display = 'block';
+                containerInput.style.display = 'none';
+                inputMaterial.removeAttribute('required');
+                selectMaterial.setAttribute('required', 'required');
+                inputMaterial.value = '';
+            }
+        });
+
+        document.getElementById('formSublote').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const usaMaterialManual = document.getElementById('checkboxMaterialManual').checked;
+            const peso = parseFloat(document.getElementById('pesoSublote').value);
+
+            const pesoRestante = (lote.peso_total_kg || 0) - (separacao.peso_total_sublotes || 0) - (separacao.peso_total_residuos || 0);
+            if (peso > pesoRestante) {
+                alert(`Peso do sublote (${peso.toFixed(2)} kg) excede o peso restante (${pesoRestante.toFixed(2)} kg)`);
+                return;
+            }
+
+            let tipoLoteId = null;
+            let tipoLoteNome = null;
+
+            if (usaMaterialManual) {
+                tipoLoteNome = document.getElementById('tipoLoteSubloteManual').value.trim();
+                if (!tipoLoteNome) {
+                    alert('Por favor, digite o tipo de material');
+                    return;
+                }
+            } else {
+                tipoLoteId = parseInt(document.getElementById('tipoLoteSublote').value);
+                if (!tipoLoteId) {
+                    alert('Por favor, selecione o tipo de material');
+                    return;
+                }
+            }
+
+            try {
+                const requestBody = {
+                    peso: peso,
+                    qualidade: document.getElementById('qualidadeSublote').value,
+                    observacoes: document.getElementById('observacoesSublote').value,
+                    is_manual: usaMaterialManual,
+                    tipo_lote_nome: usaMaterialManual ? tipoLoteNome : document.getElementById('tipoLoteSublote').options[document.getElementById('tipoLoteSublote').selectedIndex].text
+                };
+
+                if (!usaMaterialManual) {
+                    requestBody.tipo_lote_id = tipoLoteId;
+                }
+
+                const response = await fetch(`/api/separacao/${separacaoId}/sublotes`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao criar sublote');
+                }
+
+                const sublote = await response.json();
+
+                separacao.peso_total_sublotes = (separacao.peso_total_sublotes || 0) + peso;
+
+                document.getElementById('formSublote').reset();
+                document.getElementById('checkboxMaterialManual').checked = false;
+                document.getElementById('containerSelectMaterial').style.display = 'block';
+                document.getElementById('containerInputMaterial').style.display = 'none';
+                document.getElementById('tipoLoteSublote').setAttribute('required', 'required');
+                document.getElementById('tipoLoteSubloteManual').removeAttribute('required');
+                
+                await carregarSublotes();
+                atualizarProgresso();
+                alert('Sublote criado com sucesso!');
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao criar sublote: ' + error.message);
+            }
+        });
+
+        document.getElementById('formResiduo').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const peso = parseFloat(document.getElementById('pesoResiduo').value);
+
+            const pesoRestante = (lote.peso_total_kg || 0) - (separacao.peso_total_sublotes || 0) - (separacao.peso_total_residuos || 0);
+            if (peso > pesoRestante) {
+                alert(`Peso do resíduo (${peso.toFixed(2)} kg) excede o peso restante (${pesoRestante.toFixed(2)} kg)`);
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/separacao/${separacaoId}/residuos`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({
+                        material: document.getElementById('materialResiduo').value,
+                        peso: peso,
+                        classificacao: document.getElementById('classificacaoResiduo').value,
+                        justificativa: document.getElementById('justificativaResiduo').value
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao registrar resíduo');
+                }
+
+                separacao.peso_total_residuos = (separacao.peso_total_residuos || 0) + peso;
+
+                document.getElementById('formResiduo').reset();
+                await carregarResiduos();
+                atualizarProgresso();
+                alert('Resíduo registrado e enviado para aprovação administrativa!');
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao registrar resíduo: ' + error.message);
+            }
+        });
+
+        function atualizarProgresso() {
+            const pesoTotalSublotes = separacao.peso_total_sublotes || 0;
+            const pesoTotalResiduos = separacao.peso_total_residuos || 0;
+            const pesoProcessado = pesoTotalSublotes + pesoTotalResiduos;
+            const pesoLote = lote.peso_total_kg || 0;
+            const percentual = pesoLote > 0 ? (pesoProcessado / pesoLote) * 100 : 0;
+
+            document.getElementById('pesoProcessado').textContent = `${pesoProcessado.toFixed(2)} kg`;
+            document.getElementById('pesoSublotes').textContent = `${pesoTotalSublotes.toFixed(2)} kg`;
+            document.getElementById('pesoResiduos').textContent = `${pesoTotalResiduos.toFixed(2)} kg`;
+            document.getElementById('percentualProcessado').textContent = `${percentual.toFixed(1)}%`;
+        }
+
+        async function finalizarSeparacao() {
+            try {
+                const pesoProcessado = (separacao.peso_total_sublotes || 0) + (separacao.peso_total_residuos || 0);
+                const pesoLote = lote.peso_total_kg || 0;
+                const diferenca = Math.abs(pesoLote - pesoProcessado);
+
+                if (diferenca > 0.1) {
+                    const confirmar = confirm(
+                        `Ainda há ${diferenca.toFixed(2)} kg de diferença entre o peso do lote e o peso processado.\n\n` +
+                        `Deseja realmente finalizar a separação?`
+                    );
+                    if (!confirmar) return;
+                }
+
+                if (!confirm('Deseja finalizar a separação? Esta ação não pode ser desfeita.')) return;
+
+                const gps = await obterLocalizacaoGPS();
+
+                const response = await fetch(`/api/separacao/${separacaoId}/finalizar`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({
+                        gps: gps,
+                        observacoes: document.getElementById('observacoesFinais').value
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao finalizar separação');
+                }
+
+                const resultado = await response.json();
+
+                alert(`Separação finalizada com sucesso!\n\nAproveitamento: ${resultado.percentual_aproveitamento?.toFixed(1)}%`);
+                window.location.href = '/separacao-fila.html';
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao finalizar separação: ' + error.message);
+            }
+        }
+
+        function mostrarTab(tab) {
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+
+            document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+            document.getElementById('tabContent' + tab.charAt(0).toUpperCase() + tab.slice(1)).style.display = 'block';
+        }
+
+        function obterLocalizacaoGPS() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) {
+                    resolve(null);
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        resolve({
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            precisao: position.coords.accuracy
+                        });
+                    },
+                    () => resolve(null),
+                    { timeout: 5000 }
+                );
+            });
+        }
+
+        function voltarParaFila() {
+            window.location.href = '/separacao-fila.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarSeparacao();
+        });
+    </script>
+
+    <style>
+        /* Ajustes de espaçamento para header fixo */
+        body {
+            padding-bottom: 80px;
+        }
+
+        main.container {
+            padding-top: 80px !important;
+            padding-bottom: 20px;
+        }
+
+        /* Ajustes específicos para desktop */
+        @media (min-width: 1024px) {
+            main.container {
+                padding-top: 100px !important;
+            }
+        }
+
+        .tab-button {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--gray-600);
+            transition: all 0.2s;
+        }
+
+        .tab-button:hover {
+            color: var(--primary-color);
+        }
+
+        .tab-button.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .tab-content {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .sublote-card, .residuo-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .sublote-card:hover, .residuo-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .card {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            main.container {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+
+            h2, h3 {
+                font-size: 1.25rem;
+            }
+
+            .btn {
+                font-size: 0.875rem;
+                padding: 0.5rem 0.75rem;
+            }
+
+            .sublote-card, .residuo-card {
+                padding: 0.75rem !important;
+            }
+
+            .sublote-card div[style*="grid-template-columns"],
+            .residuo-card div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+                gap: 0.75rem !important;
+            }
+
+            form[style*="grid"] {
+                grid-template-columns: 1fr !important;
+            }
+
+            div[style*="display: grid"][style*="grid-template-columns: 1fr 1fr"] {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                padding: 0.75rem;
+                border-radius: 8px;
+            }
+
+            h2 {
+                font-size: 1.125rem;
+            }
+
+            h3 {
+                font-size: 1rem;
+            }
+
+            .sublote-card p[style*="font-size: 0.875rem"],
+            .residuo-card p[style*="font-size: 0.875rem"] {
+                font-size: 0.8125rem !important;
+            }
+
+            input, select, textarea {
+                font-size: 16px;
+            }
+        }
+    </style>
+</body>
+</html>

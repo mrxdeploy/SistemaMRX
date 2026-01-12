@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de Placas - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Consulta de Placas</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button class="btn btn-secondary" onclick="logout()">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <nav class="bottom-nav">
+        <a href="/dashboard.html" class="bottom-nav-item">
+            <i class="fas fa-chart-line icon"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="/consulta-placas.html" class="bottom-nav-item active">
+            <i class="fas fa-search icon"></i>
+            <span>Consulta</span>
+        </a>
+        <a href="/solicitacoes.html" class="bottom-nav-item">
+            <i class="fas fa-file-alt icon"></i>
+            <span>Compra</span>
+        </a>
+        <a href="/fornecedores.html" class="bottom-nav-item">
+            <i class="fas fa-building icon"></i>
+            <span>Fornecedores</span>
+        </a>
+    </nav>
+
+    <main class="container mt-4">
+        <h1>Consulta Avançada de Placas</h1>
+
+        <div class="card" style="margin-bottom: var(--spacing-lg);">
+            <div class="card-header">
+                <h3>Filtros de Busca</h3>
+            </div>
+            <div class="card-body">
+                <div class="grid-container" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div class="form-group">
+                        <label>Tag</label>
+                        <input type="text" id="filtroTag" placeholder="Digite a tag...">
+                    </div>
+                    <div class="form-group">
+                        <label>Fornecedor</label>
+                        <select id="filtroEmpresa">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Placa</label>
+                        <select id="filtroTipo">
+                            <option value="">Todos</option>
+                            <option value="leve">Leve</option>
+                            <option value="media">Média</option>
+                            <option value="pesada">Pesada</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="filtroStatus">
+                            <option value="">Todos</option>
+                            <option value="em_analise">Em Análise</option>
+                            <option value="entrada">Entrada</option>
+                            <option value="aprovada">Aprovada</option>
+                            <option value="reprovada">Reprovada</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Peso Mínimo (kg)</label>
+                        <input type="number" id="filtroPesoMin" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Peso Máximo (kg)</label>
+                        <input type="number" id="filtroPesoMax" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Valor Mínimo (R$)</label>
+                        <input type="number" id="filtroValorMin" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Valor Máximo (R$)</label>
+                        <input type="number" id="filtroValorMax" step="0.01">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                    <button class="btn btn-primary" onclick="buscarPlacas()" style="flex: 1;">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                    <button class="btn btn-secondary" onclick="limparFiltros()">
+                        <i class="fas fa-eraser"></i> Limpar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="estatisticas" style="margin-bottom: var(--spacing-lg);"></div>
+        <div id="listaPlacas" class="grid-container"></div>
+    </main>
+
+    <script>
+        let placas = [];
+        let empresas = [];
+
+        async function carregarEmpresas() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/fornecedores', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    empresas = await response.json();
+                    const select = document.getElementById('filtroEmpresa');
+                    empresas.forEach(emp => {
+                        const option = document.createElement('option');
+                        option.value = emp.id;
+                        option.textContent = emp.nome;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar empresas:', error);
+            }
+        }
+
+        async function buscarPlacas() {
+            try {
+                const token = localStorage.getItem('token');
+                const params = new URLSearchParams();
+                
+                const tag = document.getElementById('filtroTag').value;
+                const empresa_id = document.getElementById('filtroEmpresa').value;
+                const tipo_placa = document.getElementById('filtroTipo').value;
+                const status = document.getElementById('filtroStatus').value;
+                const peso_min = document.getElementById('filtroPesoMin').value;
+                const peso_max = document.getElementById('filtroPesoMax').value;
+                const valor_min = document.getElementById('filtroValorMin').value;
+                const valor_max = document.getElementById('filtroValorMax').value;
+
+                if (tag) params.append('tag', tag);
+                if (empresa_id) params.append('empresa_id', empresa_id);
+                if (tipo_placa) params.append('tipo_placa', tipo_placa);
+                if (status) params.append('status', status);
+                if (peso_min) params.append('peso_min', peso_min);
+                if (peso_max) params.append('peso_max', peso_max);
+                if (valor_min) params.append('valor_min', valor_min);
+                if (valor_max) params.append('valor_max', valor_max);
+
+                const response = await fetch(`/api/placas/consulta?${params}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    placas = await response.json();
+                    exibirPlacas();
+                    exibirEstatisticas();
+                }
+            } catch (error) {
+                console.error('Erro ao buscar placas:', error);
+            }
+        }
+
+        function exibirPlacas() {
+            const lista = document.getElementById('listaPlacas');
+            
+            if (placas.length === 0) {
+                lista.innerHTML = '<p style="text-align: center; padding: 2rem;">Nenhuma placa encontrada.</p>';
+                return;
+            }
+
+            lista.innerHTML = placas.map(placa => `
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Tag: ${placa.tag}</h3>
+                        <span class="badge badge-${placa.status === 'aprovada' ? 'success' : placa.status === 'reprovada' ? 'danger' : 'warning'}">
+                            ${placa.status}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Fornecedor:</strong> ${placa.empresa_nome}</p>
+                        <p><strong>Tipo:</strong> ${placa.tipo_placa}</p>
+                        <p><strong>Peso:</strong> ${placa.peso_kg} kg</p>
+                        <p><strong>Valor:</strong> R$ ${placa.valor.toFixed(2)}</p>
+                        <p><strong>Data da Compra:</strong> ${new Date(placa.data_compra).toLocaleDateString('pt-BR')}</p>
+                        ${placa.data_aprovacao ? `<p><strong>Aprovada em:</strong> ${new Date(placa.data_aprovacao).toLocaleDateString('pt-BR')}</p>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function exibirEstatisticas() {
+            const totalPlacas = placas.length;
+            const pesoTotal = placas.reduce((sum, p) => sum + p.peso_kg, 0);
+            const valorTotal = placas.reduce((sum, p) => sum + p.valor, 0);
+
+            const stats = document.getElementById('estatisticas');
+            stats.innerHTML = `
+                <div class="grid-container" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+                    <div class="stat-card">
+                        <div class="stat-value">${totalPlacas}</div>
+                        <div class="stat-label">Total de Placas</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${pesoTotal.toFixed(2)} kg</div>
+                        <div class="stat-label">Peso Total</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">R$ ${valorTotal.toFixed(2)}</div>
+                        <div class="stat-label">Valor Total</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function limparFiltros() {
+            document.getElementById('filtroTag').value = '';
+            document.getElementById('filtroEmpresa').value = '';
+            document.getElementById('filtroTipo').value = '';
+            document.getElementById('filtroStatus').value = '';
+            document.getElementById('filtroPesoMin').value = '';
+            document.getElementById('filtroPesoMax').value = '';
+            document.getElementById('filtroValorMin').value = '';
+            document.getElementById('filtroValorMax').value = '';
+            placas = [];
+            document.getElementById('listaPlacas').innerHTML = '';
+            document.getElementById('estatisticas').innerHTML = '';
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/';
+        }
+
+        carregarEmpresas();
+    </script>
+</body>
+</html>

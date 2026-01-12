@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabelas de Precos Pendentes - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Ajustes de espaçamento para header fixo e bottom nav */
+        body {
+            padding-bottom: 95px; /* Espaço para bottom nav */
+        }
+
+        main.container {
+            padding-top: 80px; /* Espaço para header fixo */
+            padding-bottom: 100px; /* Espaço para bottom nav */
+        }
+
+        /* Ajuste específico para o título no mobile */
+        @media (max-width: 768px) {
+            main.container > .btn-voltar {
+                margin-top: 25px !important;
+            }
+            
+            main.container > .page-header {
+                margin-top: 10px !important;
+            }
+        }
+
+        /* Ajustes específicos para desktop */
+        @media (min-width: 1024px) {
+            main.container {
+                padding-top: 90px; /* Header um pouco maior no desktop */
+                padding-bottom: 100px; /* Mantém espaço para bottom nav */
+            }
+        }
+
+        /* Garantir que cards não fiquem atrás da navbar */
+        .fornecedor-card {
+            position: relative;
+            z-index: 1;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+        
+        .page-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .page-header .subtitle {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .fornecedor-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            border-left: 4px solid #f97316;
+            transition: all 0.2s;
+        }
+        
+        .fornecedor-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+        
+        .fornecedor-card.aprovada {
+            border-left-color: #22c55e;
+        }
+        
+        .fornecedor-card.pendente_reenvio {
+            border-left-color: #ef4444;
+        }
+        
+        .fornecedor-info {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .fornecedor-nome {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+        
+        .fornecedor-detalhes {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .fornecedor-stats {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f97316;
+        }
+        
+        .stat-label {
+            font-size: 0.7rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.375rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .status-badge.pendente {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-badge.aprovada {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-badge.pendente_reenvio {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .status-badge.sem_tabela {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+        
+        .btn-revisar {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        
+        .btn-revisar:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+        }
+        
+        .btn-voltar {
+            background: #f3f4f6;
+            color: #374151;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #9ca3af;
+        }
+        
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: #d1d5db;
+        }
+        
+        .empty-state h3 {
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            background: #f3f4f6;
+            color: #6b7280;
+            border: none;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            background: #059669;
+            color: white;
+        }
+        
+        .tab:hover:not(.active) {
+            background: #e5e7eb;
+        }
+        
+        .tab-count {
+            background: rgba(0,0,0,0.1);
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+        }
+        
+        .tab.active .tab-count {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        @media (max-width: 768px) {
+            .fornecedor-card {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .fornecedor-stats {
+                justify-content: space-between;
+            }
+            
+            .btn-revisar {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Tabelas de Precos</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <button class="btn-voltar" onclick="window.location.href='/administracao.html'">
+            <i class="fas fa-arrow-left"></i> Voltar ao Painel
+        </button>
+
+        <div class="page-header">
+            <h1><i class="fas fa-file-invoice-dollar"></i> Revisao de Tabelas de Precos</h1>
+            <p class="subtitle">Gerencie as tabelas de precos enviadas pelos compradores para seus fornecedores</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-filter="pendentes" onclick="filtrarLista('pendentes')">
+                <i class="fas fa-clock"></i> Pendentes
+                <span class="tab-count" id="countPendentes">0</span>
+            </button>
+            <button class="tab" data-filter="aprovadas" onclick="filtrarLista('aprovadas')">
+                <i class="fas fa-check-circle"></i> Aprovadas
+                <span class="tab-count" id="countAprovadas">0</span>
+            </button>
+            <button class="tab" data-filter="reenvio" onclick="filtrarLista('reenvio')">
+                <i class="fas fa-redo"></i> Aguardando Reenvio
+                <span class="tab-count" id="countReenvio">0</span>
+            </button>
+            <button class="tab" data-filter="todas" onclick="filtrarLista('todas')">
+                <i class="fas fa-list"></i> Todas
+            </button>
+        </div>
+
+        <div id="listaFornecedores">
+            <div class="empty-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Carregando...</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/rbac.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        let fornecedoresData = [];
+        let filtroAtual = 'pendentes';
+
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+            
+            if (user.tipo !== 'admin') {
+                showAlert('Acesso negado. Apenas administradores podem acessar esta pagina.');
+                window.location.href = '/dashboard.html';
+                return;
+            }
+
+            await carregarDados();
+            await atualizarNotificacoes();
+        }
+
+        async function carregarDados() {
+            try {
+                const [pendentesRes, fornecedoresRes] = await Promise.all([
+                    fetchAPI('/fornecedor-tabela-precos/pendentes'),
+                    fetchAPI('/fornecedores')
+                ]);
+                
+                const pendentes = pendentesRes.ok ? await pendentesRes.json() : [];
+                const fornecedores = fornecedoresRes.ok ? await fornecedoresRes.json() : [];
+                
+                const pendentesMap = {};
+                pendentes.forEach(p => {
+                    pendentesMap[p.fornecedor_id] = p.total_pendentes;
+                });
+                
+                fornecedoresData = fornecedores.map(f => ({
+                    ...f,
+                    total_pendentes: pendentesMap[f.id] || 0,
+                    tabela_preco_status: f.tabela_preco_status || 'sem_tabela'
+                }));
+                
+                atualizarContadores();
+                filtrarLista(filtroAtual);
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                document.getElementById('listaFornecedores').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Erro ao carregar dados</h3>
+                        <p>Por favor, tente novamente</p>
+                    </div>
+                `;
+            }
+        }
+
+        function atualizarContadores() {
+            const pendentes = fornecedoresData.filter(f => f.total_pendentes > 0).length;
+            const aprovadas = fornecedoresData.filter(f => f.tabela_preco_status === 'aprovada').length;
+            const reenvio = fornecedoresData.filter(f => f.tabela_preco_status === 'pendente_reenvio').length;
+            
+            document.getElementById('countPendentes').textContent = pendentes;
+            document.getElementById('countAprovadas').textContent = aprovadas;
+            document.getElementById('countReenvio').textContent = reenvio;
+        }
+
+        function filtrarLista(filtro) {
+            filtroAtual = filtro;
+            
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.filter === filtro);
+            });
+            
+            let listaFiltrada = [];
+            switch (filtro) {
+                case 'pendentes':
+                    listaFiltrada = fornecedoresData.filter(f => f.total_pendentes > 0);
+                    break;
+                case 'aprovadas':
+                    listaFiltrada = fornecedoresData.filter(f => f.tabela_preco_status === 'aprovada');
+                    break;
+                case 'reenvio':
+                    listaFiltrada = fornecedoresData.filter(f => f.tabela_preco_status === 'pendente_reenvio');
+                    break;
+                default:
+                    listaFiltrada = fornecedoresData;
+            }
+            
+            renderizarLista(listaFiltrada);
+        }
+
+        function renderizarLista(fornecedores) {
+            const container = document.getElementById('listaFornecedores');
+            
+            if (!fornecedores || fornecedores.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3>Nenhum fornecedor encontrado</h3>
+                        <p>Nao ha fornecedores nesta categoria</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = fornecedores.map(f => {
+                const doc = f.cnpj || f.cpf || 'Sem documento';
+                const statusClass = f.tabela_preco_status || 'sem_tabela';
+                const statusText = getStatusText(f.tabela_preco_status);
+                
+                return `
+                    <div class="fornecedor-card ${statusClass}">
+                        <div class="fornecedor-info">
+                            <div class="fornecedor-nome">${f.nome}</div>
+                            <div class="fornecedor-detalhes">
+                                ${doc} | Comprador: ${f.comprador_responsavel_nome || 'Nao atribuido'}
+                            </div>
+                        </div>
+                        <div class="fornecedor-stats">
+                            ${f.total_pendentes > 0 ? `
+                                <div class="stat-item">
+                                    <div class="stat-value">${f.total_pendentes}</div>
+                                    <div class="stat-label">Itens Pendentes</div>
+                                </div>
+                            ` : ''}
+                            <div class="stat-item">
+                                <span class="status-badge ${statusClass}">
+                                    <i class="fas ${getStatusIcon(f.tabela_preco_status)}"></i>
+                                    ${statusText}
+                                </span>
+                            </div>
+                        </div>
+                        ${f.total_pendentes > 0 || statusClass === 'pendente_aprovacao' || statusClass === 'pendente' ? `
+                            <button class="btn-revisar" onclick="abrirRevisao(${f.id})">
+                                <i class="fas fa-search"></i> Revisar
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'pendente_aprovacao': 'Pendente',
+                'aprovada': 'Aprovada',
+                'pendente_reenvio': 'Aguardando Reenvio',
+                'sem_tabela': 'Sem Tabela'
+            };
+            return statusMap[status] || 'Pendente';
+        }
+
+        function getStatusIcon(status) {
+            const iconMap = {
+                'pendente_aprovacao': 'fa-clock',
+                'aprovada': 'fa-check-circle',
+                'pendente_reenvio': 'fa-redo',
+                'sem_tabela': 'fa-minus-circle'
+            };
+            return iconMap[status] || 'fa-clock';
+        }
+
+        function abrirRevisao(fornecedorId) {
+            window.location.href = `/revisao-tabela-precos.html?fornecedor_id=${fornecedorId}`;
+        }
+
+        document.addEventListener('DOMContentLoaded', carregarPagina);
+    </script>
+</body>
+</html>

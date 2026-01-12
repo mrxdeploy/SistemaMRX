@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Login - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Remove scroll da tela de login - não permite scroll vertical ou horizontal */
+        html, body {
+            overflow: hidden !important;
+            height: 100vh;
+            width: 100vw;
+            position: fixed;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="pwa-install-banner">
+        <div>
+            <strong>Instalar App</strong>
+            <p>Adicione à tela inicial para acesso rápido</p>
+        </div>
+        <button class="btn btn-primary" onclick="instalarPWA()">Instalar</button>
+        <button class="btn btn-secondary" onclick="fecharBannerPWA()">Fechar</button>
+    </div>
+
+    <div class="login-container">
+        <div class="login-box">
+            <div class="logo-container">
+                <img src="/static/images/mrx-logo.png" alt="MRX Systems" class="logo-image">
+                <h1>MRX Systems</h1>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" autocomplete="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="senha">Senha</label>
+                    <input type="password" id="senha" autocomplete="current-password" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-login">Entrar</button>
+            </form>
+            <p class="login-subtitle">
+                Gestão inteligente de recursos com tecnologia de ponta
+            </p>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
+            
+            try {
+                const user = await login(email, senha);
+                
+                console.log('Login bem-sucedido:', user);
+                console.log('Tela inicial:', user.tela_inicial);
+                console.log('Perfil:', user.perfil);
+                
+                if (user.tela_inicial) {
+                    window.location.href = user.tela_inicial;
+                } else if (user.tipo === 'admin') {
+                    window.location.href = '/dashboard.html';
+                } else if (user.perfil === 'Auditoria / BI') {
+                    window.location.href = '/dashboard.html';
+                } else {
+                    window.location.href = '/dashboard.html';
+                }
+            } catch (error) {
+                showAlert(error.message);
+            }
+        });
+
+        if (getToken()) {
+            getCurrentUser().then(user => {
+                if (user) {
+                    if (user.tela_inicial) {
+                        window.location.href = user.tela_inicial;
+                    } else if (user.tipo === 'admin') {
+                        window.location.href = '/dashboard.html';
+                    } else if (user.perfil === 'Auditoria / BI') {
+                        window.location.href = '/dashboard.html';
+                    } else {
+                        window.location.href = '/dashboard.html';
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

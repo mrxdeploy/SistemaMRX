@@ -1,0 +1,64 @@
+Quero que você ajuste meu sistema de scanner de placas eletrônicas (PCBs) para reciclagem usando somente a API da Perplexity. Nenhuma outra API externa (Roboflow, Google Vision, etc.) deve ser utilizada.
+
+Requisitos:
+
+Uso exclusivo da API Perplexity
+
+Remova qualquer chamada a APIs de visão ou IA de terceiros.
+
+Toda a análise da imagem da placa (classificação LOW / MEDIUM / HIGH, descrição, etc.) deve ser feita apenas via Perplexity API (vision + texto).
+
+A única dependência externa de IA permitida é a Perplexity.
+
+Correção do modelo inválido
+
+Hoje o código recebe erro 400 de modelo inválido (llama-3.1-sonar-large-128k-online).
+
+Substitua esse modelo por um modelo válido listado em https://docs.perplexity.ai/getting-started/models.​
+
+Use um modelo compatível com visão e bom para raciocínio (Reasoning/Research), e deixe o nome do modelo em uma constante, por exemplo PPLX_MODEL.
+
+Chamada à Perplexity (vision + texto)
+
+Ajuste o corpo da requisição para o formato correto do endpoint de chat/completions da Perplexity, incluindo envio da imagem (URL/base64) conforme a documentação.
+
+O system e o user devem instruir o modelo a:
+
+Entender que a imagem é de uma placa eletrônica para reciclagem de metais preciosos.
+
+Analisar densidade de componentes, presença de conectores/fingers dourados e tipo provável de placa (celular, motherboard, fonte, telecom, etc.).
+
+Usar conhecimento geral e referências públicas de placas/datasets de PCB na web (sem chamar outras APIs, apenas via conhecimento do próprio modelo) para melhorar a estimativa de valor.
+
+O user prompt deve mandar a imagem e pedir resposta somente em JSON, no formato:
+
+json
+{
+  "grade": "LOW | MEDIUM | HIGH",
+  "type_guess": "ex: placa de celular, motherboard de PC, fonte, telecom etc.",
+  "explanation": "texto curto explicando a classificação (densidade de componentes, conectores dourados, etc.)",
+  "confidence": 0.0,
+  "metal_value_comment": "comentário curto sobre potencial de metais preciosos",
+  "notes": "campo livre opcional"
+}
+Integração no backend existente
+
+Mantenha o endpoint /api/scanner/analyze.
+
+Ele deve:
+
+Receber a imagem (upload/base64) e chamar apenas a Perplexity API com o modelo corrigido e o prompt descrito.
+
+Fazer o parse da resposta JSON.
+
+Retornar ao frontend: grade, type_guess, explanation, confidence, metal_value_comment, notes.
+
+Se a resposta não vier em JSON válido, tratar o erro e devolver mensagem clara.
+
+Configuração
+
+Ler a chave de API da Perplexity de variável de ambiente (por exemplo, PPLX_API_KEY).
+
+Comentar no código onde alterar o nome do modelo e a chave de API.
+
+Não use nenhuma outra API de visão computacional ou serviço de IA além da Perplexity. Gere o código completo necessário para essa integração (ajustes de backend) e corrija o problema de modelo inválido.”

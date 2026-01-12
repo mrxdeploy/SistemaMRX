@@ -1,0 +1,84 @@
+Criação Automática de Ordem de Compra (OC)
+Contexto:
+O sistema MRX possui um fluxo de Solicitações → Aprovação → Lotes → Ordem de Compra. Atualmente, quando uma solicitação é aprovada, os lotes são criados automaticamente, mas a Ordem de Compra (OC) NÃO está sendo criada automaticamente.
+
+Problema Atual:
+
+Ao aprovar uma solicitação em /api/solicitacoes/<id>/aprovar, os lotes são criados ✅
+A OC deveria ser criada automaticamente após os lotes, mas não está acontecendo ❌
+O usuário precisa clicar manualmente em "Gerar OC" (botão que nem aparece na interface)
+Objetivo:
+Modificar o endpoint de aprovação de solicitações para criar automaticamente a Ordem de Compra quando aprovar uma solicitação.
+
+Requisitos Técnicos:
+
+Arquivo a modificar: app/routes/solicitacoes.py
+
+Função a alterar: aprovar_solicitacao(id)
+
+Lógica a implementar:
+
+Após criar os lotes com sucesso
+Criar automaticamente uma OC vinculada à solicitação
+A OC deve ter:
+solicitacao_id: ID da solicitação aprovada
+fornecedor_id: Mesmo fornecedor da solicitação
+valor_total: Soma de valor_calculado de todos os itens da solicitação
+status: 'em_analise' (status inicial)
+criado_por: ID do admin que aprovou a solicitação
+criado_em: Data/hora atual
+Registrar auditoria completa da criação da OC (usando registrar_auditoria_oc)
+Enviar notificação para o Financeiro/Administrador sobre a nova OC criada
+Imports necessários:
+
+Adicionar OrdemCompra e AuditoriaOC nos imports de app.models
+Importar a função registrar_auditoria_oc de app/routes/ordens_compra.py
+Fluxo esperado após a correção:
+
+Solicitação (pendente) 
+    ↓ 
+Admin clica "Aprovar"
+    ↓
+Sistema executa automaticamente:
+1. Atualiza status para 'aprovada' ✅
+2. Cria lotes agrupados por tipo ✅
+3. **CRIA OC automaticamente** ← ADICIONAR ISSO
+4. Registra auditoria da OC ← ADICIONAR ISSO
+5. Envia notificações ← ADICIONAR ISSO
+Tratamento de erros:
+
+Se a criação da OC falhar, fazer rollback de toda a transação (incluindo lotes)
+Retornar erro claro ao usuário
+Garantir que não fiquem lotes "órfãos" sem OC
+Notificações a criar:
+
+Para o Funcionário (Comprador PJ): "Sua solicitação foi aprovada e a OC foi gerada"
+Para Financeiro/Administrador: "Nova OC #X criada e aguardando aprovação"
+Validações importantes:
+
+Verificar se já existe OC para esta solicitação antes de criar (constraint uq_oc_solicitacao)
+Garantir que a solicitação tem itens com valores calculados
+Capturar IP, GPS e dispositivo do admin aprovador
+Código de referência:
+Use como base a função criar_oc em app/routes/ordens_compra.py, mas adapte para ser chamada internamente (sem ser um endpoint HTTP).
+
+Testar após implementação:
+
+Criar uma solicitação como Comprador PJ
+Aprovar como Admin
+Verificar se:
+Status da solicitação = 'aprovada' ✅
+Lotes foram criados ✅
+OC foi criada automaticamente ✅
+OC tem status 'em_analise' ✅
+Auditoria da OC foi registrada ✅
+Notificações foram enviadas ✅
+Resultado Esperado:
+Ao aprovar uma solicitação, a tela de "Ordens de Compra" deve mostrar imediatamente a nova OC criada, sem necessidade de ação manual adicional.
+
+Restrições:
+
+NÃO modificar o modelo OrdemCompra ou AuditoriaOC
+NÃO alterar a lógica de criação de lotes (já funciona)
+Manter compatibilidade com o endpoint manual /api/ordens-compra/solicitacao/<sc_id> (caso alguém queira usar)
+Usar transações do SQLAlchemy para garantir atomicidade

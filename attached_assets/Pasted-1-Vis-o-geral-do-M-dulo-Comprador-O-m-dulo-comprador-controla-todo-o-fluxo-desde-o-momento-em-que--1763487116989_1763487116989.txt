@@ -1,0 +1,444 @@
+1. Visão geral do Módulo Comprador
+O módulo comprador controla todo o fluxo desde o momento em que o comprador chega em um estabelecimento (sucata / placas eletrônicas), até o material:
+
+ser comprado,
+ter lote gerado,
+ser conferido na base MRX,
+passar por separação/refinamento,
+gerar lotes finais de produto acabado,
+registrar scrap/descarte,
+e ficar disponível em estoque para emissão de nota e envio à refinaria.
+2. Perfis e Permissões envolvidas
+Comprador
+
+Cadastra novos fornecedores em campo.
+Lê peças com scanner.
+Registra compras e gera lotes de compra.
+Não altera tabelas de preço.
+Administrador (ADM)
+
+Cadastra/edita tabelas de preço (1, 2 e 3 estrelas).
+Aprova compras com valor acima da tabela vigente.
+Define e altera o vínculo fornecedor ↔ comprador.
+Libera descarte de scrap.
+Conferente / Estoque (pode ser outro papel ou o ADM)
+
+Recebe o lote na base MRX.
+Faz nova conferência de peso e lote.
+Registra separação, refinamento e lotes finais.
+3. Fluxos principais (passo a passo)
+3.1. Fluxo: Comprador chega em um estabelecimento
+Comprador abre o App / Sistema – Módulo Comprador.
+
+Seleciona a opção “Nova compra”.
+
+Sistema pede para selecionar um fornecedor:
+
+Busca pelo nome / CPF / CNPJ.
+Se o fornecedor não existe:
+
+Comprador clica em “Cadastrar novo fornecedor”.
+
+Preenche dados básicos (nome social, CPF/CNPJ, contatos).
+
+O sistema:
+
+Captura geolocalização automaticamente (latitude/longitude).
+Salva o fornecedor.
+Esse fornecedor é vinculado ao comprador atual.
+
+Se o fornecedor já existe:
+
+Sistema carrega dados do fornecedor.
+Mostra endereço padrão de coleta/emissão.
+3.2. Fluxo: Dados de coleta / entrega
+Sistema pergunta:
+
+Endereço de coleta:
+
+Usar endereço padrão do fornecedor ou
+Cadastrar novo endereço para essa compra.
+Sistema pergunta:
+
+A compra será “Entrega” (fornecedor leva para MRX) ou “Coleta” (MRX busca).
+3.3. Fluxo: Leitura das peças com scanner e classificação
+Comprador entra na etapa “Leitura de peças”.
+
+Ele usa o scanner (código de barras, QRCODE ou outro identificador).
+
+Para cada leitura, o sistema:
+
+Consulta uma tabela de peças cadastrada pelo ADM (no banco de dados).
+
+Faz um match / similaridade com o cadastro:
+
+Identifica o tipo de peça ou classificação aproximada:
+
+Placa leve, média ou pesada.
+Mostra para o comprador:
+
+Descrição da peça / família.
+Classe (leve/média/pesada).
+Comprador informa:
+
+O peso (kg) de cada tipo (ou a balança se integra e manda o valor).
+O sistema vai formando um resumo da compra:
+
+Quantidade por tipo (leve/média/pesada).
+Peso por tipo.
+Total de peso.
+3.4. Fluxo: Tabela de preço e autorização
+Ao finalizar a leitura, o sistema identifica:
+
+Qual tabela de preço usar para esse fornecedor:
+
+Tabela 1 estrela = tabela base (menor valor).
+Se o ADM já tiver atribuído antes, o fornecedor pode estar em tabela 2★ ou 3★ (valores maiores).
+Por padrão, para um fornecedor novo:
+
+Usa a tabela 1 estrela.
+Comprador informa o valor por kg negociado com o fornecedor para cada tipo de material.
+
+O sistema compara:
+
+Se valor negociado ≤ valor da tabela vigente:
+
+Compra é autorizada automaticamente.
+Se valor negociado > valor da tabela vigente:
+
+O sistema bloqueia a conclusão e:
+
+Gera um alerta para o ADM.
+
+Registra uma “Solicitação de autorização de preço”, com:
+
+Fornecedor, comprador, material, tabela atual, valor tabela, valor solicitado.
+ADM recebe esse pedido:
+
+Pode aprovar a compra e:
+
+Definir uma nova tabela para o fornecedor (2★ ou 3★).
+Essa nova tabela fica vinculada a esse fornecedor.
+Pode reprovar:
+
+Sistema registra motivo.
+Comprador é avisado, e compra não pode ser concluída com aquele valor.
+Regra: Fornecedor vinculado a uma tabela específica (1★, 2★, 3★). Só o ADM pode alterar essa vinculação.
+
+3.5. Fluxo: Cálculo do valor e geração de lote de compra
+Com valor autorizado (automático ou pelo ADM), o sistema:
+
+Para cada tipo de material:
+
+Calcula: total_item = peso_kg * valor_kg.
+Soma e gera o valor total da compra.
+
+Sistema cria um Lote de Compra:
+
+ID do lote: AAAAMMDD-SEQ
+
+Ex.: 20251117-001, 20251117-002…
+Campos principais:
+
+Data e hora.
+Comprador.
+Fornecedor.
+Endereço de coleta/entrega.
+Tipo: Entrega / Coleta.
+Peso total.
+Valor total.
+Status inicial: “Em trânsito para base MRX”.
+O lote fica visível para o setor da base MRX como “Aguardando chegada”.
+
+3.6. Fluxo: Chegada na base MRX e conferência
+Quando o material chega na base MRX:
+
+Usuário (Conferente/Estoque) abre a tela “Recebimento de Lote”.
+Seleciona o lote em trânsito.
+
+O sistema mostra:
+
+Dados da compra.
+Peso registrado pelo comprador.
+Conferente faz nova pesagem:
+
+Informa peso aferido.
+Sistema pode:
+
+Mostrar diferença percentual entre peso do comprador e peso da base.
+Se diferença estiver dentro de um limite aceitável (regra de negócio), status segue normal.
+Status do lote:
+
+“Conferido – Aguardando separação” ou
+“Aguardando conferência” (se quiser registrar em 2 etapas).
+3.7. Fluxo: Separação, refinamento e lotes finais
+Na etapa de separação:
+
+O material do lote de compra é refinado:
+
+Peças são separadas por tipo, qualidade, etc.
+Sistema permite:
+
+Criar um ou mais Lotes Finais (produto acabado) a partir de um Lote de Compra.
+
+Para cada Lote Final:
+
+Tipo de material refinado.
+Peso final.
+Data de criação.
+Referência ao lote de compra de origem.
+Caso haja descarte/scrap:
+
+Conferente informa:
+
+Peso de scrap.
+Motivo (material fora de padrão, sujo, danificado, etc.).
+Sistema cria um registro de Scrap:
+
+Vinculado ao lote de compra original.
+Peso.
+Status inicial: “Aguardando liberação para descarte”.
+Somente o ADM pode:
+
+Liberar esse scrap para descarte definitivo.
+
+Após liberação:
+
+Status: “Descartado”.
+Não entra em estoque vendável.
+3.8. Fluxo: Estoque para refinaria
+Lotes finais (produto acabado):
+
+Entram no módulo de Estoque MRX.
+Cada lote final:
+
+Tem um status: “Disponível”, “Reservado para nota”, “Faturado/Enviado para refinaria”.
+Quando a MRX decide faturar:
+
+Seleciona um ou mais lotes finais.
+Gera uma nota fiscal (fora do escopo técnico, mas o sistema registra os dados).
+Marca os lotes como “Enviado para refinaria”.
+4. Telas principais para o módulo comprador
+4.1. Tela: Painel do Comprador
+Objetivo: visão geral e atalhos.
+
+Cards:
+
+Total comprado hoje.
+Lotes em trânsito.
+Lotes aguardando conferência.
+Lista:
+
+Últimos fornecedores visitados.
+Botões:
+
+“Nova compra”.
+“Meus fornecedores”.
+4.2. Tela: Meus Fornecedores
+Campos de filtro:
+
+Nome social / Razão.
+CPF/CNPJ.
+Tabela:
+
+Nome do fornecedor.
+CPF/CNPJ.
+Cidade/UF.
+Geolocalização (com ícone/mapa).
+Tabela vinculada (1★, 2★, 3★).
+Ações:
+
+Ver detalhes.
+(Somente ADM) editar dados / tabela associada.
+4.3. Wizard: Nova Compra
+Pode ser dividido em passos:
+
+Passo 1 – Selecionar/Cadastrar Fornecedor
+Campo de busca: nome/CPF/CNPJ.
+Botão: “Cadastrar novo fornecedor”.
+Cadastro rápido de fornecedor:
+
+Nome social / Razão.
+
+Tipo: CPF ou CNPJ.
+
+CPF/CNPJ.
+
+Telefone / WhatsApp.
+
+Endereço principal (rua, número, bairro, cidade, UF, CEP).
+
+Geolocalização (capturada automaticamente):
+
+Mostrar um mapinha + coords.
+Botão: “Salvar”.
+
+Passo 2 – Dados da coleta/entrega
+Radio:
+
+Usar endereço padrão.
+Cadastrar outro endereço (para essa compra).
+Tipo:
+
+Entrega / Coleta.
+Observações.
+
+Passo 3 – Leitura de peças (Scanner)
+Campo de leitura (integração com scanner).
+
+Lista dinâmica:
+
+Código lido.
+Tipo sugerido (leve/média/pesada).
+Peso (kg) informado.
+Botão: “Adicionar material manualmente” (fallback).
+
+Resumo parcial:
+
+Peso por tipo.
+Quantidade de leituras.
+Passo 4 – Valores e tabela
+Mostrar:
+
+Tabela vigente do fornecedor (1★/2★/3★).
+Valor de tabela por tipo (leve/média/pesada).
+Comprador informa:
+
+Valor por kg negociado para cada tipo.
+Sistema:
+
+Compara valor negociado x valor tabela.
+
+Indica:
+
+“Dentro da tabela – compra autorizada automaticamente”.
+Ou “Acima da tabela – será enviada para aprovação do ADM”.
+Passo 5 – Resumo e geração do lote
+Resumo:
+
+Fornecedor.
+Tabela usada.
+Materiais, pesos, valores unitários e totais.
+Valor total da compra.
+Tipo (Entrega/Coleta).
+Botão:
+
+“Confirmar compra e gerar lote”.
+Ao confirmar:
+
+Sistema gera ID do lote (AAAAMMDD-SEQ).
+
+Status: “Em trânsito para base MRX”.
+
+Mostra mensagem:
+
+“Lote 20251117-001 gerado com sucesso. Entregar/coletar material na base MRX.”
+4.4. Tela: Autorizações de Preço (ADM)
+Lista de solicitações:
+
+Data/hora.
+Comprador.
+Fornecedor.
+Material.
+Valor tabela.
+Valor solicitado.
+Ações:
+
+Aprovar:
+
+Escolher se sobe o fornecedor para tabela 2★ ou 3★.
+Reprovar:
+
+Motivo (texto).
+Após aprovar:
+
+Compra volta para o fluxo normal.
+Nova tabela fica vinculada ao fornecedor.
+4.5. Telas de Recebimento, Conferência, Separação e Scrap
+(Em resumo para o dev)
+
+Recebimento de Lotes
+
+Filtrar por status “Em trânsito”.
+Selecionar lote.
+Registrar peso conferido.
+Atualizar status (Conferido / Aguardando separação).
+Separação / Refinamento
+
+Selecionar lote conferido.
+
+Dividir itens em Lotes Finais:
+
+Tipo material.
+Peso.
+Registrar peso de scrap (se houver).
+
+Scrap
+
+Lista de scraps “Aguardando liberação”.
+
+ADM pode:
+
+Liberar descartes.
+Registrar destino/observação.
+5. Regras de negócio (resumo para desenvolvedor)
+Fornecedor é vinculado a um comprador e a uma tabela de preço (1★, 2★ ou 3★).
+
+Só ADM altera essa vinculação.
+Geolocalização é capturada automaticamente no cadastro do fornecedor em campo.
+
+Compra automática sem intervenção do ADM:
+
+Quando valor negociado ≤ valor da tabela.
+Compra com intervenção do ADM:
+
+Quando valor negociado > tabela.
+Gera solicitação.
+Lote de Compra
+
+ID AAAAMMDD-SEQ.
+Status: Em trânsito → Conferido → Aguardando separação → Finalizado.
+Lotes Finais alimentam o estoque para futura nota/refinaria.
+
+Scrap:
+
+Sempre precisa de liberação do ADM para descarte definitivo.
+6. Modelagem de dados (rascunho)
+Só para orientar o dev:
+
+Comprador
+
+id, nome, usuário, ativo etc.
+Fornecedor
+
+id, nome_social, tipo_pessoa (CPF/CNPJ), cpf_cnpj, telefone, endereco_principal_id, tabela_preco_atual (1/2/3), comprador_responsavel_id.
+EnderecoFornecedor
+
+id, fornecedor_id, tipo (principal, coleta_extra), rua, numero, cidade, uf, cep, latitude, longitude.
+TabelaPreco
+
+id, nome (1 estrela, 2 estrelas, 3 estrelas), ativo.
+TabelaPrecoItem
+
+id, tabela_preco_id, tipo_material (leve/média/pesada), valor_kg.
+Peça/MaterialReferencia
+
+id, codigo_scanner, descricao, tipo_material (leve/média/pesada).
+Compra
+
+id, fornecedor_id, comprador_id, endereco_coleta_id, tipo_entrega (entrega/coleta), valor_total, peso_total, tabela_usada_id, status.
+CompraItem
+
+id, compra_id, tipo_material, peso_kg, valor_kg, valor_total.
+LoteCompra
+
+id, codigo_lote (AAAAMMDD-SEQ), compra_id, status, data_criacao.
+LoteFinal
+
+id, lote_compra_id, tipo_material, peso_kg, status (disponível, faturado, etc.).
+Scrap
+
+id, lote_compra_id ou lote_final_id, peso_kg, motivo, status (aguardando_liberação, descartado).
+SolicitacaoAutorizacaoPreco
+
+id, compra_id, comprador_id, fornecedor_id, tabela_atual_id, valor_tabela, valor_solicitado, status, motivo_recusa, data_decisao, nova_tabela_atribuida_id.

@@ -1,0 +1,68 @@
+
+🗑️  Limpando dados antigos...
+❌ Erro ao limpar dados: (psycopg2.errors.ForeignKeyViolation) update or delete on table "conferencias_recebimento" violates foreign key constraint "lotes_conferencia_id_fkey" on table "lotes"
+DETAIL:  Key (id)=(1) is still referenced from table "lotes".
+
+[SQL: DELETE FROM conferencias_recebimento]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+
+❌ ERRO: (psycopg2.errors.ForeignKeyViolation) update or delete on table "conferencias_recebimento" violates foreign key constraint "lotes_conferencia_id_fkey" on table "lotes"
+DETAIL:  Key (id)=(1) is still referenced from table "lotes".
+
+[SQL: DELETE FROM conferencias_recebimento]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.ForeignKeyViolation: update or delete on table "conferencias_recebimento" violates foreign key constraint "lotes_conferencia_id_fkey" on table "lotes"
+DETAIL:  Key (id)=(1) is still referenced from table "lotes".
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/runner/workspace/popular_sistema_completo.py", line 1031, in main
+    limpar_dados_antigos()
+  File "/home/runner/workspace/popular_sistema_completo.py", line 57, in limpar_dados_antigos
+    db.session.query(ConferenciaRecebimento).delete()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/orm/query.py", line 3210, in delete
+    self.session.execute(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/orm/bulk_persistence.py", line 2033, in orm_execute_statement
+    return super().orm_execute_statement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/orm/context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2355, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.IntegrityError: (psycopg2.errors.ForeignKeyViolation) update or delete on table "conferencias_recebimento" violates foreign key constraint "lotes_conferencia_id_fkey" on table "lotes"
+DETAIL:  Key (id)=(1) is still referenced from table "lotes".
+
+[SQL: DELETE FROM conferencias_recebimento]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)

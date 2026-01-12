@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabela de Preços do Fornecedor - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Correção de responsividade e overlap */
+        body {
+            padding-top: 60px;
+        }
+        
+        main.container {
+            padding-top: 20px !important;
+            padding-bottom: 110px !important;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding-top: 70px;
+            }
+            
+            main.container {
+                padding-top: 25px !important;
+            }
+            
+            .fornecedor-header-info {
+                margin-top: 10px;
+            }
+        }
+        
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            background: #f9fafb;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #059669;
+            background: #ecfdf5;
+        }
+        .upload-area i {
+            font-size: 48px;
+            color: #9ca3af;
+            margin-bottom: 16px;
+        }
+        .upload-area:hover i {
+            color: #059669;
+        }
+        .upload-area h3 {
+            font-size: 18px;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        .upload-area p {
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        @media (max-width: 480px) {
+            .tab {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+            
+            .tab i {
+                display: none;
+            }
+        }
+        .tab:hover { color: #059669; }
+        .tab.active {
+            color: #059669;
+        }
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #059669;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .item-row {
+            display: grid;
+            grid-template-columns: 1fr 150px 80px;
+            gap: 12px;
+            align-items: center;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        @media (max-width: 768px) {
+            .item-row {
+                grid-template-columns: 1fr 120px 60px;
+                gap: 8px;
+                padding: 10px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .item-row {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            
+            .item-row .btn-icon {
+                width: 100%;
+                height: 40px;
+            }
+        }
+        .item-row:hover { background: #f3f4f6; }
+        .item-row input[type="number"] {
+            text-align: right;
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            background: white;
+        }
+        .item-row input[type="number"]:focus {
+            outline: none;
+            border-color: #059669;
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+        }
+        .item-row .btn-icon {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .search-select-container {
+            position: relative;
+            width: 100%;
+        }
+        .search-select-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            background: white;
+        }
+        .search-select-input:focus {
+            outline: none;
+            border-color: #059669;
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+        }
+        .search-select-input::placeholder {
+            color: #9ca3af;
+        }
+        .search-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            display: none;
+        }
+        .search-select-dropdown.show { display: block; }
+        .search-select-option {
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .search-select-option:hover { background: #f3f4f6; }
+        .search-select-option.selected { background: #ecfdf5; }
+        .preco-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            min-width: 600px;
+        }
+        .preco-table th {
+            background: #f9fafb;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .preco-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .preco-table tr:hover td {
+            background: #f9fafb;
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 0 -16px;
+            padding: 0 16px;
+        }
+        
+        @media (max-width: 768px) {
+            .preco-table th,
+            .preco-table td {
+                padding: 8px;
+                font-size: 12px;
+            }
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-pendente { background: #fef3c7; color: #92400e; }
+        .status-ativo { background: #d1fae5; color: #065f46; }
+        .status-inativo { background: #fee2e2; color: #991b1b; }
+        .fornecedor-header-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            background: linear-gradient(135deg, #059669, #10b981);
+            border-radius: 12px;
+            color: white;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        
+        @media (max-width: 480px) {
+            .fornecedor-header-info {
+                padding: 16px;
+                gap: 12px;
+            }
+            
+            .fornecedor-header-info .icon {
+                width: 48px;
+                height: 48px;
+            }
+            
+            .fornecedor-header-info .icon i {
+                font-size: 24px;
+            }
+            
+            .fornecedor-header-info .info h2 {
+                font-size: 1.25rem;
+            }
+        }
+        .fornecedor-header-info .icon {
+            width: 64px;
+            height: 64px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .fornecedor-header-info .icon i { font-size: 32px; }
+        .fornecedor-header-info .info h2 { margin: 0 0 4px 0; font-size: 24px; }
+        .fornecedor-header-info .info p { margin: 0; opacity: 0.9; }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        @media (max-width: 480px) {
+            .summary-cards {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            
+            .summary-card {
+                padding: 12px;
+            }
+            
+            .summary-card .number {
+                font-size: 1.5rem;
+            }
+            
+            .summary-card .label {
+                font-size: 0.75rem;
+            }
+        }
+        .summary-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #e5e7eb;
+        }
+        .summary-card .number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #059669;
+        }
+        .summary-card .label {
+            font-size: 14px;
+            color: #6b7280;
+        }
+        
+        /* Melhorias de responsividade mobile */
+        @media (max-width: 768px) {
+            .search-select-input,
+            .item-row input[type="number"],
+            #filtroStatus {
+                font-size: 16px !important; /* Previne zoom no iOS */
+                padding: 12px !important;
+                min-height: 44px; /* Touch target mínimo */
+            }
+            
+            .btn {
+                min-height: 44px;
+                padding: 12px 16px;
+            }
+            
+            .btn-text {
+                display: inline;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            #filtroStatus {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            
+            #btnReenviar {
+                width: 100%;
+            }
+            
+            .btn-text {
+                display: none;
+            }
+            
+            .item-row input[type="number"] {
+                margin-bottom: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo" style="cursor: pointer;" onclick="voltar()">
+                <i class="fas fa-arrow-left" style="margin-right: 8px;"></i>
+                <span>Tabela de Preços</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mt-4">
+        <div id="fornecedorInfo" class="fornecedor-header-info">
+            <div class="icon"><i class="fas fa-building"></i></div>
+            <div class="info">
+                <h2 id="fornecedorNome">Carregando...</h2>
+                <p id="fornecedorDetalhe">Tabela de preços personalizada</p>
+            </div>
+        </div>
+
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="number" id="totalMateriais">0</div>
+                <div class="label">Materiais</div>
+            </div>
+            <div class="summary-card">
+                <div class="number" id="totalPendentes">0</div>
+                <div class="label">Pendentes</div>
+            </div>
+            <div class="summary-card">
+                <div class="number" id="totalAtivos">0</div>
+                <div class="label">Ativos</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="tabs">
+                <button class="tab active" data-tab="cadastrar">
+                    <i class="fas fa-plus-circle"></i> Cadastrar Preços
+                </button>
+                <button class="tab" data-tab="importar">
+                    <i class="fas fa-file-upload"></i> Importar Arquivo
+                </button>
+                <button class="tab" data-tab="visualizar">
+                    <i class="fas fa-list"></i> Visualizar Tabela
+                </button>
+            </div>
+
+            <div id="tab-cadastrar" class="tab-content active">
+                <h3 style="margin-bottom: 16px;">Adicionar Materiais e Preços</h3>
+                
+                <div id="itensLista">
+                </div>
+
+                <div class="item-row" style="background: #ecfdf5; border: 2px dashed #059669;">
+                    <div class="search-select-container">
+                        <input type="text" id="novoMaterialBusca" class="form-control search-select-input" placeholder="Buscar material...">
+                        <div id="materialDropdown" class="search-select-dropdown"></div>
+                        <input type="hidden" id="novoMaterialId">
+                    </div>
+                    <input type="number" id="novoPreco" class="form-control" placeholder="R$/kg" step="0.01" min="0">
+                    <button class="btn btn-primary btn-icon" onclick="adicionarItem()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+                <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="btn btn-secondary" onclick="limparItens()">
+                        <i class="fas fa-trash"></i> Limpar Tudo
+                    </button>
+                    <button class="btn btn-primary" onclick="salvarItens()" id="btnSalvar">
+                        <i class="fas fa-save"></i> Salvar Tabela
+                    </button>
+                </div>
+            </div>
+
+            <div id="tab-importar" class="tab-content">
+                <h3 style="margin-bottom: 16px;">Importar Arquivo CSV ou Excel</h3>
+                
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('arquivoInput').click()">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h3>Arraste o arquivo aqui ou clique para selecionar</h3>
+                    <p>Formatos aceitos: CSV, XLSX, XLS</p>
+                </div>
+                <input type="file" id="arquivoInput" accept=".csv,.xlsx,.xls" style="display: none;" onchange="processarArquivo(this.files[0])">
+
+                <div style="margin-top: 16px;">
+                    <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; border-left: 4px solid #f59e0b; margin-bottom: 1rem;">
+                        <p style="margin: 0; color: #92400e; font-size: 0.9rem;">
+                            <i class="fas fa-info-circle"></i> 
+                            O template será baixado vazio, contendo apenas os cabeçalhos. Você deve preencher manualmente os materiais e preços.
+                        </p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="baixarTemplate()">
+                        <i class="fas fa-download"></i> Baixar Template Vazio
+                    </button>
+                </div>
+
+                <div id="resultadoImportacao" style="display: none; margin-top: 24px;"></div>
+            </div>
+
+            <div id="tab-visualizar" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                    <h3 style="margin: 0;">Tabela de Preços Atual</h3>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; width: 100%; max-width: 500px;">
+                        <select id="filtroStatus" class="form-control" style="flex: 1; min-width: 160px; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 16px; background: white;" onchange="carregarPrecos()">
+                            <option value="">Todos os Status</option>
+                            <option value="ativo">Ativos</option>
+                            <option value="pendente_aprovacao">Pendentes</option>
+                            <option value="pendente_reenvio">Aguardando Correção</option>
+                            <option value="inativo">Inativos</option>
+                        </select>
+                        <button id="btnReenviar" class="btn btn-primary" style="display: none; white-space: nowrap;" onclick="reenviarParaAprovacao()">
+                            <i class="fas fa-paper-plane"></i> <span class="btn-text">Reenviar</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="preco-table">
+                        <thead>
+                            <tr>
+                                <th>Material</th>
+                                <th>Classificação</th>
+                                <th>Preço (R$/kg)</th>
+                                <th>Status</th>
+                                <th>Versão</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaPrecos">
+                            <tr><td colspan="6" class="loading">Carregando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        let fornecedorId = null;
+        let materiaisDisponiveis = [];
+        let itensAdicionados = [];
+
+        function voltar() {
+            window.location.href = '/fornecedores.html';
+        }
+
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+
+            const params = new URLSearchParams(window.location.search);
+            fornecedorId = params.get('id');
+
+            if (!fornecedorId) {
+                alert('Fornecedor não especificado');
+                voltar();
+                return;
+            }
+
+            await carregarFornecedor();
+            await carregarMateriais();
+            await carregarPrecos();
+            await atualizarNotificacoes();
+
+            setupTabs();
+            setupDragDrop();
+            setupBuscaMaterial();
+        }
+
+        async function carregarFornecedor() {
+            try {
+                const response = await fetchAPI(`/fornecedores/${fornecedorId}`);
+                if (response.ok) {
+                    const fornecedor = await response.json();
+                    document.getElementById('fornecedorNome').textContent = fornecedor.nome;
+                    document.getElementById('fornecedorDetalhe').textContent = 
+                        fornecedor.cnpj || fornecedor.cpf || 'Tabela de preços personalizada';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar fornecedor:', error);
+            }
+        }
+
+        async function carregarMateriais() {
+            try {
+                const response = await fetchAPI('/materiais-base');
+                if (response.ok) {
+                    const materiais = await response.json();
+                    // Remover informações de preços/estrelas - comprador não deve ver
+                    materiaisDisponiveis = materiais.map(m => ({
+                        id: m.id,
+                        codigo: m.codigo,
+                        nome: m.nome,
+                        classificacao: m.classificacao,
+                        descricao: m.descricao,
+                        ativo: m.ativo
+                    }));
+                }
+            } catch (error) {
+                console.error('Erro ao carregar materiais:', error);
+            }
+        }
+
+        async function carregarPrecos() {
+            try {
+                const status = document.getElementById('filtroStatus').value;
+                let url = `/fornecedor-tabela-precos/fornecedor/${fornecedorId}`;
+                if (status) url += `?status=${status}`;
+
+                const response = await fetchAPI(url);
+                if (response.ok) {
+                    const data = await response.json();
+                    renderizarTabela(data.precos);
+                    atualizarContadores(data.precos);
+                }
+            } catch (error) {
+                console.error('Erro ao carregar preços:', error);
+            }
+        }
+
+        function renderizarTabela(precos) {
+            const tbody = document.getElementById('tabelaPrecos');
+
+            if (!precos || precos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #6b7280;">Nenhum preço cadastrado</td></tr>';
+                return;
+            }
+
+            // Agrupar por material_id e pegar apenas a versão mais recente
+            const precosPorMaterial = {};
+            precos.forEach(p => {
+                const materialId = p.material_id;
+                if (!precosPorMaterial[materialId] || p.versao > precosPorMaterial[materialId].versao) {
+                    precosPorMaterial[materialId] = p;
+                }
+            });
+
+            // Converter de volta para array
+            const precosUnicos = Object.values(precosPorMaterial);
+
+            tbody.innerHTML = precosUnicos.map(p => `
+                <tr>
+                    <td>
+                        <strong>${p.material_nome}</strong>
+                        <br><small style="color: #6b7280;">${p.material_codigo}</small>
+                    </td>
+                    <td><span class="badge">${p.material_classificacao}</span></td>
+                    <td><strong>R$ ${parseFloat(p.preco_fornecedor).toFixed(2)}</strong></td>
+                    <td><span class="status-badge status-${p.status === 'pendente_aprovacao' || p.status === 'pendente_reenvio' ? 'pendente' : p.status}">${formatarStatus(p.status)}</span></td>
+                    <td>v${p.versao}</td>
+                    <td>
+                        ${p.status === 'pendente_aprovacao' || p.status === 'pendente_reenvio' ? `
+                            <button class="btn btn-sm" style="padding: 4px 8px;" onclick="editarPreco(${p.id}, ${p.preco_fornecedor})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" style="padding: 4px 8px;" onclick="excluirPreco(${p.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function formatarStatus(status) {
+            const statusMap = {
+                'ativo': 'Ativo',
+                'inativo': 'Inativo',
+                'pendente_aprovacao': 'Pendente',
+                'pendente_reenvio': 'Aguardando Correção'
+            };
+            return statusMap[status] || status;
+        }
+
+        function atualizarContadores(precos) {
+            const total = precos.length;
+            const pendentes = precos.filter(p => p.status === 'pendente_aprovacao' || p.status === 'pendente_reenvio').length;
+            const ativos = precos.filter(p => p.status === 'ativo').length;
+            const aguardandoCorrecao = precos.filter(p => p.status === 'pendente_reenvio').length;
+
+            document.getElementById('totalMateriais').textContent = total;
+            document.getElementById('totalPendentes').textContent = pendentes;
+            document.getElementById('totalAtivos').textContent = ativos;
+            
+            const btnReenviar = document.getElementById('btnReenviar');
+            if (btnReenviar) {
+                btnReenviar.style.display = aguardandoCorrecao > 0 ? 'inline-flex' : 'none';
+            }
+        }
+        
+        async function reenviarParaAprovacao() {
+            if (!confirm('Deseja reenviar os itens corrigidos para aprovação do administrador?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetchAPI(`/fornecedor-tabela-precos/fornecedor/${fornecedorId}/reenviar`, {
+                    method: 'PUT'
+                });
+                
+                if (!response) return;
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao reenviar');
+                }
+                
+                const result = await response.json();
+                alert(result.mensagem || 'Tabela reenviada para aprovação com sucesso!');
+                carregarPrecos();
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                alert(error.message || 'Erro ao reenviar tabela');
+            }
+        }
+
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    tab.classList.add('active');
+                    document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+                });
+            });
+        }
+
+        function setupDragDrop() {
+            const uploadArea = document.getElementById('uploadArea');
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, () => uploadArea.classList.add('dragover'));
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('dragover'));
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    processarArquivo(files[0]);
+                }
+            });
+        }
+
+        function setupBuscaMaterial() {
+            const input = document.getElementById('novoMaterialBusca');
+            const dropdown = document.getElementById('materialDropdown');
+
+            function mostrarMateriais(busca = '') {
+                const materiaisFiltrados = materiaisDisponiveis.filter(m => {
+                    if (!busca) return true;
+                    return m.nome.toLowerCase().includes(busca) || 
+                           m.codigo.toLowerCase().includes(busca);
+                }).slice(0, 50);
+
+                if (materiaisFiltrados.length === 0) {
+                    dropdown.innerHTML = '<div style="padding: 12px; text-align: center; color: #6b7280;">Nenhum material encontrado</div>';
+                    dropdown.classList.add('show');
+                    return;
+                }
+
+                dropdown.innerHTML = materiaisFiltrados.map(m => `
+                    <div class="search-select-option" data-id="${m.id}" data-nome="${m.nome}">
+                        <strong>${m.nome}</strong>
+                        <br><small style="color: #6b7280;">${m.codigo} - ${m.classificacao}</small>
+                    </div>
+                `).join('');
+
+                dropdown.classList.add('show');
+
+                dropdown.querySelectorAll('.search-select-option').forEach(opt => {
+                    opt.addEventListener('click', () => {
+                        document.getElementById('novoMaterialId').value = opt.dataset.id;
+                        input.value = opt.dataset.nome;
+                        dropdown.classList.remove('show');
+                        document.getElementById('novoPreco').focus();
+                    });
+                });
+            }
+
+            // Mostrar todos os materiais ao clicar no campo
+            input.addEventListener('focus', () => {
+                mostrarMateriais(input.value.toLowerCase());
+            });
+
+            // Filtrar enquanto digita
+            input.addEventListener('input', () => {
+                const busca = input.value.toLowerCase();
+                mostrarMateriais(busca);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-select-container')) {
+                    dropdown.classList.remove('show');
+                }
+            });
+        }
+
+        function adicionarItem() {
+            const materialId = document.getElementById('novoMaterialId').value;
+            const materialNome = document.getElementById('novoMaterialBusca').value;
+            const preco = document.getElementById('novoPreco').value;
+
+            if (!materialId || !preco) {
+                alert('Selecione um material e informe o preço');
+                return;
+            }
+
+            if (itensAdicionados.some(i => i.material_id == materialId)) {
+                alert('Este material já foi adicionado');
+                return;
+            }
+
+            const material = materiaisDisponiveis.find(m => m.id == materialId);
+
+            itensAdicionados.push({
+                material_id: parseInt(materialId),
+                material_nome: materialNome,
+                material_codigo: material?.codigo || '',
+                material_classificacao: material?.classificacao || '',
+                preco_fornecedor: parseFloat(preco)
+            });
+
+            renderizarItensAdicionados();
+
+            document.getElementById('novoMaterialId').value = '';
+            document.getElementById('novoMaterialBusca').value = '';
+            document.getElementById('novoPreco').value = '';
+        }
+
+        function renderizarItensAdicionados() {
+            const container = document.getElementById('itensLista');
+
+            if (itensAdicionados.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 20px;">Nenhum item adicionado ainda</p>';
+                return;
+            }
+
+            container.innerHTML = itensAdicionados.map((item, idx) => `
+                <div class="item-row">
+                    <div>
+                        <strong>${item.material_nome}</strong>
+                        <br><small style="color: #6b7280;">${item.material_codigo} - ${item.material_classificacao}</small>
+                    </div>
+                    <input type="number" class="form-control" value="${item.preco_fornecedor}" 
+                           step="0.01" min="0" onchange="atualizarPrecoItem(${idx}, this.value)">
+                    <button class="btn btn-danger btn-icon" onclick="removerItem(${idx})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function atualizarPrecoItem(idx, valor) {
+            itensAdicionados[idx].preco_fornecedor = parseFloat(valor);
+        }
+
+        function removerItem(idx) {
+            itensAdicionados.splice(idx, 1);
+            renderizarItensAdicionados();
+        }
+
+        function limparItens() {
+            if (itensAdicionados.length === 0) return;
+            if (confirm('Deseja limpar todos os itens?')) {
+                itensAdicionados = [];
+                renderizarItensAdicionados();
+            }
+        }
+
+        async function salvarItens() {
+            if (itensAdicionados.length === 0) {
+                alert('Adicione pelo menos um item');
+                return;
+            }
+
+            const btn = document.getElementById('btnSalvar');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+
+            console.log('📤 Enviando itens para salvamento:', itensAdicionados);
+            console.log('🔗 URL:', `/fornecedor-tabela-precos/fornecedor/${fornecedorId}/lote`);
+
+            try {
+                const payload = { itens: itensAdicionados };
+                console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
+                
+                const response = await fetchAPI(`/fornecedor-tabela-precos/fornecedor/${fornecedorId}/lote`, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+
+                console.log('📥 Resposta recebida - Status:', response.status, response.statusText);
+                
+                if (!response) {
+                    console.error('❌ Resposta vazia do servidor');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-save"></i> Salvar Tabela';
+                    return;
+                }
+                
+                const result = await response.json();
+                console.log('📊 Resultado:', result);
+
+                if (response.ok) {
+                    console.log('✅ Salvamento bem-sucedido');
+                    const mensagem = `${result.sucesso} preço(s) adicionado(s) com sucesso!`;
+                    if (result.erros && result.erros.length > 0) {
+                        console.warn('⚠️ Alguns itens tiveram erros:', result.erros);
+                        alert(mensagem + '\n\nAlguns itens tiveram problemas:\n' + result.erros.join('\n'));
+                    } else {
+                        alert(mensagem);
+                    }
+                    
+                    itensAdicionados = [];
+                    renderizarItensAdicionados();
+                    await carregarPrecos();
+
+                    document.querySelector('[data-tab="visualizar"]').click();
+                } else {
+                    console.error('❌ Erro na resposta:', result);
+                    const mensagemErro = result.erro || 'Erro ao salvar preços';
+                    if (result.erros && result.erros.length > 0) {
+                        alert(mensagemErro + '\n\nDetalhes:\n' + result.erros.join('\n'));
+                    } else {
+                        alert(mensagemErro);
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Erro ao salvar:', error);
+                alert('Erro ao salvar preços: ' + (error.message || 'Erro desconhecido'));
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save"></i> Salvar Tabela';
+            }
+        }
+
+        async function processarArquivo(arquivo) {
+            if (!arquivo) return;
+
+            const resultadoDiv = document.getElementById('resultadoImportacao');
+            resultadoDiv.style.display = 'block';
+            resultadoDiv.innerHTML = '<p><i class="fas fa-spinner fa-spin"></i> Processando arquivo...</p>';
+
+            const formData = new FormData();
+            formData.append('arquivo', arquivo);
+
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_URL}/fornecedor-tabela-precos/fornecedor/${fornecedorId}/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    resultadoDiv.innerHTML = `
+                        <div class="card" style="background: #ecfdf5; border-color: #059669;">
+                            <h4 style="color: #065f46;"><i class="fas fa-check-circle"></i> Importação concluída!</h4>
+                            <p><strong>${result.sucesso}</strong> de ${result.total_linhas} linhas importadas com sucesso.</p>
+                            ${result.erros.length > 0 ? `
+                                <details style="margin-top: 12px;">
+                                    <summary style="cursor: pointer; color: #92400e;">Ver ${result.erros.length} erro(s)</summary>
+                                    <ul style="margin-top: 8px; font-size: 13px;">
+                                        ${result.erros.map(e => `<li>${e}</li>`).join('')}
+                                    </ul>
+                                </details>
+                            ` : ''}
+                        </div>
+                    `;
+                    await carregarPrecos();
+                } else {
+                    resultadoDiv.innerHTML = `
+                        <div class="card" style="background: #fef2f2; border-color: #ef4444;">
+                            <h4 style="color: #991b1b;"><i class="fas fa-exclamation-circle"></i> Erro na importação</h4>
+                            <p>${result.erro}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Erro ao processar arquivo:', error);
+                resultadoDiv.innerHTML = `
+                    <div class="card" style="background: #fef2f2; border-color: #ef4444;">
+                        <h4 style="color: #991b1b;"><i class="fas fa-exclamation-circle"></i> Erro</h4>
+                        <p>Erro ao processar o arquivo. Verifique o formato e tente novamente.</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function baixarTemplate() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_URL}/fornecedor-tabela-precos/fornecedor/${fornecedorId}/template`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'template_precos.xlsx';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                } else {
+                    alert('Erro ao baixar template');
+                }
+            } catch (error) {
+                console.error('Erro ao baixar template:', error);
+                alert('Erro ao baixar template');
+            }
+        }
+
+        async function editarPreco(id, precoAtual) {
+            const novoPreco = prompt('Novo preço (R$/kg):', precoAtual);
+            if (novoPreco === null) return;
+
+            const preco = parseFloat(novoPreco);
+            if (isNaN(preco) || preco < 0) {
+                alert('Preço inválido');
+                return;
+            }
+
+            try {
+                const response = await fetchAPI(`/fornecedor-tabela-precos/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ preco_fornecedor: preco })
+                });
+
+                if (response.ok) {
+                    await carregarPrecos();
+                } else {
+                    const result = await response.json();
+                    alert(result.erro || 'Erro ao atualizar preço');
+                }
+            } catch (error) {
+                console.error('Erro ao editar:', error);
+                alert('Erro ao atualizar preço');
+            }
+        }
+
+        async function excluirPreco(id) {
+            if (!confirm('Deseja excluir este preço?')) return;
+
+            try {
+                const response = await fetchAPI(`/fornecedor-tabela-precos/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    await carregarPrecos();
+                } else {
+                    const result = await response.json();
+                    alert(result.erro || 'Erro ao excluir preço');
+                }
+            } catch (error) {
+                console.error('Erro ao excluir:', error);
+                alert('Erro ao excluir preço');
+            }
+        }
+
+        renderizarItensAdicionados();
+        carregarPagina();
+    </script>
+</body>
+</html>

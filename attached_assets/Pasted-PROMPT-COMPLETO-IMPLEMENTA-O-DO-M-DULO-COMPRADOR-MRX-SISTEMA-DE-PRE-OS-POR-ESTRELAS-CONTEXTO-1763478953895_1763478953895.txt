@@ -1,0 +1,354 @@
+PROMPT COMPLETO: IMPLEMENTAÇÃO DO MÓDULO COMPRADOR MRX - SISTEMA DE PREÇOS POR ESTRELAS
+🎯 CONTEXTO E OBJETIVO
+O sistema MRX possui um módulo comprador que precisa ser completamente reformulado para trabalhar com:
+
+Lista única de materiais base (45+ tipos de sucata eletrônica)
+3 tabelas de preço por estrelas (1★, 2★, 3★) - cada uma com preços para TODOS os materiais
+Vinculação fornecedor → tabela (cada fornecedor tem UMA tabela ativa)
+Fluxo de autorização quando preço negociado > preço da tabela
+Importação em massa via Excel
+📊 ANÁLISE DO QUE JÁ EXISTE VS O QUE FALTA
+✅ O que JÁ está implementado:
+Sistema de tipos de lote (tipos_lote)
+Tabela tipo_lote_precos (classificação + estrelas + preço)
+Relação FornecedorTipoLoteClassificacao (mapeia classificação → estrelas por fornecedor)
+Importação/exportação Excel de tipos de lote
+Tela /tipos-lote.html com grid 3×5 de preços
+❌ O que FALTA implementar:
+Tabela unificada de materiais base (45+ itens da lista fornecida)
+3 tabelas de preço independentes (1★, 2★, 3★) com preços para cada material
+Vinculação fornecedor → tabela de preço
+Sistema de autorização de preço quando comprador negocia acima da tabela
+Reformulação da tela /tipos-lote.html para trabalhar com o novo modelo
+Importação consolidada (1 Excel com 3 colunas de preço: 1★, 2★, 3★)
+🗂️ ETAPA 1: MIGRAÇÃO DO SCHEMA DE DADOS
+1.1 Criar Nova Tabela materiais_base
+Objetivo: Substituir/complementar tipos_lote com lista fixa de 45+ materiais.
+
+CREATE TABLE materiais_base (
+    id SERIAL PRIMARY KEY,
+    codigo VARCHAR(20) UNIQUE NOT NULL,  -- Gerado automaticamente: MAT001, MAT002...
+    nome VARCHAR(200) UNIQUE NOT NULL,   -- Ex: "SUCATA PROCESSADOR CERÂMICO A"
+    classificacao VARCHAR(10) NOT NULL,  -- 'leve', 'medio', 'pesado' (fixo por material)
+    descricao TEXT,
+    ativo BOOLEAN DEFAULT TRUE,
+    data_cadastro TIMESTAMP DEFAULT NOW(),
+    data_atualizacao TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT chk_classificacao CHECK (classificacao IN ('leve', 'medio', 'pesado'))
+);
+CREATE INDEX idx_materiais_base_nome ON materiais_base(nome);
+CREATE INDEX idx_materiais_base_classificacao ON materiais_base(classificacao);
+Regras:
+
+Código é gerado automaticamente: MAT001, MAT002, etc.
+Cada material tem classificação fixa (não muda por fornecedor)
+Limite de 500 materiais cadastrados
+1.2 Criar Sistema de Tabelas de Preço por Estrelas
+Estrutura hierárquica:
+
+tabelas_preco (3 registros fixos: 1★, 2★, 3★)
+    └── tabela_preco_itens (todos os materiais × 3 tabelas)
+-- Tabela mestre (apenas 3 registros)
+CREATE TABLE tabelas_preco (
+    id SERIAL PRIMARY KEY,
+    nome VARCHAR(50) UNIQUE NOT NULL,  -- "Tabela 1 Estrela", "Tabela 2 Estrelas", "Tabela 3 Estrelas"
+    nivel_estrelas INTEGER UNIQUE NOT NULL CHECK (nivel_estrelas IN (1, 2, 3)),
+    ativo BOOLEAN DEFAULT TRUE,
+    data_criacao TIMESTAMP DEFAULT NOW()
+);
+-- Preços específicos: material × tabela
+CREATE TABLE tabela_preco_itens (
+    id SERIAL PRIMARY KEY,
+    tabela_preco_id INTEGER NOT NULL REFERENCES tabelas_preco(id) ON DELETE CASCADE,
+    material_id INTEGER NOT NULL REFERENCES materiais_base(id) ON DELETE CASCADE,
+    preco_por_kg DECIMAL(10,2) NOT NULL DEFAULT 0.00 CHECK (preco_por_kg >= 0),
+    ativo BOOLEAN DEFAULT TRUE,
+    data_atualizacao TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT uq_tabela_material UNIQUE (tabela_preco_id, material_id)
+);
+CREATE INDEX idx_tabela_preco_itens_tabela ON tabela_preco_itens(tabela_preco_id);
+CREATE INDEX idx_tabela_preco_itens_material ON tabela_preco_itens(material_id);
+Trigger automático: Quando criar novo material, inserir 3 registros em tabela_preco_itens (um para cada tabela).
+
+1.3 Vincular Fornecedor a Tabela de Preço
+ALTER TABLE fornecedores 
+ADD COLUMN tabela_preco_id INTEGER REFERENCES tabelas_preco(id) DEFAULT 1,  -- Default: Tabela 1★
+ADD COLUMN comprador_responsavel_id INTEGER REFERENCES usuarios(id);
+Regras:
+
+Fornecedor novo sempre começa com tabela_preco_id = 1 (Tabela 1★)
+Apenas ADM pode alterar tabela_preco_id
+Mudança de tabela gera registro em auditoria_logs
+1.4 Sistema de Autorização de Preço
+CREATE TABLE solicitacoes_autorizacao_preco (
+    id SERIAL PRIMARY KEY,
+    compra_id INTEGER REFERENCES compras(id),  -- Pode ser NULL inicialmente
+    fornecedor_id INTEGER NOT NULL REFERENCES fornecedores(id),
+    comprador_id INTEGER NOT NULL REFERENCES usuarios(id),
+    material_id INTEGER NOT NULL REFERENCES materiais_base(id),
+    peso_kg DECIMAL(10,2) NOT NULL,
+    
+    -- Snapshot da tabela no momento da solicitação
+    tabela_atual_id INTEGER NOT NULL REFERENCES tabelas_preco(id),
+    preco_tabela DECIMAL(10,2) NOT NULL,  -- Valor que estava na tabela
+    preco_negociado DECIMAL(10,2) NOT NULL,  -- Valor que o comprador quer
+    diferenca_percentual DECIMAL(5,2),  -- Calculado: ((negociado - tabela) / tabela) * 100
+    
+    justificativa TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'pendente' CHECK (status IN ('pendente', 'aprovada', 'rejeitada')),
+    
+    -- Decisão do ADM
+    decisao_adm_id INTEGER REFERENCES usuarios(id),
+    nova_tabela_atribuida_id INTEGER REFERENCES tabelas_preco(id),  -- Se ADM promoveu fornecedor
+    motivo_decisao TEXT,
+    
+    data_solicitacao TIMESTAMP DEFAULT NOW(),
+    data_decisao TIMESTAMP,
+    
+    CONSTRAINT chk_preco_negociado_maior CHECK (preco_negociado > preco_tabela)
+);
+CREATE INDEX idx_autorizacao_status ON solicitacoes_autorizacao_preco(status);
+CREATE INDEX idx_autorizacao_comprador ON solicitacoes_autorizacao_preco(comprador_id);
+📝 ETAPA 2: POPULAR DADOS INICIAIS
+2.1 Script seed_materiais_base.py
+Cadastrar os 45+ materiais da lista fornecida:
+
+materiais = [
+    {"nome": "SUCATA PROCESSADOR CERÂMICO A", "classificacao": "pesado"},
+    {"nome": "SUCATA PROCESSADOR CERÂMICO B", "classificacao": "pesado"},
+    {"nome": "SUCATA PROCESSADOR CERÂMICO C", "classificacao": "pesado"},
+    {"nome": "SUCATA PROCESSADOR SLOT", "classificacao": "pesado"},
+    {"nome": "SUCATA PROCESSADOR PLÁSTICO A", "classificacao": "leve"},
+    {"nome": "SUCATA PROCESSADOR PLÁSTICO B", "classificacao": "leve"},
+    {"nome": "SUCATA PLACA MÃE SERVIDOR", "classificacao": "pesado"},
+    {"nome": "SUCATA PLACA MÃE DESKTOP", "classificacao": "medio"},
+    {"nome": "SUCATA PLACA MÃE NOTEBOOK", "classificacao": "medio"},
+    {"nome": "SUCATA MEMÓRIA RAM DDR", "classificacao": "pesado"},
+    {"nome": "SUCATA HD SATA", "classificacao": "medio"},
+    {"nome": "SUCATA SSD", "classificacao": "pesado"},
+    {"nome": "SUCATA FONTE ATX", "classificacao": "leve"},
+    {"nome": "SUCATA CABO FLAT", "classificacao": "leve"},
+    # ... continuar com TODOS os 45+ materiais da imagem NOMENCLATURA
+]
+# Para cada material:
+# 1. Gerar código (MAT001, MAT002...)
+# 2. Inserir em materiais_base
+# 3. Criar 3 preços (um para cada tabela, inicialmente 0.00)
+2.2 Script seed_tabelas_preco.py
+Criar as 3 tabelas fixas:
+
+tabelas = [
+    {"nome": "Tabela 1 Estrela", "nivel_estrelas": 1},
+    {"nome": "Tabela 2 Estrelas", "nivel_estrelas": 2},
+    {"nome": "Tabela 3 Estrelas", "nivel_estrelas": 3}
+]
+🎨 ETAPA 3: REFORMULAR TELA /tipos-lote.html
+3.1 Renomear para /materiais-base.html
+Novo título: "Gestão de Materiais Base"
+
+3.2 Novo Layout da Tela
+Cabeçalho:
+
+[← Voltar] Gestão de Materiais Base
+[+ Novo Material] [📥 Importar Excel] [📤 Exportar] [📋 Modelo]
+Filtros:
+
+[Buscar material...] [Classificação: Todos ▼] [Status: Ativos ▼]
+Tabela Principal:
+
+┌──────────┬────────────────────────────┬──────────────┬──────────┬──────────┬──────────┬──────┬────────┐
+│ Código   │ Nome do Material            │ Classificação│ 1★ R$/kg │ 2★ R$/kg │ 3★ R$/kg │ Ativo│ Ações  │
+├──────────┼────────────────────────────┼──────────────┼──────────┼──────────┼──────────┼──────┼────────┤
+│ MAT001   │ SUCATA PROC. CERÂMICO A    │ Pesado       │ 12,50    │ 15,00    │ 18,50    │ ✓    │ [Editar│
+│ MAT002   │ SUCATA PLACA MÃE SERVIDOR  │ Pesado       │  8,30    │ 10,00    │ 12,00    │ ✓    │ [Editar│
+└──────────┴────────────────────────────┴──────────────┴──────────┴──────────┴──────────┴──────┴────────┘
+Modal "Novo Material":
+
+┌─────────────────────────────────────────┐
+│ Novo Material                            │
+├─────────────────────────────────────────┤
+│ Nome: [_____________________________]   │
+│ Código: MAT045 (gerado automaticamente) │
+│                                         │
+│ Classificação: (•) Leve                 │
+│                ( ) Médio                │
+│                ( ) Pesado               │
+│                                         │
+│ Descrição:                              │
+│ [_________________________________]     │
+│                                         │
+│ ┌─ Preços Iniciais (R$/kg) ─────────┐  │
+│ │ Tabela 1★: [_____]                │  │
+│ │ Tabela 2★: [_____]                │  │
+│ │ Tabela 3★: [_____]                │  │
+│ └───────────────────────────────────┘  │
+│                                         │
+│ [Cancelar] [Salvar Material]            │
+└─────────────────────────────────────────┘
+📥 ETAPA 4: IMPORTAÇÃO EM MASSA VIA EXCEL
+4.1 Formato do Excel Consolidado
+Aba única: "Materiais e Preços"
+
+Nome do Material	Classificação	1 Estrela (R$/kg)	2 Estrelas (R$/kg)	3 Estrelas (R$/kg)	Descrição
+SUCATA PROCESSADOR CERÂMICO A	pesado	12.50	15.00	18.50	Proc tipo A
+SUCATA PLACA MÃE SERVIDOR	pesado	8.30	10.00	12.00	Placas serv
+Lógica de importação:
+
+Buscar material pelo nome
+Se não existe: criar novo material + 3 preços
+Se existe: atualizar classificação + 3 preços
+Retornar relatório:
+Materiais criados: X
+Materiais atualizados: Y
+Preços atualizados: Z
+Erros: [lista]
+🔧 ETAPA 5: CRIAR NOVA TELA /tabelas-preco.html (apenas ADM)
+Layout com Abas:
+
+┌───────────────────────────────────────────────────┐
+│ Gestão de Tabelas de Preço                        │
+├───────────────────────────────────────────────────┤
+│ [Tabela 1★] [Tabela 2★] [Tabela 3★]   <-- ABAS   │
+├───────────────────────────────────────────────────┤
+│                                                    │
+│ [Buscar material...] [Classificação: ▼]          │
+│ [📥 Importar Preços] [📤 Exportar]                │
+│                                                    │
+│ ┌────────────────────────────────────────────┐   │
+│ │ Material                    │ R$/kg │ Editar│   │
+│ ├─────────────────────────────┼───────┼───────┤   │
+│ │ SUCATA PROC. CERÂMICO A     │ 12.50 │ [✏️]  │   │
+│ │ SUCATA PLACA MÃE SERVIDOR   │  8.30 │ [✏️]  │   │
+│ └────────────────────────────────────────────┘   │
+│                                                    │
+│ Total: 45 materiais cadastrados                   │
+└───────────────────────────────────────────────────┘
+Edição inline: Clicar no preço e editar diretamente (salva via AJAX).
+
+🔄 ETAPA 6: FLUXO DE COMPRA COM AUTORIZAÇÃO
+6.1 Modificar Wizard de Nova Compra
+Passo 3 - Adicionar Materiais:
+
+// Ao adicionar material:
+1. Buscar material em materiais_base
+2. Buscar fornecedor.tabela_preco_id
+3. Buscar preco em tabela_preco_itens WHERE tabela_id = fornecedor.tabela_preco_id AND material_id = X
+4. Mostrar preço da tabela ao comprador
+5. Comprador informa peso + preço negociado
+6. Sistema compara:
+   SE preco_negociado <= preco_tabela:
+      ✅ Item aprovado automaticamente
+   SENÃO:
+      ⚠️ Criar solicitacao_autorizacao_preco (status: pendente)
+Interface visual:
+
+┌────────────────────────────────────────┐
+│ Material: SUCATA PROC. CERÂMICO A      │
+│ Tabela do fornecedor: 2 Estrelas      │
+│ Preço tabela: R$ 15,00/kg             │
+│                                        │
+│ Peso: [___] kg                        │
+│ Preço negociado: R$ [____]/kg         │
+│                                        │
+│ ⚠️ Preço R$ 2,50 acima da tabela!     │
+│    Diferença: +16,7%                   │
+│                                        │
+│ Justificativa obrigatória:             │
+│ [_____________________________]       │
+│                                        │
+│ Status: AGUARDANDO APROVAÇÃO ADM       │
+└────────────────────────────────────────┘
+⚖️ ETAPA 7: TELA DE AUTORIZAÇÕES (ADM)
+7.1 Nova Tela /autorizacoes-preco.html
+┌─────────────────────────────────────────────────┐
+│ Autorizações de Preço Pendentes (3)             │
+├─────────────────────────────────────────────────┤
+│ [Pendentes: 3] [Aprovadas: 12] [Rejeitadas: 2] │
+│                                                  │
+│ ┌──────────────────────────────────────────┐   │
+│ │ 📋 #1245 - 17/11/2025 14:32             │   │
+│ │ Comprador: João Silva                    │   │
+│ │ Fornecedor: Eletrônicos ABC (Tabela 1★)  │   │
+│ │                                          │   │
+│ │ Material: PROC CERÂMICO A                │   │
+│ │ Peso: 5 kg                               │   │
+│ │                                          │   │
+│ │ Preço Tabela 1★: R$ 12,50/kg            │   │
+│ │ Preço Negociado: R$ 15,00/kg            │   │
+│ │ Diferença: +R$ 2,50 (+20%)              │   │
+│ │                                          │   │
+│ │ Justificativa:                           │   │
+│ │ "Material de altíssima qualidade..."     │   │
+│ │                                          │   │
+│ │ [❌ Rejeitar] [✅ Aprovar]               │   │
+│ └──────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────┘
+Modal de Aprovação:
+
+┌────────────────────────────────────┐
+│ Aprovar Solicitação #1245           │
+├────────────────────────────────────┤
+│ ( ) Aprovar APENAS esta compra     │
+│     (fornecedor continua na 1★)    │
+│                                    │
+│ (•) Aprovar e PROMOVER fornecedor  │
+│     para: ( ) Tabela 2★            │
+│           (•) Tabela 3★            │
+│                                    │
+│ Observações:                       │
+│ [__________________________]      │
+│                                    │
+│ [Cancelar] [Confirmar]             │
+└────────────────────────────────────┘
+📊 ETAPA 8: ENDPOINTS DA API
+Backend - Materiais Base (app/routes/materiais_base.py)
+GET    /api/materiais-base
+GET    /api/materiais-base/{id}
+POST   /api/materiais-base
+PUT    /api/materiais-base/{id}
+DELETE /api/materiais-base/{id}
+POST   /api/materiais-base/importar-excel
+GET    /api/materiais-base/exportar-excel
+GET    /api/materiais-base/modelo-importacao
+Backend - Tabelas de Preço (app/routes/tabelas_preco.py)
+GET    /api/tabelas-preco
+GET    /api/tabelas-preco/{id}/precos
+PUT    /api/tabelas-preco/{id}/precos (atualização em massa)
+PUT    /api/tabelas-preco/{id}/precos/{material_id} (individual)
+POST   /api/tabelas-preco/{id}/importar-excel
+GET    /api/tabelas-preco/{id}/exportar-excel
+Backend - Autorizações (app/routes/autorizacoes_preco.py)
+GET    /api/autorizacoes-preco
+POST   /api/autorizacoes-preco/{id}/aprovar
+POST   /api/autorizacoes-preco/{id}/rejeitar
+✅ CHECKLIST FINAL DE IMPLEMENTAÇÃO
+[ ] Migração 1: Criar tabela materiais_base
+[ ] Migração 2: Criar tabela tabelas_preco
+[ ] Migração 3: Criar tabela tabela_preco_itens
+[ ] Migração 4: Criar tabela solicitacoes_autorizacao_preco
+[ ] Migração 5: ALTER TABLE fornecedores (adicionar tabela_preco_id)
+[ ] Seed: Cadastrar 45+ materiais da lista
+[ ] Seed: Criar 3 tabelas de preço (1★, 2★, 3★)
+[ ] Seed: Popular tabela_preco_itens (todos materiais × 3 tabelas)
+[ ] Backend: CRUD de materiais_base.py
+[ ] Backend: CRUD de tabelas_preco.py
+[ ] Backend: CRUD de autorizacoes_preco.py
+[ ] Frontend: Reformular /tipos-lote.html → /materiais-base.html
+[ ] Frontend: Criar /tabelas-preco.html (apenas ADM)
+[ ] Frontend: Criar /autorizacoes-preco.html (apenas ADM)
+[ ] Integração: Modificar wizard de compra (validar preço vs tabela)
+[ ] Notificações: ADM recebe quando há nova solicitação pendente
+[ ] Auditoria: Registrar mudanças de tabela de fornecedores
+[ ] Excel: Template de importação consolidado (3 colunas de preço)
+[ ] Testes: Importar Excel com 10 materiais
+[ ] Testes: Compra com preço dentro da tabela (auto-aprovação)
+[ ] Testes: Compra com preço acima (gera solicitação)
+[ ] Testes: ADM aprovar sem promover fornecedor
+[ ] Testes: ADM aprovar promovendo fornecedor (1★ → 2★)
+🎯 RESULTADO FINAL ESPERADO
+Comprador seleciona material de lista fixa de 45+ itens
+Sistema mostra preço da tabela vinculada ao fornecedor
+Se preço negociado ≤ tabela: aprovação automática
+Se preço negociado > tabela: gera solicitação para ADM
+ADM pode aprovar e opcionalmente promover fornecedor (ex: 1★ → 3★)
+Importação Excel consolidada: 1 arquivo, 3 colunas de preço

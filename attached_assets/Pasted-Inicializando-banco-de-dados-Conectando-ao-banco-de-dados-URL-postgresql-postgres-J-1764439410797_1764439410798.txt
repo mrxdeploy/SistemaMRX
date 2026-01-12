@@ -1,0 +1,38 @@
+Inicializando banco de dados...
+🔗 Conectando ao banco de dados...
+   URL: postgresql://postgres:JLNFuhSF...
+📊 Criando tabelas no banco de dados...
+✅ Tabelas criadas/verificadas com sucesso!
+📋 Tabelas no banco: configuracoes, perfis, usuarios, tipos_lote, tipo_lote_precos, tabelas_preco, tabela_preco_itens, materiais_base, vendedores, fornecedores, notificacoes, veiculos, auditoria_logs, inventarios, fornecedor_tipo_lote, fornecedor_classificacao_estrela, fornecedor_funcionario_atribuicao, fornecedor_tipo_lote_precos, fornecedor_tipo_lote_classificacao, solicitacoes, motoristas, ordens_compra, auditoria_oc, ordens_servico, solicitacoes_autorizacao_preco, rotas_operacionais, gps_logs, conferencias_recebimento, itens_solicitacao, lotes, entradas_estoque, movimentacoes_estoque, lotes_separacao, tabelas_preco_fornecedor, inventario_contagens, residuos, tabelas_preco_itens, itens_tabela_preco_fornecedor, historico_alteracao_preco, fornecedor_tabela_precos, auditoria_fornecedor_tabela_precos
+✅ Usuário admin verificado!
+   - WSGI: wsgi:application
+==========================================
+==========================================
+🌐 Iniciando servidor Gunicorn
+   - Worker: eventlet
+   - Workers: 1
+   - Bind: 0.0.0.0:8000
+   - Timeout: 120s
+[2025-11-29 17:58:27 +0000] [1] [INFO] Starting gunicorn 21.2.0
+[2025-11-29 17:58:27 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)
+[2025-11-29 17:58:27 +0000] [1] [INFO] Using worker: eventlet
+[2025-11-29 17:58:27 +0000] [35] [INFO] Booting worker with pid: 35
+ERROR:app.routes.fornecedor_tabela_precos:Erro ao listar fornecedores aprovados: (psycopg2.errors.UndefinedColumn) column fornecedores.tabela_preco_status does not exist
+LINE 1: ...dastro, fornecedores.ativo AS fornecedores_ativo, fornecedor...
+                                                             ^
+[SQL: SELECT fornecedores.id AS fornecedores_id, fornecedores.nome AS fornecedores_nome, fornecedores.nome_social AS fornecedores_nome_social, fornecedores.tipo_documento AS fornecedores_tipo_documento, fornecedores.cnpj AS fornecedores_cnpj, fornecedores.cpf AS fornecedores_cpf, fornecedores.rua AS fornecedores_rua, fornecedores.numero AS fornecedores_numero, fornecedores.cidade AS fornecedores_cidade, fornecedores.cep AS fornecedores_cep, fornecedores.estado AS fornecedores_estado, fornecedores.bairro AS fornecedores_bairro, fornecedores.complemento AS fornecedores_complemento, fornecedores.tem_outro_endereco AS fornecedores_tem_outro_endereco, fornecedores.outro_rua AS fornecedores_outro_rua, fornecedores.outro_numero AS fornecedores_outro_numero, fornecedores.outro_cidade AS fornecedores_outro_cidade, fornecedores.outro_cep AS fornecedores_outro_cep, fornecedores.outro_estado AS fornecedores_outro_estado, fornecedores.outro_bairro AS fornecedores_outro_bairro, fornecedores.outro_complemento AS fornecedores_outro_complemento, fornecedores.telefone AS fornecedores_telefone, fornecedores.email AS fornecedores_email, fornecedores.vendedor_id AS fornecedores_vendedor_id, fornecedores.criado_por_id AS fornecedores_criado_por_id, fornecedores.tabela_preco_id AS fornecedores_tabela_preco_id, fornecedores.comprador_responsavel_id AS fornecedores_comprador_responsavel_id, fornecedores.latitude AS fornecedores_latitude, fornecedores.longitude AS fornecedores_longitude, fornecedores.conta_bancaria AS fornecedores_conta_bancaria, fornecedores.agencia AS fornecedores_agencia, fornecedores.chave_pix AS fornecedores_chave_pix, fornecedores.banco AS fornecedores_banco, fornecedores.condicao_pagamento AS fornecedores_condicao_pagamento, fornecedores.forma_pagamento AS fornecedores_forma_pagamento, fornecedores.observacoes AS fornecedores_observacoes, fornecedores.data_cadastro AS fornecedores_data_cadastro, fornecedores.ativo AS fornecedores_ativo, fornecedores.tabela_preco_status AS fornecedores_tabela_preco_status, fornecedores.tabela_preco_aprovada_em AS fornecedores_tabela_preco_aprovada_em, fornecedores.tabela_preco_aprovada_por_id AS fornecedores_tabela_preco_aprovada_por_id 
+FROM fornecedores 
+WHERE fornecedores.ativo = true AND fornecedores.tabela_preco_status = %(tabela_preco_status_1)s]
+[parameters: {'tabela_preco_status_1': 'aprovada'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 951, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.errors.UndefinedColumn: column fornecedores.tabela_preco_status does not exist
+LINE 1: ...dastro, fornecedores.ativo AS fornecedores_ativo, fornecedor...
+                                                             ^
+The above exception was the direct cause of the following exception:
+Traceback (most recent call last):
+  File "/app/app/routes/ordens_compra...

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notificações - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Notificações</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Bottom Navigation (Mobile) - RBAC Dynamic -->
+    <nav class="bottom-nav" id="navMenuMobile">
+        <!-- Menus serão renderizados dinamicamente pelo RBAC -->
+    </nav>
+
+    <!-- Scanner Modal -->
+    <div class="scanner-modal" id="scannerModal">
+        <div class="scanner-modal-content">
+            <div class="scanner-modal-header">
+                <h2>Escanear Placa</h2>
+                <button class="scanner-close" onclick="closeScanner()">&times;</button>
+            </div>
+            <form id="formScanner">
+                <div class="form-group">
+                    <label>Selecionar Fornecedor</label>
+                    <select id="scannerEmpresa" required>
+                        <option value="">Escolha um fornecedor...</option>
+                    </select>
+                </div>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <i class="fas fa-camera icon" style="font-size: 3rem; color: var(--primary-color);"></i>
+                    <p>Toque para capturar ou selecionar imagem</p>
+                    <input type="file" id="fileInput" accept="image/*" capture="environment" style="display: none;" onchange="previewImage(this)">
+                </div>
+                <div class="image-preview" id="imagePreview">
+                    <img id="previewImg" alt="Preview">
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Placa</label>
+                    <select id="tipoPlaca" required>
+                        <option value="">Selecione...</option>
+                        <option value="leve">Leve</option>
+                        <option value="pesada">Pesada</option>
+                        <option value="media">Média</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Peso (kg)</label>
+                    <input type="number" id="pesoPlaca" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Valor Total (calculado automaticamente)</label>
+                    <div id="valorCalculado" data-valor="0" style="padding: 0.75rem; background-color: #f0f0f0; border-radius: 5px; font-weight: bold; font-size: 1.1rem; color: #2c3e50;">R$ 0,00</div>
+                </div>
+                <div class="form-group">
+                    <button type="button" class="btn btn-secondary w-full" id="btnCapturarLocalizacao" onclick="capturarLocalizacaoScanner()">
+                        <i class="fas fa-map-marker-alt"></i> Capturar Localização
+                    </button>
+                    <div id="locationInfo" style="margin-top: 0.5rem; padding: 0.75rem; background: #e8f5e9; border-radius: 5px; display: none; font-size: 0.9rem; color: #2e7d32;"></div>
+                </div>
+                <button type="submit" class="btn btn-primary w-full">Registrar Placa</button>
+            </form>
+        </div>
+    </div>
+
+    <main class="container" style="padding-top: 80px; padding-bottom: 110px;">
+        <div class="flex justify-between items-center mb-3" style="flex-wrap: wrap; gap: var(--spacing-md);">
+            <h1 style="font-size: clamp(1.5rem, 6vw, 2rem); margin-top: 0;">Notificações</h1>
+            <button class="btn btn-secondary btn-small" onclick="marcarTodasLidas()">Marcar como lidas</button>
+        </div>
+
+        <div id="listaNotificacoes"></div>
+    </main>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/rbac.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+
+            await carregarNotificacoes();
+            await atualizarNotificacoes();
+        }
+
+        async function carregarNotificacoes() {
+            const response = await fetchAPI('/notificacoes');
+            const notificacoes = await response.json();
+
+            const container = document.getElementById('listaNotificacoes');
+
+            if (notificacoes.length === 0) {
+                container.innerHTML = '<div class="card"><p>Nenhuma notificação</p></div>';
+                return;
+            }
+
+            container.innerHTML = notificacoes.map(n => `
+                <div class="card" style="background: ${n.lida ? 'white' : 'var(--gray-100)'}; cursor: pointer; position: relative;" onclick="abrirNotificacao(${n.id}, '${n.url || ''}')">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <h3 style="margin-bottom: 0.5rem;">${n.titulo}</h3>
+                        ${n.url ? '<i class="fas fa-chevron-right" style="color: var(--primary-color); font-size: 0.875rem;"></i>' : ''}
+                    </div>
+                    <p style="color: var(--gray-600);">${n.mensagem}</p>
+                    <small style="color: var(--gray-400);">${formatDate(n.data_envio)}</small>
+                </div>
+            `).join('');
+        }
+
+        async function marcarLida(id) {
+            await fetchAPI(`/notificacoes/${id}/marcar-lida`, {
+                method: 'PUT'
+            });
+
+            await carregarNotificacoes();
+            await atualizarNotificacoes();
+        }
+
+        async function abrirNotificacao(id, url) {
+            try {
+                const response = await fetchAPI(`/notificacoes/${id}/marcar-lida`, {
+                    method: 'PUT'
+                });
+                
+                if (response && response.ok) {
+                    await atualizarNotificacoes();
+                }
+            } catch (error) {
+                console.error('Erro ao marcar notificação como lida:', error);
+                // Continua mesmo se houver erro ao marcar como lida
+            }
+            
+            // Redireciona para URL se existir, independente do resultado acima
+            if (url && url !== 'null' && url !== 'undefined' && url !== '') {
+                window.location.href = url;
+            } else {
+                await carregarNotificacoes();
+            }
+        }
+
+        async function marcarTodasLidas() {
+            await fetchAPI('/notificacoes/marcar-todas-lidas', {
+                method: 'PUT'
+            });
+
+            showAlert('Todas as notificações foram marcadas como lidas', 'success');
+            await carregarNotificacoes();
+            await atualizarNotificacoes();
+        }
+
+        carregarPagina();
+    </script>
+</body>
+</html>

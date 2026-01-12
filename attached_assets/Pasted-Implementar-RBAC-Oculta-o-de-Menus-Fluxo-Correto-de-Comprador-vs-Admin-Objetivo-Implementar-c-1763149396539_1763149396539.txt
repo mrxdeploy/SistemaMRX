@@ -1,0 +1,259 @@
+Implementar RBAC + Ocultação de Menus + Fluxo Correto de Comprador vs Admin
+
+Objetivo:
+Implementar corretamente o controle de acesso por perfis (RBAC) no sistema, garantindo que Compradores e Admins vejam somente as telas, botões e funcionalidades autorizadas, com regras de fluxo completas conforme especificado no sistema de Compras, SC e OC.
+
+PERFIS DO SISTEMA
+1. ADMIN (Perfil total)
+
+Acessos:
+
+Dashboard
+
+Admin
+
+Solicitações
+
+Fornecedores
+
+Lotes / Tipos de Lote
+
+Aprovar / Reprovar Solicitações (SC)
+
+Gerar OC
+
+Editar preço antes da aprovação
+
+Cadastrar e gerenciar motoristas (se existir módulo OS)
+
+Atribuir lote ao fornecedor
+
+Ver todas as solicitações e OCs
+
+Permissões especiais:
+
+Admin é o único que pode cadastrar e gerenciar tipos de lote.
+
+Admin é o único que aprova SC.
+
+Admin pode visualizar e editar qualquer dado.
+
+Admin controla limites, preços, tabelas e auditoria.
+
+Admin recebe todas as notificações críticas (SC criada, divergências, etc).
+
+2. COMPRADOR (Funcionário)
+
+Acessos:
+
+Solicitações
+
+Fornecedores
+
+Botão “+” para criar uma nova solicitação (SC)
+
+O que pode fazer:
+
+Criar Solicitação de Compra (SC)
+
+Cadastrar fornecedor (mas sem tipos de lote)
+
+Ver somente suas próprias solicitações
+
+Ver fornecedores, mas não editar lotes/tipos de lote
+
+Receber notificação quando SC for aprovada/rejeitada
+
+O que não pode fazer:
+
+NÃO vê Dashboard
+
+NÃO vê Admin
+
+NÃO vê Tipos de Lote
+
+NÃO vê fluxos de aprovação
+
+NÃO vê OC
+
+NÃO vê telas de motorista / OS
+
+NÃO vê nada relacionado a rotas, logística, estoque, etc
+
+NÃO edita preço
+
+NÃO aprova solicitações
+
+NÃO atribui lote ao fornecedor
+
+Tudo isso deve estar completamente oculto no front-end e protegido no back-end (403 se tentar acessar via API).
+
+REQUISITOS DE IMPLEMENTAÇÃO
+1. Ocultar menus no Front-End
+
+Quando usuário = COMPRADOR:
+
+Exibir apenas:
+
+Solicitações
+
+Fornecedores
+
+Botão + para criar SC
+
+Ocultar completamente:
+
+Dashboard
+
+Admin
+
+Lotes / Tipos de Lote
+
+Ordens de Compra
+
+Motoristas / OS
+
+Qualquer botão de aprovação
+
+Notificações de ADM
+
+Botões administrativos nos detalhes da SC
+
+Edição de preço
+
+2. Regras de Fluxo para COMPRADOR
+
+Ao acessar o sistema:
+
+Ele somente pode criar SC e visualizar suas SC.
+
+Criar fornecedor
+
+Comprador pode cadastrar fornecedor sem vincular lote.
+
+Após cadastro, o fornecedor fica com status “aguardando configuração”.
+
+Admin recebe notificação: "Novo fornecedor cadastrado – atribuir tipo de lote".
+
+Criar Solicitação (SC)
+
+Comprador envia SC
+
+Sistema valida preço, limites, etc
+
+Se exceder limite ou faltar tabela → vai para PENDENTE_ADM
+
+Se dentro da regra → AUTOAPROVADA
+
+Notificação enviada ao comprador:
+
+SC criada
+
+SC autoaprovada ou pendente aprovação do admin
+
+3. Regras de Fluxo para ADMIN
+
+Quando Admin entra:
+
+Vê todas as telas
+
+Ao receber SC pendente:
+
+Pode aprovar, editar preço, rejeitar
+
+Ao aprovar → gera OC
+
+Notifica comprador
+
+Quando comprador cadastrar fornecedor:
+
+Admin vê alerta: “Fornecedor sem lote atribuído”
+
+Admin abre fornecedor e atribui o tipo de lote
+
+4. Notificações
+
+Implementar sistema baseado no perfil:
+
+Comprador recebe:
+
+SC criada
+
+SC pendente ADM
+
+SC aprovada
+
+SC rejeitada
+
+Divergência detectada no recebimento (se aplicável)
+
+Fornecedor aprovado (após ADM atribuir lote)
+
+Admin recebe:
+
+Nova SC criada
+
+SC acima do limite (necessária aprovação)
+
+SC sem tabela
+
+Preço divergente histórico
+
+Fornecedor criado (atribuir lote)
+
+Alertas de divergência no recebimento
+
+Problemas de estoque, OS ou motorista
+
+5. Segurança e Back-End
+
+Mesmo que o front oculte, o back-end deve bloquear:
+
+Comprador tentando acessar:
+
+/lote
+
+/admin
+
+/oc/*
+
+/os/*
+
+/motoristas/*
+
+/sc/aprovar
+
+/fornecedor/{id}/atribuir-lote
+→ retornar 403 Forbidden
+
+Admin pode acessar tudo.
+
+6. Ajustes do Layout
+
+Para comprador:
+
+Barra inferior deve mostrar somente:
+
+Solicitações
+
+Fornecedores
+
+Botão +
+
+Para admin:
+
+Exibir todas opções normalmente.
+
+7. Critérios de Aceite (obrigatórios)
+
+Ao logar como comprador, nenhuma funcionalidade de ADM deve ser renderizada.
+
+API deve validar RBAC corretamente (não só UI).
+
+Admin consegue atribuir lote ao fornecedor cadastrado pelo comprador.
+
+Comprador consegue criar SC e fornecedores, mas nunca aprovar.
+
+Notificações adequadas por perfil funcionando.
+
+Não deve existir botão ou link que o comprador consiga ver que não seja dele.

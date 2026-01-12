@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Conferência - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <style>
+        .conferencia-container {
+            padding: var(--spacing-md);
+            max-width: 1400px;
+            margin: 0 auto;
+            padding-top: calc(70px + var(--spacing-md));
+            padding-bottom: calc(80px + var(--spacing-md));
+        }
+
+        .conferencia-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: clamp(1rem, 3vw, 2rem);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .conferencia-header h1 {
+            color: var(--primary-color);
+            margin: 0;
+            font-size: clamp(1.5rem, 5vw, 2rem);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: clamp(1.5rem, 4vw, 2rem);
+        }
+
+        .stat-card {
+            background: white;
+            padding: clamp(1rem, 3vw, 1.25rem);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: clamp(1.5rem, 6vw, 2rem);
+            color: var(--primary-color);
+        }
+
+        .stat-card p {
+            margin: 0;
+            color: var(--gray-600);
+            font-size: clamp(0.75rem, 3vw, 0.875rem);
+        }
+
+        .conf-table {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .conf-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        /* Cards Mobile - inicialmente escondidos */
+        .conf-cards-mobile {
+            display: none;
+        }
+
+        .conf-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid var(--primary-color);
+            transition: all 0.3s ease;
+        }
+
+        .conf-card:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        }
+
+        .conf-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        .conf-card-number {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .conf-card-body {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .conf-card-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+        }
+
+        .conf-card-label {
+            font-weight: 600;
+            color: var(--gray-600);
+            font-size: 0.875rem;
+            min-width: 120px;
+        }
+
+        .conf-card-value {
+            color: var(--gray-900);
+            font-size: 0.875rem;
+            text-align: right;
+            flex: 1;
+        }
+
+        .conf-card-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding-top: 12px;
+            border-top: 2px solid var(--gray-200);
+        }
+
+        .conf-table th {
+            background: var(--primary-color);
+            color: white;
+            padding: clamp(0.75rem, 2vw, 1rem);
+            text-align: left;
+            font-weight: 600;
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+            white-space: nowrap;
+        }
+
+        .conf-table td {
+            padding: clamp(0.75rem, 2vw, 1rem);
+            border-bottom: 1px solid var(--gray-200);
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+        }
+
+        .conf-table tr:hover {
+            background: var(--gray-100);
+        }
+
+        .status-badge {
+            padding: clamp(0.25rem, 1vw, 0.375rem) clamp(0.5rem, 2vw, 0.75rem);
+            border-radius: 20px;
+            font-size: clamp(0.625rem, 2vw, 0.75rem);
+            font-weight: 600;
+            text-transform: uppercase;
+            white-space: nowrap;
+            display: inline-block;
+        }
+
+        .status-pendente { background: var(--warning-color); color: #000; }
+        .status-divergente { background: var(--danger-color); color: #fff; }
+        .status-aguardando-adm { background: #ff9800; color: #fff; }
+        .status-aguardando_adm { background: #ff9800; color: #fff; }
+        .status-aprovada { background: var(--success-color); color: #fff; }
+        .status-rejeitada { background: var(--gray-600); color: #fff; }
+
+        .conf-table .btn {
+            padding: clamp(0.375rem, 1.5vw, 0.5rem) clamp(0.625rem, 2vw, 0.875rem);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: clamp(0.75rem, 2vw, 0.875rem);
+            font-weight: 600;
+            transition: all 0.3s;
+            white-space: nowrap;
+            min-height: var(--touch-target);
+        }
+
+        .conf-table .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .conf-table .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .conf-table .btn-warning {
+            background: var(--warning-color);
+            color: #000;
+        }
+
+        .conf-table .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .modal-content {
+            background: white;
+            margin: clamp(1rem, 5vh, 3rem) auto;
+            padding: clamp(1.25rem, 4vw, 2rem);
+            border-radius: 8px;
+            width: calc(100% - 2rem);
+            max-width: 600px;
+            max-height: calc(100vh - 4rem);
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: clamp(1rem, 3vw, 1.5rem);
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: var(--primary-color);
+            font-size: clamp(1.25rem, 4vw, 1.5rem);
+        }
+
+        .close {
+            font-size: clamp(1.5rem, 5vw, 1.75rem);
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--gray-400);
+            width: var(--touch-target);
+            height: var(--touch-target);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close:hover {
+            color: var(--gray-900);
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: var(--spacing-xs);
+            font-weight: 600;
+            color: var(--gray-700);
+            font-size: clamp(0.875rem, 2vw, 0.95rem);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: clamp(0.625rem, 2vw, 0.75rem);
+            border: 1px solid var(--gray-300);
+            border-radius: 4px;
+            font-size: clamp(0.875rem, 2vw, 1rem);
+            min-height: var(--touch-target);
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .divergencia-warning {
+            background: #fff3cd;
+            border: 1px solid var(--warning-color);
+            border-radius: 4px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .divergencia-warning h4 {
+            margin: 0 0 var(--spacing-sm) 0;
+            color: #856404;
+            font-size: clamp(1rem, 3vw, 1.125rem);
+        }
+
+        .divergencia-warning p {
+            margin: var(--spacing-xs) 0;
+            font-size: clamp(0.875rem, 2vw, 0.95rem);
+        }
+
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            .conferencia-container {
+                padding-top: calc(70px + var(--spacing-sm));
+                padding-bottom: calc(80px + var(--spacing-sm));
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            /* Esconde a tabela em mobile */
+            .conf-table {
+                display: none;
+            }
+
+            /* Mostra os cards em mobile */
+            .conf-cards-mobile {
+                display: block;
+            }
+
+            .conf-card {
+                padding: 16px;
+                margin-bottom: 12px;
+            }
+
+            .conf-card-header {
+                margin-bottom: 12px;
+                padding-bottom: 10px;
+            }
+
+            .conf-card-number {
+                font-size: 1.1rem;
+            }
+
+            .conf-card-body {
+                gap: 10px;
+            }
+
+            .conf-card-label {
+                font-size: 0.8rem;
+                min-width: 100px;
+            }
+
+            .conf-card-value {
+                font-size: 0.8rem;
+            }
+
+            .conf-card-actions .btn {
+                flex: 1;
+                justify-content: center;
+            }
+
+            .conferencia-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .modal-content {
+                width: calc(100% - 1rem);
+                margin: 0.5rem auto;
+                max-height: calc(100vh - 1rem);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .conf-card-label {
+                font-size: 0.75rem;
+                min-width: 90px;
+            }
+
+            .conf-card-value {
+                font-size: 0.75rem;
+            }
+
+            .conf-card-actions {
+                flex-direction: column;
+            }
+
+            .conf-card-actions .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Conferência</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Bottom Navigation (Mobile) -->
+    <nav class="bottom-nav" id="navMenuMobile">
+        <!-- Menus serão renderizados dinamicamente pelo RBAC -->
+    </nav>
+
+    <div class="conferencia-container">
+        <div class="conferencia-header">
+            <h1>Conferência de Recebimento</h1>
+        </div>
+
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <h3 id="stat-total">0</h3>
+                <p>Total</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="stat-pendentes">0</h3>
+                <p>Pendentes</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="stat-divergentes">0</h3>
+                <p>Divergentes</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="stat-aguardando">0</h3>
+                <p>Aguardando ADM</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="stat-aprovadas">0</h3>
+                <p>Aprovadas</p>
+            </div>
+        </div>
+
+        <!-- Tabela Desktop -->
+        <div class="conf-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>OS</th>
+                        <th>Fornecedor</th>
+                        <th>Peso Previsto</th>
+                        <th>Peso Real</th>
+                        <th>Diferença</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="conf-list">
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px;">
+                            Carregando...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Cards Mobile -->
+        <div class="conf-cards-mobile" id="conf-cards-mobile">
+            <div style="text-align: center; padding: 40px; color: var(--gray-600);">
+                Carregando...
+            </div>
+        </div>
+    </div>
+
+    <div id="pesagem-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Registrar Pesagem</h2>
+                <span class="close" onclick="fecharModal('pesagem-modal')">&times;</span>
+            </div>
+            <form id="form-pesagem">
+                <div class="form-group">
+                    <label>Peso Real (kg) *</label>
+                    <input type="number" id="peso-real" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Qualidade *</label>
+                    <select id="qualidade" required>
+                        <option value="BOA">Boa</option>
+                        <option value="MEDIA">Média</option>
+                        <option value="RUIM">Ruim</option>
+                        <option value="DANIFICADO">Danificado</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Observações</label>
+                    <textarea id="observacoes"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary">Registrar</button>
+                    <button type="button" class="btn btn-danger" onclick="fecharModal('pesagem-modal')">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="decisao-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Decisão Administrativa</h2>
+                <span class="close" onclick="fecharModal('decisao-modal')">&times;</span>
+            </div>
+            <div id="divergencia-info"></div>
+            <form id="form-decisao">
+                <div class="form-group">
+                    <label>Decisão *</label>
+                    <select id="decisao" required>
+                        <option value="">Selecione...</option>
+                        <option value="ACEITAR">Aceitar</option>
+                        <option value="ACEITAR_COM_DESCONTO">Aceitar com Desconto</option>
+                        <option value="REJEITAR">Rejeitar</option>
+                    </select>
+                </div>
+                <div class="form-group" id="desconto-group" style="display: none;">
+                    <label>Percentual de Desconto (%)</label>
+                    <input type="number" id="percentual-desconto" step="0.01" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label>Motivo *</label>
+                    <textarea id="motivo-decisao" required></textarea>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary">Confirmar</button>
+                    <button type="button" class="btn btn-danger" onclick="fecharModal('decisao-modal')">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let confAtual = null;
+
+        async function carregarEstatisticas() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/conferencia/estatisticas', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!response.ok) {
+                    console.error('Erro na resposta da API estatísticas:', response.status);
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                document.getElementById('stat-total').textContent = data.total_conferencias || 0;
+                document.getElementById('stat-pendentes').textContent = data.pendentes || 0;
+                document.getElementById('stat-divergentes').textContent = data.divergentes || 0;
+                document.getElementById('stat-aguardando').textContent = data.aguardando_adm || 0;
+                document.getElementById('stat-aprovadas').textContent = data.aprovadas || 0;
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+            }
+        }
+
+        async function carregarConferencias() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/conferencia', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!response.ok) {
+                    console.error('Erro na resposta da API:', response.status);
+                    const tbody = document.getElementById('conf-list');
+                    const cardsContainer = document.getElementById('conf-cards-mobile');
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: red;">Erro ao carregar conferências. Verifique sua autenticação.</td></tr>';
+                    cardsContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: red;">Erro ao carregar conferências. Verifique sua autenticação.</div>';
+                    return;
+                }
+                
+                const conferencias = await response.json();
+
+                const tbody = document.getElementById('conf-list');
+                const cardsContainer = document.getElementById('conf-cards-mobile');
+                tbody.innerHTML = '';
+                cardsContainer.innerHTML = '';
+
+                if (!Array.isArray(conferencias) || conferencias.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;">Nenhuma conferência encontrada</td></tr>';
+                    cardsContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--gray-600);">Nenhuma conferência encontrada</div>';
+                    return;
+                }
+
+                conferencias.forEach(conf => {
+                    const statusClass = `status-${conf.conferencia_status.toLowerCase().replace('_', '-')}`;
+                    const diferenca = conf.peso_fornecedor && conf.peso_real ? 
+                        ((conf.peso_real - conf.peso_fornecedor) / conf.peso_fornecedor * 100).toFixed(2) : '-';
+                    
+                    let acoes = '';
+                    let acoesCard = '';
+                    if (conf.conferencia_status === 'PENDENTE') {
+                        acoes = `<button class="btn btn-primary" onclick="abrirPesagem(${conf.id})">Registrar Pesagem</button>`;
+                        acoesCard = `<button class="btn btn-primary btn-sm" onclick="abrirPesagem(${conf.id})"><i class="fas fa-weight"></i> Registrar Pesagem</button>`;
+                    } else if (conf.conferencia_status === 'DIVERGENTE') {
+                        acoes = `<button class="btn btn-warning" onclick="enviarParaAdmDireto(${conf.id})">⚠️ Enviar p/ ADM</button>`;
+                        acoesCard = `<button class="btn btn-warning btn-sm" onclick="enviarParaAdmDireto(${conf.id})"><i class="fas fa-exclamation-triangle"></i> Enviar p/ ADM</button>`;
+                    } else if (conf.conferencia_status === 'AGUARDANDO_ADM') {
+                        acoes = `<button class="btn btn-warning" onclick="abrirDecisao(${conf.id})">Decidir</button>`;
+                        acoesCard = `<button class="btn btn-warning btn-sm" onclick="abrirDecisao(${conf.id})"><i class="fas fa-gavel"></i> Decidir</button>`;
+                    }
+                    
+                    // Adiciona linha na tabela (desktop)
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>#${conf.id}</strong></td>
+                        <td>${conf.ordem_servico ? conf.ordem_servico.numero_os : '-'}</td>
+                        <td>${conf.ordem_servico ? conf.ordem_servico.fornecedor_snapshot.nome : '-'}</td>
+                        <td>${conf.peso_fornecedor ? conf.peso_fornecedor.toFixed(2) + ' kg' : '-'}</td>
+                        <td>${conf.peso_real ? conf.peso_real.toFixed(2) + ' kg' : '-'}</td>
+                        <td>${diferenca !== '-' ? diferenca + '%' : '-'}</td>
+                        <td><span class="status-badge ${statusClass}">${conf.conferencia_status}</span></td>
+                        <td>${acoes}</td>
+                    `;
+                    tbody.appendChild(tr);
+
+                    // Adiciona card mobile
+                    const card = document.createElement('div');
+                    card.className = 'conf-card';
+                    card.innerHTML = `
+                        <div class="conf-card-header">
+                            <div class="conf-card-number">#${conf.id}</div>
+                            <span class="status-badge ${statusClass}">${conf.conferencia_status}</span>
+                        </div>
+                        <div class="conf-card-body">
+                            <div class="conf-card-row">
+                                <div class="conf-card-label">OS:</div>
+                                <div class="conf-card-value">${conf.ordem_servico ? conf.ordem_servico.numero_os : '-'}</div>
+                            </div>
+                            <div class="conf-card-row">
+                                <div class="conf-card-label">Fornecedor:</div>
+                                <div class="conf-card-value">${conf.ordem_servico ? conf.ordem_servico.fornecedor_snapshot.nome : '-'}</div>
+                            </div>
+                            <div class="conf-card-row">
+                                <div class="conf-card-label">Peso Previsto:</div>
+                                <div class="conf-card-value">${conf.peso_fornecedor ? conf.peso_fornecedor.toFixed(2) + ' kg' : '-'}</div>
+                            </div>
+                            <div class="conf-card-row">
+                                <div class="conf-card-label">Peso Real:</div>
+                                <div class="conf-card-value">${conf.peso_real ? conf.peso_real.toFixed(2) + ' kg' : '-'}</div>
+                            </div>
+                            <div class="conf-card-row">
+                                <div class="conf-card-label">Diferença:</div>
+                                <div class="conf-card-value">${diferenca !== '-' ? diferenca + '%' : '-'}</div>
+                            </div>
+                        </div>
+                        ${acoesCard ? `<div class="conf-card-actions">${acoesCard}</div>` : ''}
+                    `;
+                    cardsContainer.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar conferências:', error);
+            }
+        }
+
+        function abrirPesagem(confId) {
+            confAtual = confId;
+            document.getElementById('pesagem-modal').style.display = 'block';
+        }
+
+        function abrirDecisao(confId) {
+            confAtual = confId;
+            carregarInfoConferencia(confId);
+            document.getElementById('decisao-modal').style.display = 'block';
+        }
+
+        async function enviarParaAdmDireto(conferenciaId) {
+            if (!confirm('Confirma o envio desta divergência para análise administrativa?')) {
+                return;
+            }
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`/api/conferencia/${conferenciaId}/enviar-para-adm`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                if (response.ok) {
+                    alert('✅ Divergência enviada para análise administrativa com sucesso!');
+                    carregarConferencias();
+                    carregarEstatisticas();
+                } else {
+                    const error = await response.json();
+                    alert('❌ Erro: ' + (error.erro || 'Erro ao enviar para ADM'));
+                }
+            } catch (error) {
+                console.error('Erro ao enviar para ADM:', error);
+                alert('❌ Erro ao enviar para análise administrativa');
+            }
+        }
+
+        async function carregarInfoConferencia(confId) {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`/api/conferencia/${confId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const conf = await response.json();
+
+                const infoDiv = document.getElementById('divergencia-info');
+                infoDiv.innerHTML = `
+                    <div class="divergencia-warning">
+                        <h4>Informações da Divergência</h4>
+                        <p><strong>Tipo:</strong> ${conf.tipo_divergencia}</p>
+                        <p><strong>Peso Previsto:</strong> ${conf.peso_fornecedor} kg</p>
+                        <p><strong>Peso Real:</strong> ${conf.peso_real} kg</p>
+                        <p><strong>Diferença:</strong> ${conf.percentual_diferenca}%</p>
+                        <p><strong>Qualidade:</strong> ${conf.qualidade}</p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Erro ao carregar informações:', error);
+            }
+        }
+
+        document.getElementById('form-pesagem').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            try {
+                const token = localStorage.getItem('token');
+                const payload = {
+                    peso_real: parseFloat(document.getElementById('peso-real').value),
+                    qualidade: document.getElementById('qualidade').value,
+                    observacoes: document.getElementById('observacoes').value
+                };
+
+                const response = await fetch(`/api/conferencia/${confAtual}/registrar-pesagem`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    alert('Pesagem registrada com sucesso!');
+                    fecharModal('pesagem-modal');
+                    carregarConferencias();
+                    carregarEstatisticas();
+                } else {
+                    const error = await response.json();
+                    alert('Erro: ' + error.erro);
+                }
+            } catch (error) {
+                console.error('Erro ao registrar pesagem:', error);
+                alert('Erro ao registrar pesagem');
+            }
+        });
+
+        document.getElementById('decisao').addEventListener('change', (e) => {
+            const descontoGroup = document.getElementById('desconto-group');
+            if (e.target.value === 'ACEITAR_COM_DESCONTO') {
+                descontoGroup.style.display = 'block';
+            } else {
+                descontoGroup.style.display = 'none';
+            }
+        });
+
+        document.getElementById('form-decisao').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            try {
+                const token = localStorage.getItem('token');
+                const payload = {
+                    decisao: document.getElementById('decisao').value,
+                    motivo: document.getElementById('motivo-decisao').value
+                };
+
+                if (payload.decisao === 'ACEITAR_COM_DESCONTO') {
+                    payload.percentual_desconto = parseFloat(document.getElementById('percentual-desconto').value);
+                }
+
+                const response = await fetch(`/api/conferencia/${confAtual}/decisao-adm`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    alert('Decisão registrada com sucesso!');
+                    fecharModal('decisao-modal');
+                    carregarConferencias();
+                    carregarEstatisticas();
+                } else {
+                    const error = await response.json();
+                    alert('Erro: ' + error.erro);
+                }
+            } catch (error) {
+                console.error('Erro ao registrar decisão:', error);
+                alert('Erro ao registrar decisão');
+            }
+        });
+
+        function fecharModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            const modais = document.getElementsByClassName('modal');
+            for (let modal of modais) {
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        }
+
+        carregarEstatisticas();
+        carregarConferencias();
+    </script>
+    <script src="/static/js/rbac.js"></script>
+</body>
+</html>

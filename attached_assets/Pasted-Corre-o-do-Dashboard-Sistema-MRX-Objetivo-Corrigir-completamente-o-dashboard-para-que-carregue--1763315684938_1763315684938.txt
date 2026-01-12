@@ -1,0 +1,189 @@
+Correção do Dashboard - Sistema MRX
+Objetivo
+Corrigir completamente o dashboard para que carregue e exiba todos os gráficos e KPIs corretamente, incluindo dados de solicitações, lotes, fornecedores, entradas, compras e todos os módulos do sistema.
+
+Problemas Identificados
+Backend (app/routes/dashboard.py):
+
+Endpoint /api/dashboard/stats retorna estrutura incompatível com o frontend
+Falta endpoint /api/dashboard/grafico-mensal
+Falta dados de ranking de empresas/fornecedores
+Falta dados de quilos por tipo de lote
+Frontend (app/templates/dashboard.html):
+
+Função loadGeralBI() espera estrutura de dados diferente da que o backend retorna
+Variável empresa.nome deveria ser fornecedor.nome em vários lugares
+Falta tratamento de erros adequado
+Correções Necessárias
+1. Backend - Corrigir arquivo app/routes/dashboard.py
+Adicionar os seguintes endpoints:
+
+@bp.route('/stats', methods=['GET'])
+@admin_required
+def obter_estatisticas():
+    """Retorna estatísticas gerais do sistema"""
+    from app.models import Solicitacao, Lote, Fornecedor, EntradaEstoque, OrdemCompra
+    from sqlalchemy import func
+    
+    # Estatísticas de Solicitações/Relatórios
+    total_pendentes = Solicitacao.query.filter_by(status='pendente').count()
+    total_aprovados = Solicitacao.query.filter_by(status='aprovada').count()
+    total_reprovados = Solicitacao.query.filter_by(status='rejeitada').count()
+    
+    # Valor total de lotes aprovados
+    valor_total = db.session.query(func.sum(Lote.valor_total)).filter(
+        Lote.status == 'aprovado'
+    ).scalar() or 0
+    
+    # Quilos por tipo de lote
+    quilos_leve = db.session.query(func.sum(Lote.peso_total_kg)).filter(
+        Lote.tipo_lote == 'leve'
+    ).scalar() or 0
+    
+    quilos_media = db.session.query(func.sum(Lote.peso_total_kg)).filter(
+        Lote.tipo_lote == 'media'
+    ).scalar() or 0
+    
+    quilos_pesada = db.session.query(func.sum(Lote.peso_total_kg)).filter(
+        Lote.tipo_lote == 'pesada'
+    ).scalar() or 0
+    
+    # Ranking de fornecedores (top 10)
+    ranking = db.session.query(
+        Fornecedor.id,
+        Fornecedor.nome,
+        func.count(Solicitacao.id).label('total')
+    ).join(
+        Solicitacao, Solicitacao.fornecedor_id == Fornecedor.id
+    ).filter(
+        Solicitacao.status == 'aprovada'
+    ).group_by(
+        Fornecedor.id, Fornecedor.nome
+    ).order_by(
+        func.count(Solicitacao.id).desc()
+    ).limit(10).all()
+    
+    ranking_empresas = [
+        {
+            'id': r.id,
+            'nome': r.nome,
+            'total': r.total
+        } for r in ranking
+    ]
+    
+    return jsonify({
+        'relatorios': {
+            'pendentes': total_pendentes,
+            'aprovados': total_aprovados,
+            'reprovados': total_reprovados
+        },
+        'valor_total': float(valor_total),
+        'quilos_por_tipo': {
+            'leve': float(quilos_leve),
+            'media': float(quilos_media),
+            'pesada': float(quilos_pesada)
+        },
+        'ranking_empresas': ranking_empresas
+    }), 200
+@bp.route('/grafico-mensal', methods=['GET'])
+@admin_required
+def obter_grafico_mensal():
+    """Retorna dados de movimentação mensal para gráficos"""
+    from app.models import Solicitacao
+    from sqlalchemy import func, extract
+    from datetime import datetime, timedelta
+    
+    # Últimos 6 meses
+    hoje = datetime.now()
+    meses = []
+    dados = []
+    
+    for i in range(5, -1, -1):
+        mes_data = hoje - timedelta(days=30*i)
+        mes_num = mes_data.month
+        ano = mes_data.year
+        
+        # Nome do mês em português
+        nomes_meses = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 
+                      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+        meses.append(nomes_meses[mes_num])
+        
+        # Contar solicitações aprovadas no mês
+        count = Solicitacao.query.filter(
+            extract('month', Solicitacao.data_criacao) == mes_num,
+            extract('year', Solicitacao.data_criacao) == ano,
+            Solicitacao.status == 'aprovada'
+        ).count()
+        
+        dados.append(count)
+    
+    return jsonify({
+        'labels': meses,
+        'data': dados
+    }), 200
+2. Frontend - Corrigir app/templates/dashboard.html
+Corrigir a função loadGeralBI():
+
+Na linha onde há o erro com fornecedor.nome, substituir:
+
+// ANTES (linha com erro)
+return `<li class="ranking-item"><div class="ranking-position ${['gold', 'silver', 'bronze', 'regular'][Math.min(index, 3)]}">${badge}</div><div class="ranking-info"><div class="ranking-name">${fornecedor.nome}</div></div><div class="ranking-count">${empresa.total}</div></li>`;
+// DEPOIS (corrigido)
+return `<li class="ranking-item"><div class="ranking-position ${['gold', 'silver', 'bronze', 'regular'][Math.min(index, 3)]}">${badge}</div><div class="ranking-info"><div class="ranking-name">${empresa.nome}</div></div><div class="ranking-count">${empresa.total}</div></li>`;
+Adicionar tratamento de erro robusto:
+
+async function loadGeralBI() {
+    try {
+        const statsResponse = await fetchAPI('/dashboard/stats');
+        if (!statsResponse || !statsResponse.ok) {
+            console.error('Erro ao carregar stats');
+            showAlert('Erro ao carregar estatísticas do dashboard', 'error');
+            return;
+        }
+        
+        dashboardData = await statsResponse.json();
+        
+        // ... resto do código
+        
+    } catch (error) {
+        console.error('Erro ao carregar dashboard:', error);
+        showAlert('Erro ao carregar dashboard. Por favor, recarregue a página.', 'error');
+    }
+}
+3. Adicionar Logs de Debug
+No dashboard.html, adicionar console.logs para debugar:
+
+async function loadGeralBI() {
+    try {
+        console.log('🔄 Carregando dashboard...');
+        
+        const statsResponse = await fetchAPI('/dashboard/stats');
+        console.log('📊 Stats response:', statsResponse);
+        
+        if (!statsResponse || !statsResponse.ok) {
+            console.error('❌ Erro na resposta:', statsResponse);
+            return;
+        }
+        
+        dashboardData = await statsResponse.json();
+        console.log('✅ Dados carregados:', dashboardData);
+        
+        // ... resto do código
+    } catch (error) {
+        console.error('❌ Erro fatal:', error);
+    }
+}
+Resumo das Alterações
+✅ Corrigir backend para retornar estrutura correta de dados
+✅ Adicionar endpoint /api/dashboard/grafico-mensal
+✅ Corrigir referências fornecedor.nome vs empresa.nome
+✅ Adicionar tratamento de erros robusto
+✅ Adicionar logs de debug para facilitar troubleshooting
+Teste
+Após implementar as correções:
+
+Acesse /dashboard.html
+Verifique o console do navegador (F12)
+Confirme que os KPIs mostram valores corretos
+Confirme que os gráficos são renderizados
+Confirme que o ranking de fornecedores aparece

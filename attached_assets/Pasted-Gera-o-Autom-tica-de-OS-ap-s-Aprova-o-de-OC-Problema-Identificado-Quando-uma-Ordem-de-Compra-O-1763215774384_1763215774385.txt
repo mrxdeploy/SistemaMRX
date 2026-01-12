@@ -1,0 +1,118 @@
+Geração Automática de OS após Aprovação de OC
+Problema Identificado:
+Quando uma Ordem de Compra (OC) é aprovada através do endpoint PATCH /api/ordens-compra/{oc_id}/aprovar, o sistema apenas muda o status para "aprovada", mas NÃO está criando automaticamente a Ordem de Serviço (OS) correspondente. Por isso, nada aparece no Painel de Logística (/logistica).
+
+Objetivo:
+Implementar a criação automática de OS imediatamente após a aprovação da OC, seguindo o fluxo documentado no LOGISTICA_GUIDE.md.
+
+Arquivos a Modificar:
+
+1. app/routes/ordens_compra.py - Endpoint de Aprovação
+Localização: Função aprovar_oc(oc_id) (linha ~138)
+
+Modificação Necessária:
+Após aprovar a OC e antes do db.session.commit(), adicionar a criação automática da OS.
+
+Código a Adicionar:
+
+# Após definir os campos da OC (status, aprovado_por, etc.) e ANTES do commit
+# Adicionar a geração automática da OS
+from app.routes.ordens_servico import gerar_numero_os, criar_snapshot_fornecedor
+# Buscar fornecedor para criar snapshot
+fornecedor = Fornecedor.query.get(oc.fornecedor_id)
+if not fornecedor:
+    return jsonify({'erro': 'Fornecedor não encontrado'}), 404
+# Gerar número único da OS
+numero_os = gerar_numero_os()
+fornecedor_snap = criar_snapshot_fornecedor(fornecedor)
+# Criar a Ordem de Serviço automaticamente
+os = OrdemServico(
+    oc_id=oc.id,
+    numero_os=numero_os,
+    fornecedor_snapshot=fornecedor_snap,
+    tipo='COLETA',  # Padrão: coleta no fornecedor
+    status='PENDENTE',  # Status inicial
+    created_by=usuario_id
+)
+db.session.add(os)
+# Registrar auditoria da OS
+from app.routes.ordens_servico import registrar_auditoria_os
+registrar_auditoria_os(os, 'CRIACAO', usuario_id, {
+    'oc_id': oc.id,
+    'criado_automaticamente': True,
+    'motivo': 'OC aprovada'
+})
+2. Adicionar Import no Início do Arquivo
+No topo de app/routes/ordens_compra.py, adicionar:
+
+from app.models import OrdemServico
+3. Verificar Resposta do Endpoint
+Modificar a resposta de sucesso para incluir informações da OS criada:
+
+return jsonify({
+    'success': True,
+    'message': 'Ordem de compra aprovada e OS gerada com sucesso',
+    'oc': oc.to_dict(),
+    'os_criada': {
+        'id': os.id,
+        'numero_os': os.numero_os,
+        'status': os.status
+    }
+}), 200
+4. Teste Completo do Fluxo
+Após implementar, testar:
+
+Aprovar uma OC:
+
+PATCH /api/ordens-compra/1/aprovar
+Verificar se OS foi criada:
+
+GET /api/os
+Deve retornar a OS criada com status PENDENTE
+
+Acessar o Painel de Logística:
+
+/logistica
+Deve exibir a OS recém-criada
+
+5. Logs de Debug (Opcional)
+Adicionar logs para rastreamento:
+
+print(f"\n{'='*60}")
+print(f" OC #{oc.id} APROVADA - Criando OS automaticamente...")
+print(f"{'='*60}")
+print(f"   Fornecedor: {fornecedor.nome}")
+print(f"   Número OS: {numero_os}")
+print(f"   Status inicial: PENDENTE")
+6. Tratamento de Erros
+Adicionar try/except específico:
+
+try:
+    # código de criação da OS
+    os = OrdemServico(...)
+    db.session.add(os)
+except Exception as e:
+    db.session.rollback()
+    print(f" ERRO ao criar OS: {str(e)}")
+    return jsonify({'erro': f'OC aprovada mas falha ao criar OS: {str(e)}'}), 500
+Resultado Esperado:
+
+Após implementar essas mudanças:
+
+✅ Ao aprovar uma OC, uma OS é criada automaticamente
+✅ A OS aparece no painel /logistica com status PENDENTE
+✅ Admin pode atribuir motorista e veículo
+✅ Motorista pode ver a OS no /app-motorista
+✅ Fluxo completo: OC → OS → Atribuição → Coleta → Conferência
+Verificação de Sucesso:
+
+Console deve mostrar:
+
+============================================================
+ OC #1 APROVADA - Criando OS automaticamente...
+============================================================
+   Fornecedor: NU PAGAMENTOS S.A.
+   Número OS: OS-20251115-A1B2C3
+   Status inicial: PENDENTE
+   ✅ OS criada com sucesso!
+Implemente essas alterações e o problema estará resolvido.

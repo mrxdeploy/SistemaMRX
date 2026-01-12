@@ -1,0 +1,293 @@
+Objetivo da funcionalidade
+
+Quando o motorista FINALIZA a OS, o sistema deve abrir automaticamente o fluxo de Conferência de Chegada.
+Nesta etapa, um Conferente irá:
+
+Validar a chegada do material
+
+Realizar pesagem real
+
+Conferir quantidade, tipo de material, qualidade, contaminação, foto do material
+
+Comparar com os valores previstos da OS/OC
+
+Registrar divergências
+
+Criar Lote e dar entrada no estoque
+
+Gerar não conformidade se divergência ultrapassar limite
+
+Registrar trilha de auditoria completa
+
+2. Endpoints a implementar
+2.1 — Iniciar Conferência
+
+POST /conferencia/{os_id}/iniciar
+
+Somente permitido se OS.status == FINALIZADA
+
+Cria registro com status PENDENTE
+
+Carrega peso/quantidade prevista automaticamente da OC/OS
+
+Registrar auditoria da criação
+
+2.2 — Registrar Pesagem e Conferência
+
+PUT /conferencia/{id}/registrar
+
+Payload esperado:
+
+{
+  "peso_real": 580,
+  "quantidade_real": 120,
+  "qualidade": "B",
+  "fotos": ["file1.jpg", "file2.jpg"],
+  "observacoes": "Material misturado com plástico"
+}
+
+
+Lógica obrigatória:
+
+Calcular automaticamente percentual_diferenca
+
+Se percentual_diferenca > limite_configurado → status = DIVERGENCIA
+
+Enviar para analise ADM automaticamente (AGUARDANDO_ADM)
+
+2.3 — Decisão ADM sobre divergência
+
+PUT /conferencia/{id}/decisao-adm
+
+Ações possíveis:
+
+ACEITAR
+
+ACEITAR_COM_DESCONTO
+
+REJEITAR
+
+Cada decisão deve:
+
+Registrar auditoria (antes/depois, IP, GPS, device, user)
+
+Ajustar valor e custo do lote quando necessário
+
+Atualizar status da conferência
+
+2.4 — Gerar Lote e Entrada de Estoque
+
+Disparado automaticamente quando:
+
+Conferência.status == APROVADO
+
+Tipo divergência resolvida
+
+POST /estoque/lotes/criar
+
+Criar lote com:
+
+vinculo com conferência
+
+quantidade final aceita
+
+custo unitário
+
+material
+
+origem (OS > OC > SC)
+
+snapshot de qualidade
+
+metadata da pesagem
+
+Após criar lote:
+
+POST /estoque/entrada
+Registrar entrada efetiva no WMS interno.
+
+🖥 3. UI Web — Telas do Conferente
+➤ No menu administrativo, adicionar nova seção: “📦 Recebimento / Conferência”
+
+Dentro dela:
+
+Tela 1 — Lista de Conferências Pendentes
+
+Mostrar:
+
+OS
+
+OC
+
+Fornecedor
+
+Peso previsto
+
+Status
+
+Botão “Iniciar conferência”
+
+Filtro por status (PENDENTE, DIVERGENCIA, AGUARDANDO ADM)
+
+Tela 2 — Formulário de Conferência (tela principal)
+
+Elementos obrigatórios:
+
+Bloco superior com dados da OS/OC
+
+Campo para registrar peso real
+
+Campo para registrar quantidade real
+
+Campo “Qualidade” com opções A/B/C/Descartável
+
+Upload de fotos
+
+Campo observações
+
+Botão “Registrar Conferência”
+
+Após registrar:
+
+Se divergência → tela exibe mensagem “Divergência detectada — Aguardando ADM”
+
+Tela 3 — Tela ADM: Decisão sobre divergências
+
+Exibir:
+
+Valores previstos vs recebidos
+
+Cálculo do percentual de diferença
+
+Fotos da pesagem
+
+Botões:
+
+ACEITAR
+
+ACEITAR COM DESCONTO
+
+REJEITAR
+
+Campo de texto obrigatório: “Motivo da decisão”
+
+Resultado:
+
+Lote criado automaticamente (se aceito)
+
+Estoque atualizado
+
+🔍 4. Regras obrigatórias da Lógica de Negócio
+✔ Divergência é calculada automaticamente:
+percentual_diferenca = (peso_real - peso_previsto) / peso_previsto * 100
+
+✔ Se divergência > limite_configurado (ex: 10%):
+
+Conferência.status = DIVERGENCIA
+
+Notificar ADM automaticamente
+
+Impedir entrada no estoque até decisão
+
+✔ Caso conferência seja rejeitada:
+
+Não gerar lote
+
+Notificar comprador e financeiro
+
+✔ Todo evento deve registrar:
+
+GPS do dispositivo do conferente
+
+IP da máquina
+
+device_id
+
+timestamp
+
+usuário ativo
+
+📸 5. Anexos e evidências
+
+Upload de fotos deve ser feito via URL pré-assinada (pre-signed URL)
+
+Mínimo 1 foto obrigatória quando houver divergência
+
+Armazenamento em pasta: /evidencias/conferencia/{id}/
+
+🧪 6. QA e Casos de Teste Obrigatórios
+✔ Caso de teste 1: Pesagem sem divergência
+
+Entrada:
+
+Previsto: 1000 kg
+
+Real: 980 kg
+
+Diferença: 2%
+
+Resultado esperado:
+
+Não gera divergência
+
+Cria lote automaticamente
+
+Estoque atualizado
+
+✔ Caso de teste 2: Pesagem com divergência leve (< limite)
+
+Previsto: 1000 kg
+
+Real: 1040 kg
+
+Diferença: 4%
+
+Resultado:
+
+Sinaliza divergência leve
+
+ADM ainda pode aceitar sem desconto
+
+✔ Caso de teste 3 (OBRIGATÓRIO): divergência severa > limite
+
+Previsto: 1000 kg
+
+Real: 1200 kg
+
+Diferença: 20%
+
+Resultado:
+
+Conferência.status = DIVERGENCIA
+
+Não conformidade registrada
+
+Enviar para ADM
+
+ADM Aprovando com desconto → recalcular custo
+
+ADM Rejeitando → bloquear lote
+
+✔ 7. Critérios de aceite finais
+
+Para concluir esta entrega, o sistema deve permitir:
+
+ Abrir conferência automaticamente após OS finalizada
+
+ Registrar pesagem + qualidade + fotos
+
+ Detectar divergência automaticamente
+
+ Enviar divergência > limite para ADM
+
+ ADM pode aceitar / aceitar com desconto / rejeitar
+
+ Criar lote automático após decisão
+
+ Dar entrada em estoque com custo adequado
+
+ Registrar auditoria + GPS + device + IP
+
+ UI completa para conferente e ADM
+
+ Testes QA comprovando todos os cenários

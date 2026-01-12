@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lotes Aprovados - MRX Systems</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .lotes-lista {
+            max-width: 1200px;
+            margin: 20px auto;
+        }
+        
+        .lote-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .lote-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .badge-aprovado {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .badge-recebido {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .item-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .info-box {
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 5px;
+        }
+        
+        .info-box label {
+            display: block;
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+        
+        .info-box strong {
+            font-size: 16px;
+            color: #111827;
+        }
+        
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn-receber {
+            background: #16a34a;
+            color: white;
+        }
+        
+        .btn-receber:hover {
+            background: #15803d;
+        }
+        
+        .btn-receber:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .modal-content textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Lotes Aprovados</h1>
+            <button onclick="window.location.href='/dashboard'" class="btn" style="background: #6b7280; color: white;">Voltar</button>
+        </div>
+        
+        <div class="lotes-lista" id="listaLotes">
+            <div class="empty-state">
+                <p>Carregando lotes...</p>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modalReceber" class="modal">
+        <div class="modal-content">
+            <h3>Registrar Entrada do Lote</h3>
+            <p>Confirma o recebimento físico deste lote?</p>
+            <label for="observacoesEntrada">Observações da Entrada:</label>
+            <textarea id="observacoesEntrada" rows="4"></textarea>
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
+                <button onclick="fecharModal()" class="btn" style="background: #6b7280; color: white;">Cancelar</button>
+                <button onclick="confirmarEntrada()" class="btn btn-receber">Confirmar Entrada</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let solicitacaoAtual = null;
+        
+        async function carregarLotes() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('/api/solicitacao-lotes/aprovadas', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Erro ao carregar lotes');
+                
+                const lotes = await response.json();
+                renderizarLotes(lotes);
+            } catch (error) {
+                document.getElementById('listaLotes').innerHTML = `
+                    <div class="empty-state">
+                        <p style="color: #dc2626;">Erro ao carregar lotes</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function renderizarLotes(lotes) {
+            const container = document.getElementById('listaLotes');
+            
+            if (lotes.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>Nenhum lote aprovado no momento</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = lotes.map(lote => {
+                const item = lote.itens[0];
+                const jaRecebido = lote.tem_entrada || lote.status === 'recebido';
+                
+                return `
+                    <div class="lote-card">
+                        <div class="lote-header">
+                            <div>
+                                <h3>Solicitação #${lote.id}</h3>
+                                <p style="color: #6b7280; margin: 5px 0;">
+                                    Aprovado por: <strong>${lote.admin_nome || 'N/A'}</strong><br>
+                                    Data: ${new Date(lote.data_confirmacao).toLocaleString('pt-BR')}
+                                </p>
+                            </div>
+                            <span class="badge ${jaRecebido ? 'badge-recebido' : 'badge-aprovado'}">
+                                ${jaRecebido ? 'RECEBIDO' : 'APROVADO'}
+                            </span>
+                        </div>
+                        
+                        <div class="item-info">
+                            <div class="info-box">
+                                <label>Fornecedor</label>
+                                <strong>${lote.fornecedor_nome}</strong>
+                            </div>
+                            <div class="info-box">
+                                <label>Tipo de Lote</label>
+                                <strong>${item.tipo_lote_nome}</strong>
+                            </div>
+                            <div class="info-box">
+                                <label>Peso Total</label>
+                                <strong>${lote.total_peso_kg} kg</strong>
+                            </div>
+                            <div class="info-box">
+                                <label>Valor Total</label>
+                                <strong>R$ ${lote.total_valor.toFixed(2)}</strong>
+                            </div>
+                            <div class="info-box">
+                                <label>Classificação</label>
+                                <strong>${item.classificacao ? item.classificacao.toUpperCase() : 'N/A'}</strong>
+                            </div>
+                            <div class="info-box">
+                                <label>Estrelas</label>
+                                <strong>${''.repeat(item.estrelas_final)}</strong>
+                            </div>
+                        </div>
+                        
+                        ${lote.observacoes ? `
+                            <div style="margin: 15px 0;">
+                                <label>Observações:</label>
+                                <p style="background: #f9fafb; padding: 10px; border-radius: 5px; margin: 5px 0;">
+                                    ${lote.observacoes}
+                                </p>
+                            </div>
+                        ` : ''}
+                        
+                        <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
+                            ${!jaRecebido ? `
+                                <button onclick="registrarEntrada(${lote.id})" class="btn btn-receber">
+                                    Registrar Entrada
+                                </button>
+                            ` : `
+                                <button class="btn btn-receber" disabled>
+                                     Entrada Registrada
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function registrarEntrada(id) {
+            solicitacaoAtual = id;
+            document.getElementById('modalReceber').style.display = 'flex';
+            document.getElementById('observacoesEntrada').value = '';
+        }
+        
+        function fecharModal() {
+            document.getElementById('modalReceber').style.display = 'none';
+            solicitacaoAtual = null;
+        }
+        
+        async function confirmarEntrada() {
+            const observacoes = document.getElementById('observacoesEntrada').value.trim();
+            
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`/api/solicitacao-lotes/${solicitacaoAtual}/registrar-entrada`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ observacoes })
+                });
+                
+                if (!response.ok) throw new Error('Erro ao registrar entrada');
+                
+                alert('Entrada registrada com sucesso!');
+                fecharModal();
+                carregarLotes();
+            } catch (error) {
+                alert('Erro ao registrar entrada: ' + error.message);
+            }
+        }
+        
+        carregarLotes();
+        setInterval(carregarLotes, 30000);
+    </script>
+</body>
+</html>

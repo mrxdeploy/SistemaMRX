@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entradas de Estoque - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo">
+                <img src="/static/images/mrx-logo.png" alt="MRX">
+                <span>Entradas de Estoque</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Bottom Navigation (Mobile) -->
+    <nav class="bottom-nav">
+        <a href="/administracao.html" class="bottom-nav-item">
+            <i class="fas fa-cog icon"></i>
+            <span>Admin</span>
+        </a>
+        <a href="/dashboard.html" class="bottom-nav-item">
+            <i class="fas fa-chart-line icon"></i>
+            <span>Dashboard</span>
+        </a>
+        <div class="fab-container">
+            <button class="fab-button" onclick="window.location.href='/solicitacoes.html'" aria-label="Nova Solicitação">
+                <i class="fas fa-plus icon"></i>
+            </button>
+        </div>
+        <a href="/lotes.html" class="bottom-nav-item">
+            <i class="fas fa-boxes icon"></i>
+            <span>Lotes</span>
+        </a>
+        <a href="/entradas.html" class="bottom-nav-item active">
+            <i class="fas fa-warehouse icon"></i>
+            <span>Entradas</span>
+        </a>
+    </nav>
+
+    <main class="container mt-4">
+        <h1 style="font-size: clamp(1.5rem, 6vw, 2rem); margin-bottom: 1.5rem;">Entradas de Estoque</h1>
+
+        <!-- Filtros -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Status</label>
+                <select id="filtroStatus" onchange="carregarEntradas()">
+                    <option value="">Todos</option>
+                    <option value="pendente">Pendente</option>
+                    <option value="processada">Processada</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Estatísticas -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--warning-color);" id="statPendentes">0</div>
+                <div style="color: var(--gray-600); font-size: 0.875rem;">Pendentes</div>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--success-color);" id="statProcessadas">0</div>
+                <div style="color: var(--gray-600); font-size: 0.875rem;">Processadas</div>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--primary-color);" id="statTotal">R$ 0</div>
+                <div style="color: var(--gray-600); font-size: 0.875rem;">Valor Total</div>
+            </div>
+        </div>
+
+        <!-- Tabela de Entradas -->
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Número do Lote</th>
+                            <th>Fornecedor</th>
+                            <th>Tipo de Lote</th>
+                            <th>Peso (kg)</th>
+                            <th>Valor Total</th>
+                            <th>Data Entrada</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaEntradas">
+                        <tr><td colspan="9" class="loading">Carregando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Detalhes -->
+    <div class="modal" id="modalDetalhes">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2 id="tituloDetalhes">Detalhes da Entrada</h2>
+                <span class="modal-close" onclick="fecharModal()">&times;</span>
+            </div>
+            <div id="conteudoDetalhes" style="padding: 1rem 0;"></div>
+            <div id="acoesEntrada" style="margin-top: 1.5rem; display: flex; gap: 1rem;"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script src="/static/js/scanner-widget.js"></script>
+    <script>
+        let entradaAtual = null;
+        let usuarioAtual = null;
+
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+            
+            usuarioAtual = user;
+            if (user.tipo !== 'admin') {
+                showAlert('Acesso restrito a administradores');
+                window.location.href = '/';
+                return;
+            }
+
+            await carregarEntradas();
+            await carregarEstatisticas();
+            await atualizarNotificacoes();
+        }
+
+        async function carregarEntradas() {
+            try {
+                const status = document.getElementById('filtroStatus').value;
+                
+                let url = '/entradas';
+                if (status) url += `?status=${status}`;
+                
+                const response = await fetchAPI(url);
+                if (!response || !response.ok) return;
+                
+                const entradas = await response.json();
+                const tbody = document.getElementById('tabelaEntradas');
+
+                if (entradas.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">Nenhuma entrada encontrada</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = entradas.map(e => {
+                    const lote = e.lote || {};
+                    return `
+                        <tr>
+                            <td><strong>#${e.id}</strong></td>
+                            <td>${lote.numero_lote || 'N/A'}</td>
+                            <td>${lote.fornecedor_nome || 'N/A'}</td>
+                            <td>${lote.tipo_lote_nome || 'N/A'}</td>
+                            <td>${lote.peso_total_kg ? parseFloat(lote.peso_total_kg).toFixed(2) : '0.00'}</td>
+                            <td>R$ ${lote.valor_total ? parseFloat(lote.valor_total).toFixed(2) : '0.00'}</td>
+                            <td>${formatDate(e.data_entrada)}</td>
+                            <td><span class="badge badge-${e.status}">${e.status.toUpperCase()}</span></td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="verDetalhes(${e.id})" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+                                    Ver
+                                </button>
+                                ${e.status === 'pendente' ? `
+                                    <button class="btn btn-success" onclick="processarEntrada(${e.id})" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+                                         Processar
+                                    </button>
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Erro ao carregar entradas:', error);
+                const tbody = document.getElementById('tabelaEntradas');
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: red;">Erro ao carregar entradas</td></tr>';
+            }
+        }
+
+        async function carregarEstatisticas() {
+            try {
+                const response = await fetchAPI('/entradas');
+                if (!response || !response.ok) return;
+                
+                const entradas = await response.json();
+                
+                const pendentes = entradas.filter(e => e.status === 'pendente').length;
+                const processadas = entradas.filter(e => e.status === 'processada').length;
+                const total = entradas.reduce((sum, e) => sum + (e.lote?.valor_total || 0), 0);
+
+                document.getElementById('statPendentes').textContent = pendentes;
+                document.getElementById('statProcessadas').textContent = processadas;
+                document.getElementById('statTotal').textContent = 'R$ ' + total.toFixed(2);
+            } catch (error) {
+                console.error('Erro ao carregar estatísticas:', error);
+            }
+        }
+
+        async function verDetalhes(id) {
+            try {
+                const response = await fetchAPI(`/entradas/${id}`);
+                if (!response || !response.ok) {
+                    showAlert('Erro ao carregar detalhes da entrada');
+                    return;
+                }
+                entradaAtual = await response.json();
+                const lote = entradaAtual.lote || {};
+
+                let html = `
+                    <div style="background: #f9fafb; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                        <h3 style="margin: 0 0 1rem 0;">Informações da Entrada</h3>
+                        <p><strong>ID da Entrada:</strong> #${entradaAtual.id}</p>
+                        <p><strong>Status:</strong> <span class="badge badge-${entradaAtual.status}">${entradaAtual.status.toUpperCase()}</span></p>
+                        <p><strong>Data de Entrada:</strong> ${formatDate(entradaAtual.data_entrada)}</p>
+                        ${entradaAtual.data_processamento ? `<p><strong>Data de Processamento:</strong> ${formatDate(entradaAtual.data_processamento)}</p>` : ''}
+                        ${entradaAtual.admin_nome ? `<p><strong>Admin Responsável:</strong> ${entradaAtual.admin_nome}</p>` : ''}
+                    </div>
+                `;
+
+                html += `
+                    <div style="background: #eff6ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                        <h3 style="margin: 0 0 1rem 0;"> Rastreamento do Lote</h3>
+                        <p><strong>Número do Lote:</strong> ${lote.numero_lote}</p>
+                        <p><strong>Fornecedor:</strong> ${lote.fornecedor_nome}</p>
+                        <p><strong>Tipo de Lote:</strong> ${lote.tipo_lote_nome}</p>
+                        <p><strong>Solicitação Origem:</strong> #${lote.solicitacao_origem_id || 'N/A'}</p>
+                        <p><strong>Status do Lote:</strong> <span class="badge badge-${lote.status}">${lote.status ? lote.status.toUpperCase() : 'N/A'}</span></p>
+                        <p><strong>Data de Criação do Lote:</strong> ${lote.data_criacao ? formatDate(lote.data_criacao) : 'N/A'}</p>
+                        ${lote.data_aprovacao ? `<p><strong>Data de Aprovação do Lote:</strong> ${formatDate(lote.data_aprovacao)}</p>` : ''}
+                    </div>
+                `;
+
+                html += `
+                    <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                        <h3 style="margin: 0 0 1rem 0;"> Detalhes do Material</h3>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span><strong>Total de itens:</strong></span>
+                            <span>${lote.quantidade_itens || 0}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span><strong>Peso total:</strong></span>
+                            <span>${lote.peso_total_kg ? lote.peso_total_kg.toFixed(2) : '0.00'} kg</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span><strong>Estrelas média:</strong></span>
+                            <span>${lote.estrelas_media ? ''.repeat(Math.round(lote.estrelas_media)) + ' (' + lote.estrelas_media.toFixed(1) + ')' : '-'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span><strong>Valor total:</strong></span>
+                            <span style="font-size: 1.2rem; color: var(--primary-color);">R$ ${lote.valor_total ? lote.valor_total.toFixed(2) : '0.00'}</span>
+                        </div>
+                    </div>
+                `;
+
+                if (entradaAtual.observacoes) {
+                    html += `
+                        <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <h3 style="margin: 0 0 0.5rem 0;"> Observações</h3>
+                            <p style="margin: 0;">${entradaAtual.observacoes}</p>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('conteudoDetalhes').innerHTML = html;
+
+                const acoesDiv = document.getElementById('acoesEntrada');
+                if (entradaAtual.status === 'pendente') {
+                    acoesDiv.innerHTML = `
+                        <button class="btn btn-success" onclick="processarEntrada(${entradaAtual.id})"> Processar Entrada</button>
+                    `;
+                } else {
+                    acoesDiv.innerHTML = '';
+                }
+
+                document.getElementById('modalDetalhes').classList.add('active');
+            } catch (error) {
+                console.error('Erro ao carregar detalhes:', error);
+                showAlert('Erro ao carregar detalhes da entrada', 'error');
+            }
+        }
+
+        function fecharModal() {
+            document.getElementById('modalDetalhes').classList.remove('active');
+        }
+
+        async function processarEntrada(id) {
+            if (!confirm('Processar esta entrada de estoque? O material será registrado no estoque.')) return;
+
+            try {
+                const response = await fetchAPI(`/entradas/${id}/processar`, {
+                    method: 'POST'
+                });
+
+                if (response && response.ok) {
+                    showAlert('Entrada processada com sucesso! Material registrado no estoque.', 'success');
+                    fecharModal();
+                    await carregarEntradas();
+                    await carregarEstatisticas();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao processar entrada', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao processar entrada:', error);
+                showAlert('Erro ao processar entrada', 'error');
+            }
+        }
+
+        carregarPagina();
+    </script>
+</body>
+</html>
