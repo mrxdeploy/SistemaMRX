@@ -658,6 +658,17 @@
 
             usuarioAtual = user;
 
+            // Ocultar aba de Ordens de Compra para não-admins
+            if (usuarioAtual.tipo !== 'admin') {
+                const btnOrdens = document.querySelector('[data-tab="ordens-compra"]');
+                if (btnOrdens) btnOrdens.style.display = 'none';
+                
+                // Se a URL tentar forçar a aba, volta para solicitações
+                if (getUrlParam('tab') === 'ordens-compra') {
+                    changeTab('solicitacoes');
+                }
+            }
+
             await carregarFornecedores();
             await carregarTiposLote();
             await carregarSolicitacoes();

@@ -61,8 +61,7 @@ PERFIL_CONFIG = {
             '/api/tipos-lote',
             '/api/notificacoes',
             '/api/fornecedor-tabela-precos',
-            '/api/materiais-base',
-            '/api/ordens-compra'
+            '/api/materiais-base'
         ],
         'paginas_permitidas': [
             '/solicitacoes.html',
@@ -189,7 +188,6 @@ PERFIL_CONFIG = {
             '/api/notificacoes',
             '/api/fornecedor-tabela-precos',
             '/api/materiais-base',
-            '/api/ordens-compra',
             '/api/producao',
             '/api/estoque-ativo',
             '/api/separacao',
