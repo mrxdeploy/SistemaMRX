@@ -130,8 +130,8 @@ class TipoLote(db.Model):  # type: ignore
     fornecedor_tipos = db.relationship('FornecedorTipoLote', backref='tipo_lote', lazy=True, cascade='all, delete-orphan')
 
     def __init__(self, **kwargs: Any) -> None:
-        if 'classificacao' in kwargs and kwargs['classificacao'] is not None and kwargs['classificacao'] not in ['leve', 'media', 'pesada']:
-            raise ValueError('Classificação deve ser: leve, media ou pesada')
+        if 'classificacao' in kwargs and kwargs['classificacao'] is not None and kwargs['classificacao'] not in ['leve', 'media', 'pesada', 'high', 'mg1', 'mg2', 'low']:
+            raise ValueError('Classificação deve ser: high, mg1, mg2, low (ou legacy: leve, media, pesada)')
         super().__init__(**kwargs)
 
     def to_dict(self):
@@ -172,8 +172,8 @@ class TipoLotePreco(db.Model):  # type: ignore
     data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __init__(self, **kwargs: Any) -> None:
-        if 'classificacao' in kwargs and kwargs['classificacao'] not in ['leve', 'medio', 'pesado']:
-            raise ValueError('Classificação deve ser: leve, medio ou pesado')
+        if 'classificacao' in kwargs and kwargs['classificacao'] not in ['leve', 'medio', 'pesado', 'high', 'mg1', 'mg2', 'low']:
+            raise ValueError('Classificação deve ser: high, mg1, mg2, low (ou legacy: leve, medio, pesado)')
         if 'estrelas' in kwargs and (kwargs['estrelas'] < 1 or kwargs['estrelas'] > 5):
             raise ValueError('Estrelas deve estar entre 1 e 5')
         if 'preco_por_kg' in kwargs and kwargs['preco_por_kg'] < 0:
@@ -231,8 +231,8 @@ class FornecedorClassificacaoEstrela(db.Model):  # type: ignore
     data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __init__(self, **kwargs: Any) -> None:
-        if 'classificacao' in kwargs and kwargs['classificacao'] not in ['leve', 'medio', 'pesado']:
-            raise ValueError('Classificação deve ser: leve, medio ou pesado')
+        if 'classificacao' in kwargs and kwargs['classificacao'] not in ['leve', 'medio', 'pesado', 'high', 'mg1', 'mg2', 'low']:
+            raise ValueError('Classificação deve ser: high, mg1, mg2, low (ou legacy: leve, medio, pesado)')
         if 'estrelas' in kwargs and (kwargs['estrelas'] < 1 or kwargs['estrelas'] > 5):
             raise ValueError('Estrelas deve estar entre 1 e 5')
         super().__init__(**kwargs)
@@ -556,11 +556,12 @@ class FornecedorTipoLoteClassificacao(db.Model):  # type: ignore
         super().__init__(**kwargs)
 
     def get_estrelas_por_classificacao(self, classificacao: str) -> int:
-        if classificacao == 'leve':
+        c = classificacao.lower()
+        if c in ['leve', 'high', 'low']:
             return self.leve_estrelas
-        elif classificacao == 'medio':
+        elif c in ['medio', 'médio', 'media', 'mg1']:
             return self.medio_estrelas
-        elif classificacao == 'pesado':
+        elif c in ['pesado', 'pesada', 'mg2']:
             return self.pesado_estrelas
         else:
             return self.medio_estrelas
@@ -666,8 +667,8 @@ class ItemSolicitacao(db.Model):  # type: ignore
     def __init__(self, **kwargs: Any) -> None:
         if 'estrelas_final' in kwargs and (kwargs['estrelas_final'] < 1 or kwargs['estrelas_final'] > 5):
             raise ValueError('Estrelas deve estar entre 1 e 5')
-        if 'classificacao' in kwargs and kwargs['classificacao'] and kwargs['classificacao'] not in ['leve', 'medio', 'pesado']:
-            raise ValueError('Classificação deve ser: leve, medio ou pesado')
+        if 'classificacao' in kwargs and kwargs['classificacao'] and kwargs['classificacao'] not in ['leve', 'medio', 'pesado', 'high', 'mg1', 'mg2', 'low']:
+            raise ValueError('Classificação deve ser: high, mg1, mg2, low (ou legacy: leve, medio, pesado)')
         if 'valor_calculado' in kwargs and kwargs['valor_calculado'] is not None and kwargs['valor_calculado'] < 0:
             raise ValueError('Valor calculado não pode ser negativo')
         if 'peso_kg' in kwargs and (kwargs['peso_kg'] is None or kwargs['peso_kg'] <= 0):
@@ -1584,8 +1585,8 @@ class MaterialBase(db.Model):  # type: ignore
     autorizacoes = db.relationship('SolicitacaoAutorizacaoPreco', backref='material', lazy=True)
 
     def __init__(self, **kwargs: Any) -> None:
-        if 'classificacao' in kwargs and kwargs['classificacao'] not in ['leve', 'medio', 'pesado']:
-            raise ValueError('Classificação deve ser: leve, medio ou pesado')
+        if 'classificacao' in kwargs and kwargs['classificacao'] not in ['high', 'mg1', 'mg2', 'low']:
+            raise ValueError('Classificação deve ser: high, mg1, mg2 ou low')
         super().__init__(**kwargs)
 
     def to_dict(self):

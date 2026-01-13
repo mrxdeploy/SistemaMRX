@@ -106,8 +106,8 @@ def criar_material():
             if field not in data:
                 return jsonify({'erro': f'Campo {field} é obrigatório'}), 400
 
-        if data['classificacao'] not in ['leve', 'medio', 'pesado']:
-            return jsonify({'erro': 'Classificação deve ser: leve, medio ou pesado'}), 400
+        if data['classificacao'] not in ['high', 'mg1', 'mg2', 'low']:
+            return jsonify({'erro': 'Classificação deve ser: high, mg1, mg2 ou low'}), 400
 
         material_existente = MaterialBase.query.filter_by(nome=data['nome']).first()
         if material_existente:
@@ -203,8 +203,8 @@ def atualizar_material(id):
             material.nome = data['nome']
 
         if 'classificacao' in data:
-            if data['classificacao'] not in ['leve', 'medio', 'pesado']:
-                return jsonify({'erro': 'Classificação deve ser: leve, medio ou pesado'}), 400
+            if data['classificacao'] not in ['high', 'mg1', 'mg2', 'low']:
+                return jsonify({'erro': 'Classificação deve ser: high, mg1, mg2 ou low'}), 400
             material.classificacao = data['classificacao']
 
         if 'descricao' in data:
@@ -272,10 +272,17 @@ def deletar_material(id):
 @admin_required
 def importar_excel():
     try:
-        if 'file' not in request.files:
-            return jsonify({'erro': 'Nenhum arquivo foi enviado'}), 400
-
-        file = request.files['file']
+        if 'arquivo' not in request.files:
+            # Fallback: se o frontend enviar com outro nome, pega o primeiro arquivo
+            if len(request.files) > 0:
+                key = next(iter(request.files))
+                file = request.files[key]
+                logger.info(f"Using fallback file key: {key}")
+            else:
+                logger.error(f"Upload failed: No files in request. Keys: {list(request.files.keys())}")
+                return jsonify({'erro': 'Nenhum arquivo foi enviado'}), 400
+        else:
+            file = request.files['arquivo']
 
         if file.filename == '':
             return jsonify({'erro': 'Nome de arquivo inválido'}), 400
@@ -299,14 +306,32 @@ def importar_excel():
         materiais_atualizados = 0
         erros = []
 
+        # Mapa de conversão de classificações legadas
+        mapa_classificacao = {
+            'leve': 'high',
+            'média': 'mg1',
+            'media': 'mg1',
+            'médio': 'mg1',
+            'medio': 'mg1',
+            'pesada': 'mg2',
+            'pesado': 'mg2',
+            'high': 'high',
+            'mg1': 'mg1',
+            'mg2': 'mg2',
+            'low': 'low'
+        }
+
         for index, row in df.iterrows():
             try:
                 nome = str(row['Nome do Material']).strip()
-                classificacao = str(row['Classificação']).strip().lower()
+                classificacao_raw = str(row['Classificação']).strip().lower()
                 descricao = str(row.get('Descrição', '')).strip()
 
-                if classificacao not in ['leve', 'medio', 'pesado']:
-                    erros.append(f"Linha {index+2}: Classificação inválida '{classificacao}'")
+                # Tenta mapear, se não conseguir usa o valor original
+                classificacao = mapa_classificacao.get(classificacao_raw, classificacao_raw)
+
+                if classificacao not in ['high', 'mg1', 'mg2', 'low']:
+                    erros.append(f"Linha {index+2}: Classificação inválida '{classificacao_raw}' (Esperado: High, MG1, MG2, Low)")
                     continue
 
                 material = MaterialBase.query.filter_by(nome=nome).first()
@@ -369,10 +394,11 @@ def exportar_excel():
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
         for material in materiais:
+            class_display = material.classificacao.upper() if material.classificacao in ['mg1', 'mg2'] else material.classificacao.capitalize()
             row_data = [
                 material.codigo,
                 material.nome,
-                material.classificacao.capitalize(),
+                class_display,
                 material.descricao or ''
             ]
             ws.append(row_data)
@@ -392,7 +418,7 @@ def exportar_excel():
         output = BytesIO()
         wb.save(output)
         output.seek(0)
-
+        
         return send_file(
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -425,9 +451,10 @@ def modelo_importacao():
             cell.alignment = Alignment(horizontal='center', vertical='center')
 
         exemplos = [
-            ['SUCATA PROCESSADOR CERÂMICO A', 'pesado', 'Processador cerâmico tipo A'],
-            ['SUCATA PLACA MÃE SERVIDOR', 'pesado', 'Placa mãe de servidor'],
-            ['SUCATA HD SATA', 'medio', 'HD SATA'],
+            ['SUCATA PROCESSADOR CERÂMICO A', 'high', 'Processador cerâmico tipo A'],
+            ['SUCATA PLACA MÃE SERVIDOR', 'mg1', 'Placa mãe de servidor'],
+            ['SUCATA DISCO RÍGIDO (HD)', 'mg2', 'HD sem placa lógica'],
+            ['SUCATA HD SATA', 'low', 'HD SATA'],
         ]
 
         for exemplo in exemplos:

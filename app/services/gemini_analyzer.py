@@ -64,7 +64,7 @@ def analyze_images(
             
             if not response.text:
                 resultados.append({
-                    'classificacao': 'medio',
+                    'classificacao': 'mg1',
                     'justificativa': 'Gemini não retornou resposta para esta imagem',
                     'raw_text': '',
                     'erro': 'Resposta vazia'
@@ -80,7 +80,7 @@ def analyze_images(
         
         except Exception as e:
             resultados.append({
-                'classificacao': 'medio',
+                'classificacao': 'mg1',
                 'justificativa': f'Erro ao analisar imagem: {str(e)}',
                 'raw_text': '',
                 'erro': str(e)
@@ -94,50 +94,53 @@ def _get_prompt(use_case: str) -> str:
     
     if use_case == 'solicitacao':
         return """Você é um especialista em classificação de lotes de placas eletrônicas (PCBs). 
-Analise esta imagem de lote de placas eletrônicas e classifique como LEVE, MÉDIO ou PESADO.
+Analise esta imagem de lote de placas eletrônicas e classifique como HIGH, MG1, MG2 ou LOW.
 
 REGRAS DE CLASSIFICAÇÃO IMPORTANTES:
-- LEVE: Poucas placas eletrônicas visíveis (1-3 unidades), ou placas com muita área verde visível 
+- HIGH (Antigo Leve): Poucas placas eletrônicas visíveis (1-3 unidades), ou placas com muita área verde visível 
   (poucas peças/componentes soldados). Baixa densidade de componentes.
-- MÉDIO: Quantidade moderada de placas (4-8 unidades), ou placas com densidade média de componentes.
+- MG1 (Antigo Médio): Quantidade moderada de placas (4-8 unidades), ou placas com densidade média de componentes.
   Áreas verdes ainda parcialmente visíveis.
-- PESADO: Muitas placas eletrônicas (9+ unidades), ou placas completamente densas com muitos 
+- MG2 (Antigo Pesado): Muitas placas eletrônicas (9+ unidades), ou placas completamente densas com muitos 
   componentes, chips, conectores. Pouco ou nenhum verde visível devido à alta quantidade de peças soldadas.
+- LOW: Sucata de muito baixo valor, placas quebradas, periféricos baratos ou resíduos.
 
 A regra é simples: 
-- MENOS PLACAS ou MAIS VERDE VISÍVEL = LEVE
-- QUANTIDADE MÉDIA de placas ou componentes = MÉDIO  
-- MUITAS PLACAS ou COMPONENTES DENSOS (pouco verde) = PESADO
+- MENOS PLACAS ou MAIS VERDE VISÍVEL = HIGH
+- QUANTIDADE MÉDIA de placas ou componentes = MG1
+- MUITAS PLACAS ou COMPONENTES DENSOS (pouco verde) = MG2
+- RESÍDUOS ou BAIXO VALOR = LOW
 
 Responda APENAS com:
-1. A classificação (LEVE / MÉDIO / PESADO)
+1. A classificação (HIGH / MG1 / MG2 / LOW)
 2. Uma breve justificativa (1 frase curta)
 
 Formato EXATO da resposta:
-Classificação: [LEVE/MÉDIO/PESADO] — [justificativa em 1 frase]
+Classificação: [HIGH/MG1/MG2/LOW] — [justificativa em 1 frase]
 
 Não adicione informações extras, apenas a classificação e justificativa."""
     
     else:  # 'placa' (análise individual)
         return """Você é um especialista em classificação de placas eletrônicas (PCBs). 
-Analise esta imagem de placa eletrônica e classifique como LEVE, MÉDIA ou PESADA.
+Analise esta imagem de placa eletrônica e classifique como HIGH, MG1, MG2 ou LOW.
 
 REGRAS DE CLASSIFICAÇÃO IMPORTANTES:
-- LEVE: Alta presença de verde visível (áreas grandes da placa sem muitos componentes soldados). 
-  Quanto mais verde aparecer na placa, mais "LEVE" ela é.
-- MÉDIA: Quantidade moderada de componentes, com áreas verdes ainda visíveis.
-- PESADA: Muitos componentes, conectores, chips, resistores, capacitores e grande densidade visual.
+- HIGH (Verde): Alta presença de verde visível (áreas grandes da placa sem muitos componentes soldados). 
+  Quanto mais verde aparecer na placa, mais "HIGH" ela é. Alto valor.
+- MG1 (Amarelo): Quantidade moderada de componentes, com áreas verdes ainda visíveis.
+- MG2 (Laranja): Muitos componentes, conectores, chips, resistores, capacitores e grande densidade visual.
   Pouco verde visível devido à alta quantidade de componentes soldados.
+- LOW (Vermelho): Placas pobres, quebradas, periféricos ou sucata de baixo valor.
 
-A regra é simples: quanto MAIS VERDE VISÍVEL = mais LEVE a placa.
-Quanto MENOS VERDE VISÍVEL (mais componentes) = mais PESADA a placa.
+A regra é simples: quanto MAIS VERDE VISÍVEL = mais HIGH a placa.
+Quanto MENOS VERDE VISÍVEL (mais componentes) = mais MG2 a placa.
 
 Responda APENAS com:
-1. A classificação (LEVE / MÉDIA / PESADA)
+1. A classificação (HIGH / MG1 / MG2 / LOW)
 2. Uma breve justificativa (1 frase curta)
 
 Formato EXATO da resposta:
-Classificação: [LEVE/MÉDIA/PESADA] — [justificativa em 1 frase]
+Classificação: [HIGH/MG1/MG2/LOW] — [justificativa em 1 frase]
 
 Não adicione informações extras, apenas a classificação e justificativa."""
 
@@ -148,22 +151,24 @@ def _parse_gemini_response(texto: str) -> Dict[str, str]:
     """
     
     # Detectar classificação
-    classificacao = "medio"
+    classificacao = "mg1"
     texto_upper = texto.upper()
     
-    if "LEVE" in texto_upper:
-        classificacao = "leve"
-    elif "PESAD" in texto_upper:  # PESADA ou PESADO
-        classificacao = "pesado"
-    elif "MÉDIA" in texto_upper or "MEDIO" in texto_upper:
-        classificacao = "medio"
+    if "HIGH" in texto_upper or "LEVE" in texto_upper:
+        classificacao = "high"
+    elif "MG2" in texto_upper or "PESAD" in texto_upper:
+        classificacao = "mg2"
+    elif "MG1" in texto_upper or "MEDIO" in texto_upper or "MÉDI" in texto_upper:
+        classificacao = "mg1"
+    elif "LOW" in texto_upper:
+        classificacao = "low"
     
     # Extrair justificativa
     justificativa = ""
     
     # Tentar padrão: "Classificação: X — justificativa"
     match = re.search(
-        r'Classificação:\s*(LEVE|MÉDIA|MEDIA|MEDIO|MÉDIO|PESADA|PESADO)\s*[—\-–]\s*(.+)',
+        r'Classificação:\s*(HIGH|LEVE|MG1|MÉDIA|MEDIA|MEDIO|MÉDIO|MG2|PESADA|PESADO|LOW)\s*[—\-–]\s*(.+)',
         texto,
         re.IGNORECASE
     )

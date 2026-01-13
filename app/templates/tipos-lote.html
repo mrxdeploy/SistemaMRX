@@ -53,15 +53,19 @@
             transform: translateY(-2px);
         }
         
-        .material-card.leve {
+        .material-card.high {
             border-left-color: #10b981;
         }
         
-        .material-card.medio {
+        .material-card.mg1 {
             border-left-color: #f59e0b;
         }
         
-        .material-card.pesado {
+        .material-card.mg2 {
+            border-left-color: #f97316;
+        }
+
+        .material-card.low {
             border-left-color: #ef4444;
         }
         
@@ -101,21 +105,27 @@
             margin-top: 0.5rem;
         }
         
-        .material-classificacao.leve {
+        .material-classificacao.high {
             background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
             color: #065f46;
             box-shadow: 0 2px 4px rgba(5, 150, 105, 0.15);
         }
         
-        .material-classificacao.medio {
+        .material-classificacao.mg1 {
             background: linear-gradient(135deg, #fde68a 0%, #fbbf24 100%);
             color: #78350f;
             box-shadow: 0 2px 4px rgba(245, 158, 11, 0.25);
         }
         
-        .material-classificacao.pesado {
-            background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
-            color: #fef2f2;
+        .material-classificacao.mg2 {
+            background: linear-gradient(135deg, #ffedd5 0%, #fdba74 100%);
+            color: #9a3412;
+            box-shadow: 0 2px 4px rgba(249, 115, 22, 0.25);
+        }
+
+        .material-classificacao.low {
+            background: linear-gradient(135deg, #fee2e2 0%, #fca5a5 100%);
+            color: #7f1d1d;
             box-shadow: 0 2px 4px rgba(220, 38, 38, 0.25);
         }
         
@@ -275,16 +285,20 @@
                 <div class="stat-label">Materiais Cadastrados</div>
             </div>
             <div class="stat-card" style="background: linear-gradient(135deg, #10b981 0%, #34d399 100%);">
-                <div class="stat-value" id="totalLeve">0</div>
-                <div class="stat-label">Leve</div>
+                <div class="stat-value" id="totalHigh">0</div>
+                <div class="stat-label">High</div>
             </div>
             <div class="stat-card" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);">
-                <div class="stat-value" id="totalMedio">0</div>
-                <div class="stat-label">Médio</div>
+                <div class="stat-value" id="totalMG1">0</div>
+                <div class="stat-label">MG1</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);">
+                <div class="stat-value" id="totalMG2">0</div>
+                <div class="stat-label">MG2</div>
             </div>
             <div class="stat-card" style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);">
-                <div class="stat-value" id="totalPesado">0</div>
-                <div class="stat-label">Pesado</div>
+                <div class="stat-value" id="totalLow">0</div>
+                <div class="stat-label">Low</div>
             </div>
         </div>
 
@@ -298,9 +312,10 @@
                     <label><i class="fas fa-filter"></i> Classificação</label>
                     <select id="filtroClassificacao" onchange="aplicarFiltros()">
                         <option value="">Todas</option>
-                        <option value="leve">Leve</option>
-                        <option value="medio">Médio</option>
-                        <option value="pesado">Pesado</option>
+                        <option value="high">High</option>
+                        <option value="mg1">MG1</option>
+                        <option value="mg2">MG2</option>
+                        <option value="low">Low</option>
                     </select>
                 </div>
             </div>
@@ -338,9 +353,10 @@
                     <label>Classificação <span style="color: red;">*</span></label>
                     <select id="classificacaoMaterial" required>
                         <option value="">Selecione...</option>
-                        <option value="leve">Leve</option>
-                        <option value="medio">Médio</option>
-                        <option value="pesado">Pesado</option>
+                        <option value="high">High</option>
+                        <option value="mg1">MG1</option>
+                        <option value="mg2">MG2</option>
+                        <option value="low">Low</option>
                     </select>
                 </div>
 
@@ -574,7 +590,7 @@
                         <div class="material-title">
                             <div class="material-codigo">${material.codigo || 'N/A'}</div>
                             <h3 class="material-nome">${material.nome}</h3>
-                            <span class="material-classificacao ${material.classificacao}">${material.classificacao}</span>
+                            <span class="material-classificacao ${material.classificacao}">${material.classificacao.toUpperCase()}</span>
                         </div>
                     </div>
                     
@@ -612,9 +628,10 @@
 
         function atualizarEstatisticas() {
             document.getElementById('totalMateriais').textContent = materiais.length;
-            document.getElementById('totalLeve').textContent = materiais.filter(m => m.classificacao === 'leve').length;
-            document.getElementById('totalMedio').textContent = materiais.filter(m => m.classificacao === 'medio').length;
-            document.getElementById('totalPesado').textContent = materiais.filter(m => m.classificacao === 'pesado').length;
+            document.getElementById('totalHigh').textContent = materiais.filter(m => m.classificacao === 'high').length;
+            document.getElementById('totalMG1').textContent = materiais.filter(m => m.classificacao === 'mg1').length;
+            document.getElementById('totalMG2').textContent = materiais.filter(m => m.classificacao === 'mg2').length;
+            document.getElementById('totalLow').textContent = materiais.filter(m => m.classificacao === 'low').length;
         }
 
         function abrirModalNovoMaterial() {

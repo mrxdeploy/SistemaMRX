@@ -171,40 +171,40 @@ def criar_materiais_base():
     print("\n📦 Criando materiais base...")
     
     materiais_data = [
-        # Materiais LEVES
-        {'codigo': 'MAT-001', 'nome': 'Placas de Circuito (PCB) Limpas', 'classificacao': 'leve', 
+        # Materiais HIGH (antigo LEVES)
+        {'codigo': 'MAT-001', 'nome': 'Placas de Circuito (PCB) Limpas', 'classificacao': 'high', 
          'descricao': 'Placas de circuito impresso sem componentes, alta pureza de cobre'},
-        {'codigo': 'MAT-002', 'nome': 'Conectores e Cabos', 'classificacao': 'leve',
+        {'codigo': 'MAT-002', 'nome': 'Conectores e Cabos', 'classificacao': 'high',
          'descricao': 'Conectores diversos, cabos de rede, cabos USB limpos'},
-        {'codigo': 'MAT-003', 'nome': 'Alumínio de Dissipadores', 'classificacao': 'leve',
+        {'codigo': 'MAT-003', 'nome': 'Alumínio de Dissipadores', 'classificacao': 'high',
          'descricao': 'Dissipadores de calor de alumínio separados'},
-        {'codigo': 'MAT-004', 'nome': 'Fios de Cobre', 'classificacao': 'leve',
+        {'codigo': 'MAT-004', 'nome': 'Fios de Cobre', 'classificacao': 'high',
          'descricao': 'Fios e cabos de cobre puro, sem isolamento'},
         
-        # Materiais MÉDIOS
-        {'codigo': 'MAT-005', 'nome': 'Placas-Mãe Completas', 'classificacao': 'medio',
+        # Materiais MG1 (antigo MÉDIOS)
+        {'codigo': 'MAT-005', 'nome': 'Placas-Mãe Completas', 'classificacao': 'mg1',
          'descricao': 'Placas-mãe de computadores com componentes integrados'},
-        {'codigo': 'MAT-006', 'nome': 'Placas de Vídeo', 'classificacao': 'medio',
+        {'codigo': 'MAT-006', 'nome': 'Placas de Vídeo', 'classificacao': 'mg1',
          'descricao': 'Placas de vídeo com chips GPU e memória'},
-        {'codigo': 'MAT-007', 'nome': 'Fontes de Alimentação', 'classificacao': 'medio',
+        {'codigo': 'MAT-007', 'nome': 'Fontes de Alimentação', 'classificacao': 'mg1',
          'descricao': 'Fontes de computadores desmontadas'},
-        {'codigo': 'MAT-008', 'nome': 'Processadores (CPU)', 'classificacao': 'medio',
+        {'codigo': 'MAT-008', 'nome': 'Processadores (CPU)', 'classificacao': 'mg1',
          'descricao': 'Processadores Intel e AMD, diversas gerações'},
-        {'codigo': 'MAT-009', 'nome': 'Memórias RAM', 'classificacao': 'medio',
+        {'codigo': 'MAT-009', 'nome': 'Memórias RAM', 'classificacao': 'mg1',
          'descricao': 'Memórias RAM DDR3, DDR4, diversos modelos'},
-        {'codigo': 'MAT-010', 'nome': 'HD e SSD', 'classificacao': 'medio',
+        {'codigo': 'MAT-010', 'nome': 'HD e SSD', 'classificacao': 'mg1',
          'descricao': 'Discos rígidos e SSDs diversos'},
         
-        # Materiais PESADOS
-        {'codigo': 'MAT-011', 'nome': 'Sucata Mista de Informática', 'classificacao': 'pesado',
+        # Materiais MG2 (antigo PESADOS)
+        {'codigo': 'MAT-011', 'nome': 'Sucata Mista de Informática', 'classificacao': 'mg2',
          'descricao': 'Mix de componentes eletrônicos variados'},
-        {'codigo': 'MAT-012', 'nome': 'Gabinetes e Carcaças', 'classificacao': 'pesado',
+        {'codigo': 'MAT-012', 'nome': 'Gabinetes e Carcaças', 'classificacao': 'mg2',
          'descricao': 'Gabinetes metálicos de computadores e servidores'},
-        {'codigo': 'MAT-013', 'nome': 'Impressoras e Copiadoras', 'classificacao': 'pesado',
+        {'codigo': 'MAT-013', 'nome': 'Impressoras e Copiadoras', 'classificacao': 'mg2',
          'descricao': 'Impressoras laser, jato de tinta e copiadoras'},
-        {'codigo': 'MAT-014', 'nome': 'Monitores e TVs', 'classificacao': 'pesado',
+        {'codigo': 'MAT-014', 'nome': 'Monitores e TVs', 'classificacao': 'mg2',
          'descricao': 'Monitores LCD/LED e televisores para desmonte'},
-        {'codigo': 'MAT-015', 'nome': 'Eletrodomésticos', 'classificacao': 'pesado',
+        {'codigo': 'MAT-015', 'nome': 'Eletrodomésticos', 'classificacao': 'mg2',
          'descricao': 'Micro-ondas, liquidificadores e outros eletrodomésticos'}
     ]
     
@@ -227,9 +227,10 @@ def criar_precos_materiais(materiais):
     
     # Preços base por classificação e estrela
     precos_base = {
-        'leve': {1: 12.50, 2: 15.00, 3: 18.50},
-        'medio': {1: 8.00, 2: 10.50, 3: 13.00},
-        'pesado': {1: 3.50, 2: 5.00, 3: 6.50}
+        'high': {1: 12.50, 2: 15.00, 3: 18.50},
+        'mg1': {1: 8.00, 2: 10.50, 3: 13.00},
+        'mg2': {1: 3.50, 2: 5.00, 3: 6.50},
+        'low': {1: 1.00, 2: 2.00, 3: 3.00}
     }
     
     total_precos = 0

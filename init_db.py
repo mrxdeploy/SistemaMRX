@@ -5,6 +5,9 @@ from app import create_app
 from app.models import db
 import sys
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def init_database(drop_existing=False):
     """Cria todas as tabelas no banco de dados.
@@ -16,30 +19,30 @@ def init_database(drop_existing=False):
         # Verifica se DATABASE_URL está definido
         database_url = os.environ.get('DATABASE_URL')
         if not database_url:
-            print("❌ ERRO: DATABASE_URL não está definido!")
+            print("[ERROR] DATABASE_URL nao esta definido!")
             print("   Configure o PostgreSQL no Railway")
             return False
 
-        print(f"🔗 Conectando ao banco de dados...")
+        print(f"[INFO] Conectando ao banco de dados...")
         print(f"   URL: {database_url[:30]}...")
 
         app = create_app()
 
         with app.app_context():
             if drop_existing:
-                print("⚠️  Removendo tabelas antigas...")
+                print("[WARN] Removendo tabelas antigas...")
                 db.drop_all()
-                print("✅ Tabelas antigas removidas!")
+                print("[OK] Tabelas antigas removidas!")
 
             # Criar tabelas
-            print("📊 Criando tabelas no banco de dados...")
+            print("[INFO] Criando tabelas no banco de dados...")
             db.create_all()
-            print("✅ Tabelas criadas/verificadas com sucesso!")
-
-            # Executar migrações automáticas
+            print("[OK] Tabelas criadas/verificadas com sucesso!")
+            
+            # Executar migracoes automaticas
             from sqlalchemy import text
             
-            print("🔄 Verificando e aplicando migrações...")
+            print("[INFO] Verificando e aplicando migracoes...")
             
             # Migração: bags_producao - colunas faltantes para módulo de produção
             try:
@@ -190,6 +193,26 @@ def init_database(drop_existing=False):
                 db.session.execute(text(migration_producao))
                 db.session.commit()
                 print("✅ Migrações de produção aplicadas!")
+
+                # Migração de Classificações (Leve->High, Medio->MG1, Pesado->MG2)
+                print("[INFO] Migrando classificações antigas...")
+                migration_classificacao = """
+                DO $$
+                BEGIN
+                    -- Leve -> High
+                    UPDATE materiais_base SET classificacao = 'high' WHERE classificacao = 'leve';
+                    
+                    -- Medio/Media/Média -> MG1
+                    UPDATE materiais_base SET classificacao = 'mg1' WHERE classificacao IN ('medio', 'media', 'médio', 'média');
+                    
+                    -- Pesado/Pesada -> MG2
+                    UPDATE materiais_base SET classificacao = 'mg2' WHERE classificacao IN ('pesado', 'pesada', 'pesado');
+                END $$;
+                """
+                db.session.execute(text(migration_classificacao))
+                db.session.commit()
+                print("✅ Classificações migradas com sucesso!")
+
             except Exception as e:
                 print(f"⚠️  Aviso ao aplicar migrações: {e}")
                 db.session.rollback()
