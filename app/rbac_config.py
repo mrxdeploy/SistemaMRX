@@ -183,25 +183,47 @@ PERFIL_CONFIG = {
     'Produção': {
         'tela_inicial': '/producao.html',
         'rotas_api_permitidas': [
+            '/api/solicitacoes',
+            '/api/fornecedores',
+            '/api/tipos-lote',
+            '/api/notificacoes',
+            '/api/fornecedor-tabela-precos',
+            '/api/materiais-base',
+            '/api/ordens-compra',
             '/api/producao',
             '/api/estoque-ativo',
-            '/api/notificacoes',
+            '/api/separacao',
+            '/api/conferencia',
             '/api/lotes',
-            '/api/lotes-estoque'
+            '/api/estoque',
+            '/api/entradas'
         ],
         'paginas_permitidas': [
+            '/solicitacoes.html',
+            '/fornecedores.html',
+            '/fornecedores-lista.html',
+            '/notificacoes.html',
+            '/compras.html',
+            '/fornecedor-tabela-precos.html',
             '/producao.html',
             '/producao-ordem.html',
             '/estoque-ativo.html',
-            '/notificacoes.html',
-            '/api/producao',
-            '/api/estoque-ativo'
+            '/separacao-fila.html',
+            '/separacao-workflow.html',
+            '/conferencia.html',
+            '/lotes.html',
+            '/lotes-recebidos.html',
+            '/lotes_aprovados.html',
+            '/lotes-detalhes.html',
+            '/validacao.html'
         ],
         'menus': [
+            {'id': 'producao', 'nome': 'Produção', 'url': '/producao.html', 'icone': 'precision_manufacturing'},
             {'id': 'estoque-ativo', 'nome': 'Estoque Ativo', 'url': '/estoque-ativo.html', 'icone': 'warehouse'},
-            {'id': 'producao', 'nome': 'Produção', 'url': '/producao.html', 'icone': 'precision_manufacturing'}
-        ],
-        'ocultar_botao_adicionar': True
+            {'id': 'separacao', 'nome': 'Separação', 'url': '/separacao-fila.html', 'icone': 'format_list_bulleted'},
+            {'id': 'solicitacoes', 'nome': 'Compra', 'url': '/solicitacoes.html', 'icone': 'request_quote'},
+            {'id': 'fornecedores', 'nome': 'Fornecedores', 'url': '/fornecedores.html', 'icone': 'business'}
+        ]
     }
 }
 
