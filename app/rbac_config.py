@@ -180,7 +180,7 @@ PERFIL_CONFIG = {
         'menus': [],
         'ocultar_menu_inferior': True
     },
-    'Produção': {
+    'Producao': {
         'tela_inicial': '/producao.html',
         'rotas_api_permitidas': [
             '/api/solicitacoes',
