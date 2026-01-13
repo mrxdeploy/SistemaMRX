@@ -769,8 +769,11 @@
                     const selectAuditoria = document.getElementById('filtroAuditoriaUsuario');
                     
                     select.innerHTML = '<option value="">Selecione um perfil...</option>';
+                    const perfisExcluidos = ['Conferente / Estoque', 'Separação', 'Financeiro'];
                     perfis.forEach(p => {
-                        select.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
+                        if (!perfisExcluidos.includes(p.nome)) {
+                            select.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
+                        }
                     });
                 }
             } catch (error) {
