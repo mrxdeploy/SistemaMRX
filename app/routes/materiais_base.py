@@ -215,26 +215,50 @@ def atualizar_material(id):
 
         if 'precos' in data:
             precos = data['precos']
-            for preco_item in material.precos:
-                tabela = preco_item.tabela_preco
-                if tabela:
-                    preco_key = f'preco_{tabela.nivel_estrelas}_estrela'
-                    if preco_key in precos:
-                        preco_valor_raw = precos[preco_key]
+            
+            # Garantir tabelas de preço
+            tabelas_preco = {t.nivel_estrelas: t for t in TabelaPreco.query.all()}
+            
+            # Mapa atual de preços do material
+            precos_atuais = {p.tabela_preco.nivel_estrelas: p for p in material.precos if p.tabela_preco}
+            
+            for estrelas in [1, 2, 3]:
+                preco_key = f'preco_{estrelas}_estrela'
+                
+                if preco_key in precos:
+                    preco_valor_raw = precos[preco_key]
+                    
+                    # Se não existe a tabela para essas estrelas, skip (ou logar erro)
+                    if estrelas not in tabelas_preco:
+                        continue
+                        
+                    tabela = tabelas_preco[estrelas]
 
-                        # Rejeitar valores inválidos
-                        if preco_valor_raw is None or preco_valor_raw == '':
-                            return jsonify({'erro': f'Preço para {tabela.nivel_estrelas} estrela(s) não pode estar vazio'}), 400
+                    # Rejeitar valores inválidos
+                    if preco_valor_raw is None or preco_valor_raw == '':
+                        return jsonify({'erro': f'Preço para {estrelas} estrela(s) não pode estar vazio'}), 400
 
-                        try:
-                            preco_valor = float(preco_valor_raw)
-                        except (ValueError, TypeError):
-                            return jsonify({'erro': f'Preço para {tabela.nivel_estrelas} estrela(s) deve ser um número válido'}), 400
+                    try:
+                        preco_valor = float(preco_valor_raw)
+                    except (ValueError, TypeError):
+                        return jsonify({'erro': f'Preço para {estrelas} estrela(s) deve ser um número válido'}), 400
 
-                        if preco_valor <= 0:
-                            return jsonify({'erro': f'Preço para {tabela.nivel_estrelas} estrela(s) deve ser maior que zero'}), 400
+                    if preco_valor <= 0:
+                        return jsonify({'erro': f'Preço para {estrelas} estrela(s) deve ser maior que zero'}), 400
 
-                        preco_item.preco_por_kg = preco_valor
+                    # Atualizar ou Criar
+                    if estrelas in precos_atuais:
+                        # Atualizar existente
+                        precos_atuais[estrelas].preco_por_kg = preco_valor
+                    else:
+                        # Criar novo
+                        novo_preco = TabelaPrecoItem(
+                            tabela_preco_id=tabela.id,
+                            material_id=material.id,
+                            preco_por_kg=preco_valor,
+                            ativo=True
+                        )
+                        db.session.add(novo_preco)
 
         material.data_atualizacao = datetime.utcnow()
         db.session.commit()
@@ -325,7 +349,11 @@ def importar_excel():
             try:
                 nome = str(row['Nome do Material']).strip()
                 classificacao_raw = str(row['Classificação']).strip().lower()
-                descricao = str(row.get('Descrição', '')).strip()
+                descricao = row.get('Descrição')
+                if pd.isna(descricao) or str(descricao).strip() == 'nan':
+                    descricao = ''
+                else:
+                    descricao = str(descricao).strip()
 
                 # Tenta mapear, se não conseguir usa o valor original
                 classificacao = mapa_classificacao.get(classificacao_raw, classificacao_raw)
