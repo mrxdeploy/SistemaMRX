@@ -148,6 +148,42 @@ def create_app():
 
         run_hr_migration()
         
+        def run_profiles_migration():
+            try:
+                from app.models import Perfil
+                
+                # Check / Create 'Producao'
+                perfil_nome = 'Producao'
+                perfil = Perfil.query.filter_by(nome=perfil_nome).first()
+                if not perfil:
+                    # Tentar achar com nome antigo
+                    perfil_old = Perfil.query.filter_by(nome='Produção').first()
+                    if perfil_old:
+                        print(f"Migrating profile 'Produção' to '{perfil_nome}'...")
+                        perfil_old.nome = perfil_nome
+                        perfil_old.ativo = True
+                        db.session.commit()
+                    else:
+                        print(f"Creating profile '{perfil_nome}'...")
+                        novo_perfil = Perfil(
+                            nome=perfil_nome,
+                            descricao='Perfil para equipe de produção com acesso a estoque e separação',
+                            permissoes={'visualizar_producao': True}, # Basic flag
+                            ativo=True
+                        )
+                        db.session.add(novo_perfil)
+                        db.session.commit()
+                else:
+                    if not perfil.ativo:
+                        perfil.ativo = True
+                        db.session.commit()
+                        print(f"Activated existing profile '{perfil_nome}'.")
+
+            except Exception as e:
+                print(f"Profiles migration error: {e}")
+
+        run_profiles_migration()
+        
         def run_producao_migration():
             try:
                 from sqlalchemy import text
