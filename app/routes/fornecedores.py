@@ -61,7 +61,8 @@ def verificar_acesso_fornecedor(fornecedor_id, usuario_id):
     # 3. Tem tabela de preços aprovada (para criar solicitações)
     tem_acesso = (
         fornecedor.comprador_responsavel_id == usuario_id or 
-        fornecedor.criado_por_id == usuario_id
+        fornecedor.criado_por_id == usuario_id or
+        (usuario.perfil and usuario.perfil.nome in ['Comprador (PJ)', 'Producao', 'Produção'])
     )
     
     return tem_acesso
