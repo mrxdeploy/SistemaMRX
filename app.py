@@ -7,7 +7,7 @@ import os
 
 application = create_app()
 app = application
-app.config['SCANNER_URL'] = os.environ.get('SCANNER_URL', 'https://scanv1-production.up.railway.app/')
+app.config['SCANNER_URL'] = os.environ.get('SCANNER_URL', 'https://scannermrx-production.up.railway.app/')
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 
