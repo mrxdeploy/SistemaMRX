@@ -34,7 +34,7 @@ def obter_fila_separacao():
             return jsonify({'erro': 'Usuário não encontrado'}), 404
 
         perfil_nome = usuario.perfil.nome if usuario.perfil else None
-        if perfil_nome not in ['Separação', 'Administrador'] and usuario.tipo != 'admin':
+        if perfil_nome not in ['Separação', 'Administrador', 'Producao', 'Produção'] and usuario.tipo != 'admin':
             return jsonify({'erro': 'Acesso negado. Apenas operadores de separação podem acessar a fila'}), 403
 
         status_filtro = request.args.get('status', 'AGUARDANDO_SEPARACAO')
@@ -97,7 +97,7 @@ def iniciar_separacao(id):
             return jsonify({'erro': 'Usuário não encontrado'}), 404
 
         perfil_nome = usuario.perfil.nome if usuario.perfil else None
-        if perfil_nome not in ['Separação', 'Administrador'] and usuario.tipo != 'admin':
+        if perfil_nome not in ['Separação', 'Administrador', 'Producao', 'Produção'] and usuario.tipo != 'admin':
             return jsonify({'erro': 'Acesso negado. Apenas operadores de separação podem iniciar separação'}), 403
 
         data = request.get_json() or {}
@@ -151,7 +151,7 @@ def criar_sublote(id):
             return jsonify({'erro': 'Usuário não encontrado'}), 404
 
         perfil_nome = usuario_atual.perfil.nome if usuario_atual.perfil else None
-        if perfil_nome not in ['Separação', 'Administrador'] and usuario_atual.tipo != 'admin':
+        if perfil_nome not in ['Separação', 'Administrador', 'Producao', 'Produção'] and usuario_atual.tipo != 'admin':
             return jsonify({'erro': 'Acesso negado'}), 403
 
         data = request.get_json()
@@ -312,7 +312,7 @@ def criar_residuo(id):
             return jsonify({'erro': 'Usuário não encontrado'}), 404
 
         perfil_nome = usuario_atual.perfil.nome if usuario_atual.perfil else None
-        if perfil_nome not in ['Separação', 'Administrador'] and usuario_atual.tipo != 'admin':
+        if perfil_nome not in ['Separação', 'Administrador', 'Producao', 'Produção'] and usuario_atual.tipo != 'admin':
             return jsonify({'erro': 'Acesso negado'}), 403
 
         data = request.get_json()
@@ -404,7 +404,7 @@ def finalizar_separacao(id):
             return jsonify({'erro': 'Usuário não encontrado'}), 404
 
         perfil_nome = usuario_atual.perfil.nome if usuario_atual.perfil else None
-        if perfil_nome not in ['Separação', 'Administrador'] and usuario_atual.tipo != 'admin':
+        if perfil_nome not in ['Separação', 'Administrador', 'Producao', 'Produção'] and usuario_atual.tipo != 'admin':
             return jsonify({'erro': 'Acesso negado'}), 403
 
         data = request.get_json() or {}

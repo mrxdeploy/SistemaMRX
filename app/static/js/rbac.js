@@ -164,10 +164,13 @@ function renderizarMenusMobile(containerId = 'navMenuMobile') {
 
         // Adicionar FAB button no centro do menu (se não estiver oculto)
         if (!ocultarBotaoAdicionar) {
-            // Para 2 menus: após o primeiro (índice 0)
-            // Para 4+ menus: após o segundo (índice 1)
-            const addFabAfterIndex = currentMenus.length === 2 ? 0 : 1;
-            if (index === addFabAfterIndex) {
+            // Calcular índice para inserir o FAB no meio
+            // Para 2 menus: após índice 0 (1-FAB-1)
+            // Para 4 menus: após índice 1 (2-FAB-2)
+            // Para 5 menus: após índice 2 (3-FAB-2) - melhor balanceamento
+            const fabIndex = Math.floor((currentMenus.length - 1) / 2);
+            
+            if (index === fabIndex) {
                 const fabContainer = document.createElement('div');
                 fabContainer.className = 'fab-container';
                 
