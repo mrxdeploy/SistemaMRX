@@ -768,11 +768,22 @@
                     const selectFiltro = document.getElementById('filtroUsuario');
                     const selectAuditoria = document.getElementById('filtroAuditoriaUsuario');
                     
-                    select.innerHTML = '<option value="">Selecione um perfil...</option>';
+                    select.innerHTML = '';
+                    const defaultOption = document.createElement('option');
+                    defaultOption.value = "";
+                    defaultOption.textContent = "Selecione um perfil...";
+                    select.appendChild(defaultOption);
+
                     const perfisExcluidos = ['Conferente / Estoque', 'Separação', 'Financeiro'];
+                    
+                    console.log('Perfis carregados:', perfis); // Debug
+                    
                     perfis.forEach(p => {
-                        if (!perfisExcluidos.includes(p.nome)) {
-                            select.innerHTML += `<option value="${p.id}">${p.nome}</option>`;
+                        if (p && p.nome && !perfisExcluidos.includes(p.nome)) {
+                            const option = document.createElement('option');
+                            option.value = p.id;
+                            option.textContent = p.nome;
+                            select.appendChild(option);
                         }
                     });
                 }

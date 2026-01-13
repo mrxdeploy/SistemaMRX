@@ -223,7 +223,8 @@ PERFIL_CONFIG = {
             {'id': 'separacao', 'nome': 'Separação', 'url': '/separacao-fila.html', 'icone': 'format_list_bulleted'},
             {'id': 'solicitacoes', 'nome': 'Compra', 'url': '/solicitacoes.html', 'icone': 'request_quote'},
             {'id': 'fornecedores', 'nome': 'Fornecedores', 'url': '/fornecedores.html', 'icone': 'business'}
-        ]
+        ],
+        'ocultar_botao_adicionar': True
     }
 }
 

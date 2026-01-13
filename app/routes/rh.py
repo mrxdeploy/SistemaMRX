@@ -626,7 +626,8 @@ def auditoria_usuarios():
 @bp.route('/perfis', methods=['GET'])
 @admin_required
 def listar_perfis():
-    perfis = Perfil.query.filter_by(ativo=True).all()
+    perfis = Perfil.query.filter_by(ativo=True).order_by(Perfil.id).all()
+    print(f"📋 Listando {len(perfis)} perfis para o RH. IDs: {[p.id for p in perfis]}")
     return jsonify([p.to_dict() for p in perfis]), 200
 
 @bp.route('/fornecedores', methods=['GET'])
