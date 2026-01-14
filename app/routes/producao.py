@@ -172,7 +172,7 @@ def deletar_classificacao(id):
 def listar_categorias():
     """Lista todas as categorias disponíveis (incluindo personalizadas)"""
     try:
-        categorias_padrao = ['HIGH_GRADE', 'MID_GRADE', 'LOW_GRADE', 'RESIDUO', 'OUTRO']
+        categorias_padrao = ['HIGH_GRADE', 'MG1', 'MG2', 'LOW_GRADE', 'RESIDUO', 'OUTRO']
 
         categorias_customizadas = db.session.query(
             ClassificacaoGrade.categoria
@@ -423,20 +423,63 @@ def finalizar_ordem(id):
         if ordem.status not in ['aberta', 'em_separacao']:
             return jsonify({'erro': 'Ordem não pode ser finalizada'}), 400
 
-        categorias = set()
-        for item in ordem.itens_separados:
-            if item.classificacao_grade:
-                categorias.add(item.classificacao_grade.categoria)
-
-        categorias_mistas = len(categorias) > 1
+        modo_criacao = dados.get('modo_criacao', 'separado')
         categoria_manual = dados.get('categoria_manual')
 
-        if categorias_mistas and not categoria_manual:
-            return jsonify({
-                'erro': 'Este bag possui categorias mistas. Por favor, defina uma categoria manual.',
-                'categorias_mistas': True,
-                'categorias': list(categorias)
-            }), 400
+        if modo_criacao == 'misto':
+            # Opção explícita para criar UM bag misto com tudo
+            if not categoria_manual:
+                return jsonify({'erro': 'Nome da categoria é obrigatório para bag misto'}), 400
+            
+            # Escolher/Criar um Bag Misto
+            codigo_misto = BagProducao.gerar_codigo_bag('Misto')
+            bag_misto = BagProducao(
+                codigo=codigo_misto,
+                status='cheio',
+                criado_por_id=current_user_id,
+                responsavel_id=current_user_id,
+                data_criacao=datetime.utcnow(),
+                categoria_manual=categoria_manual,
+                categorias_mistas=True
+            )
+            db.session.add(bag_misto)
+            db.session.flush()
+
+            # Mover TODOS os itens para este bag
+            # E remover bags antigos se ficarem vazios (verificar se eram exclusivos desta OP ou abertos globais)
+            # Simplificação: apenas mover itens. Bags antigos abertos ficam lá (vazios ou não).
+            for item in ordem.itens_separados:
+                # Se item já tinha bag e bag ficou vazio, talvez devêssemos gerenciar, 
+                # mas bags "Abertos" são globais, então ok deixá-los.
+                item.bag_id = bag_misto.id
+        
+        else:
+            # Modo Separado (Padrão) - Itens já devem estar em seus bags corretos via adicionar_item
+            # Validar apenas se algum BAG INDIVIDUAL ficou misto acidentalmente
+            bags_analise = {}
+            for item in ordem.itens_separados:
+                if item.bag_id:
+                    if item.bag_id not in bags_analise:
+                        bags_analise[item.bag_id] = set()
+                    cat = item.classificacao_grade.categoria if item.classificacao_grade else 'OUTROS'
+                    bags_analise[item.bag_id].add(cat)
+            
+            bags_com_mix = []
+            for bag_id, cats in bags_analise.items():
+                if len(cats) > 1:
+                    bag = BagProducao.query.get(bag_id)
+                    bags_com_mix.append(bag.codigo)
+            
+            if bags_com_mix and not categoria_manual:
+                # Se detectou bag real misto e usuário não mandou nome manual (embora modo separado não devesse aceitar nome manual pra bag específico aqui fácil)
+                # Na verdade, se modo separado e deu mix no bag, temos um problema de lógica de inserção ou bag global sujo.
+                # Vamos permitir passar, mas marcar o bag como misto se não tiver nome?
+                # Ou retornar erro pedindo para usuário resolver (e.g. escolhendo modo Misto)
+                return jsonify({
+                    'erro': f'Bags com categorias mistas detectados: {", ".join(bags_com_mix)}. Escolha "Criar Bag Único Misto" ou verifique os itens.',
+                    'categorias_mistas': True,
+                    'modo_sugerido': 'misto'
+                }), 400
 
         peso_total_separado = sum(float(item.peso_kg) for item in ordem.itens_separados)
         peso_entrada = float(ordem.peso_entrada) if ordem.peso_entrada else 0
@@ -456,25 +499,19 @@ def finalizar_ordem(id):
         ordem.finalizado_por_id = current_user_id
         ordem.data_finalizacao = datetime.utcnow()
 
-        # Atualizar bags conforme o tipo de categoria e marcar como cheio
+        # Atualizar bags - Fechar bags da OP ou apenas marcar status
         bag_ids = set(item.bag_id for item in ordem.itens_separados if item.bag_id)
         for bag_id in bag_ids:
             bag = BagProducao.query.get(bag_id)
             if bag:
-                # Marcar bag como cheio quando a OP é finalizada
                 if bag.status == 'aberto':
                     bag.status = 'cheio'
                     bag.data_atualizacao = datetime.utcnow()
                 
-                if categorias_mistas:
-                    # Bag com categorias mistas - requer categoria manual
-                    if categoria_manual:
-                        bag.categoria_manual = categoria_manual
-                        bag.categorias_mistas = True
-                else:
-                    # Bag com categoria única - garantir que está marcado corretamente
-                    bag.categorias_mistas = False
-                    bag.categoria_manual = None
+                # Se foi modo misto, já setamos acima. Se modo separado, verificar se precisa marcar misto (caso raro aceito)
+                if modo_criacao == 'separado' and categoria_manual and len(bag_ids) == 1:
+                     bag.categoria_manual = categoria_manual
+                     bag.categorias_mistas = True
 
         db.session.commit()
         return jsonify(ordem.to_dict())
@@ -664,10 +701,7 @@ def encontrar_ou_criar_bag(classificacao, usuario_id):
     nomes_bag = {
         'high_grade': 'High',
         'high': 'High',
-        'mid_grade': 'MG1',  # MID_GRADE genérico vai para MG1
-        'mid_grade_1': 'MG1',
         'mg1': 'MG1',
-        'mid_grade_2': 'MG2',
         'mg2': 'MG2',
         'low_grade': 'Low',
         'low': 'Low',
@@ -681,10 +715,10 @@ def encontrar_ou_criar_bag(classificacao, usuario_id):
     categorias_equivalentes = [categoria]
     if cat_lower in ['high_grade', 'high']:
         categorias_equivalentes = ['HIGH_GRADE', 'high', 'HIGH']
-    elif cat_lower in ['mg1', 'mid_grade_1', 'mid_grade']:
-        categorias_equivalentes = ['MID_GRADE', 'MID_GRADE_1', 'mg1', 'MG1']
-    elif cat_lower in ['mg2', 'mid_grade_2']:
-        categorias_equivalentes = ['MID_GRADE_2', 'mg2', 'MG2']
+    elif cat_lower in ['mg1']:
+        categorias_equivalentes = ['mg1', 'MG1']
+    elif cat_lower in ['mg2']:
+        categorias_equivalentes = ['mg2', 'MG2']
     elif cat_lower in ['low_grade', 'low']:
         categorias_equivalentes = ['LOW_GRADE', 'low', 'LOW']
     

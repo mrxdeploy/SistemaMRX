@@ -348,11 +348,15 @@
             } else if (categoriasArray.length > 1) {
                 analiseCategoria.misto = true;
                 analiseCategoria.categoriaUnica = null;
+                // Exibe alerta informativo, mas não bloqueante
                 const labels = categoriasArray.map(c => getCategoriaLabel(c)).join(', ');
                 container.innerHTML = `
-                    <div class="card" style="background: #fef3c7; border: 1px solid #f59e0b;">
-                        <i class="fas fa-exclamation-triangle" style="color: #92400e;"></i>
-                        <span style="color: #92400e; margin-left: 0.5rem;">Categorias mistas detectadas: <strong>${labels}</strong>. Ao finalizar, será necessário definir um nome para a categoria do bag.</span>
+                    <div class="card" style="background: #e0f2fe; border: 1px solid #0ea5e9;">
+                        <i class="fas fa-info-circle" style="color: #0369a1;"></i>
+                        <span style="color: #0369a1; margin-left: 0.5rem;">
+                            Itens de múltiplas categorias: <strong>${labels}</strong>. 
+                            Na finalização, você poderá separar em bags diferentes.
+                        </span>
                     </div>`;
                 container.style.display = 'block';
             } else {
@@ -492,41 +496,85 @@
         }
 
         async function finalizarOP() {
-            if (!confirm('Confirma a finalização desta Ordem de Produção?')) return;
+            // Verificar categorias
+            const categorias = new Set();
+            (ordem.itens_separados || []).forEach(item => {
+                const cat = item.classificacao_grade ? item.classificacao_grade.categoria : 'OUTROS';
+                categorias.add(cat);
+            });
             
-            if (analiseCategoria.misto) {
-                document.getElementById('modalCategoriaManual').style.display = 'flex';
+            if (categorias.size > 1) {
+                // Abrir modal de decisão
+                document.getElementById('opcoesDecisao').style.display = 'flex';
+                document.getElementById('containerNomeMisto').style.display = 'none';
+                document.getElementById('inputNomeMisto').value = '';
+                document.getElementById('modalDecisaoFinalizacao').style.display = 'flex';
+            } else {
+                // Categoria única, segue fluxo normal padrão
+                if (!confirm('Confirma a finalização desta Ordem de Produção?')) return;
+                await executarFinalizacao({ modo_criacao: 'separado' });
+            }
+        }
+        
+        async function finalizarModoSeparado() {
+            if (!confirm('Confirma a finalização criando bags separados por categoria?')) return;
+            await executarFinalizacao({ modo_criacao: 'separado' });
+            fecharModalSemAcao('modalDecisaoFinalizacao');
+        }
+        
+        function mostrarOpcaoMisto() {
+            document.getElementById('opcoesDecisao').style.display = 'none';
+            document.getElementById('containerNomeMisto').style.display = 'block';
+            document.getElementById('inputNomeMisto').focus();
+        }
+        
+        function voltarOpcoesDecisao() {
+            document.getElementById('containerNomeMisto').style.display = 'none';
+            document.getElementById('opcoesDecisao').style.display = 'flex';
+        }
+        
+        async function finalizarModoMisto() {
+            const nome = document.getElementById('inputNomeMisto').value.trim();
+            if (!nome) {
+                showAlert('Por favor, informe um nome para o bag misto.', 'error');
                 return;
             }
+            if (!confirm(`Confirma a criação de um único bag misto chamado "${nome}"?`)) return;
             
-            await executarFinalizacao();
+            await executarFinalizacao({ 
+                modo_criacao: 'misto',
+                categoria_manual: nome
+            });
+            fecharModalSemAcao('modalDecisaoFinalizacao');
         }
 
-        async function executarFinalizacao(categoriaManual = null) {
+        async function executarFinalizacao(payload = {}) {
             try {
-                const body = categoriaManual ? JSON.stringify({ categoria_manual: categoriaManual }) : null;
                 const response = await fetchAPI(`/producao/ordens/${ordemId}/finalizar`, {
                     method: 'POST',
-                    body: body
+                    body: JSON.stringify(payload)
                 });
                 if (response.ok) {
                     showAlert('OP finalizada com sucesso!', 'success');
-                    fecharModal('modalCategoriaManual');
                     carregarOrdem();
                 } else {
                     const erro = await response.json();
-                    if (erro.categorias_mistas) {
-                        analiseCategoria.misto = true;
-                        analiseCategoria.categorias = erro.categorias || [];
-                        document.getElementById('modalCategoriaManual').style.display = 'flex';
-                        showAlert('Por favor, defina uma categoria para este bag misto.', 'warning');
+                    if (erro.modo_sugerido === 'misto') {
+                        // Caso o backend recuse o modo separado (ex: falha de consistência), forçamos o misto
+                         showAlert(erro.erro, 'warning');
+                         // Poderíamos abrir o modal aqui se já não estiver aberto
                     } else {
                         showAlert(erro.erro || 'Erro ao finalizar', 'error');
                     }
                 }
             } catch (error) {
+                console.error(error);
                 showAlert('Erro ao finalizar OP', 'error');
             }
+        }
+        
+        function fecharModalSemAcao(id) {
+            document.getElementById(id).style.display = 'none';
         }
 
         async function confirmarFinalizacaoComCategoria(event) {
@@ -570,11 +618,70 @@
         }
 
         function getCategoriaLabel(cat) {
-            const labels = { HIGH_GRADE: 'High Grade', MID_GRADE: 'Mid Grade', LOW_GRADE: 'Low Grade', RESIDUO: 'Resíduo' };
+            const labels = { 
+                HIGH_GRADE: 'High Grade', 
+                MG1: 'MG1', 
+                MG2: 'MG2',
+                LOW_GRADE: 'Low Grade', 
+                RESIDUO: 'Resíduo' 
+            };
             return labels[cat] || cat;
         }
 
         carregarPagina();
     </script>
+    <div id="modalDecisaoFinalizacao" class="modal-overlay" style="display: none; align-items: center; justify-content: center;">
+        <div class="modal" style="max-width: 500px; width: 90%;">
+            <div class="modal-header">
+                <h3>Finalizar OP</h3>
+                <span class="close-modal" onclick="fecharModalSemAcao('modalDecisaoFinalizacao')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Identificamos itens de <strong>categorias diferentes</strong> nesta OP. Como deseja prosseguir?
+                </div>
+                
+                <div id="opcoesDecisao" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem;">
+                    <!-- Opção 1: Separar -->
+                    <button class="btn btn-success" onclick="finalizarModoSeparado()" style="text-align: left; display: flex; align-items: center; gap: 1rem; padding: 1rem; border: none;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 0.75rem; border-radius: 50%; min-width: 40px; text-align: center;">
+                            <i class="fas fa-boxes fa-lg"></i>
+                        </div>
+                        <div>
+                            <strong style="display: block; font-size: 1rem;">Separar em Bags por Categoria</strong>
+                            <span style="font-size: 0.8rem; opacity: 0.9;">Cada categoria gera seu próprio bag (Recomendado)</span>
+                        </div>
+                    </button>
+
+                    <!-- Opção 2: Misto -->
+                    <button class="btn" onclick="mostrarOpcaoMisto()" style="text-align: left; display: flex; align-items: center; gap: 1rem; padding: 1rem; background: var(--gray-200); color: var(--gray-800); border: none;">
+                        <div style="background: rgba(0,0,0,0.05); padding: 0.75rem; border-radius: 50%; min-width: 40px; text-align: center;">
+                            <i class="fas fa-box-open fa-lg"></i>
+                        </div>
+                        <div>
+                            <strong style="display: block; font-size: 1rem;">Criar Único Bag Misto</strong>
+                            <span style="font-size: 0.8rem; opacity: 0.8;">Junta todos os itens em um único bag com nome personalizado</span>
+                        </div>
+                    </button>
+                    
+                    <button class="btn btn-secondary" onclick="fecharModalSemAcao('modalDecisaoFinalizacao')" style="margin-top: 0.5rem;">Cancelar</button>
+                </div>
+
+                <!-- Input para Misto (inicialmente oculto) -->
+                <div id="containerNomeMisto" style="display: none; margin-top: 1.5rem; border-top: 1px solid var(--gray-200); padding-top: 1rem;">
+                    <div class="form-group">
+                        <label>Nome para o Bag Misto (Obrigatório)</label>
+                        <input type="text" id="inputNomeMisto" placeholder="Ex: Sucata Mista Eletrônica">
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                        <button class="btn btn-secondary" onclick="voltarOpcoesDecisao()">Voltar</button>
+                        <button class="btn btn-success" onclick="finalizarModoMisto()">Confirmar e Finalizar</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
 </body>
 </html>
