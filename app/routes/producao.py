@@ -304,10 +304,40 @@ def criar_ordem():
 
         db.session.add(ordem)
         
+        # Processar dedução de peso dos lotes
         if lotes_ids and len(lotes_ids) > 0:
+            # Calcular peso total disponível nos lotes
+            peso_total_disponivel = Decimal('0')
+            lotes_para_deduzir = []
             for lote_id in lotes_ids:
                 lote = Lote.query.get(lote_id)
-                if lote:
+                if lote and lote.peso_liquido:
+                    peso_total_disponivel += Decimal(str(lote.peso_liquido))
+                    lotes_para_deduzir.append(lote)
+            
+            # Se peso_entrada é menor que peso_total_disponivel, deduzir proporcionalmente
+            if peso_entrada < peso_total_disponivel and peso_total_disponivel > 0:
+                # Deduzir proporcionalmente de cada lote
+                peso_restante_a_deduzir = peso_entrada
+                for lote in lotes_para_deduzir:
+                    peso_lote = Decimal(str(lote.peso_liquido))
+                    # Calcular quanto deduzir deste lote (proporcional)
+                    proporcao = peso_lote / peso_total_disponivel
+                    peso_a_deduzir_lote = peso_entrada * proporcao
+                    
+                    novo_peso = peso_lote - peso_a_deduzir_lote
+                    if novo_peso <= 0:
+                        # Lote foi completamente consumido
+                        lote.status = 'em_producao'
+                        lote.peso_liquido = Decimal('0')
+                        logger.info(f'Lote {lote.numero_lote} completamente consumido para OP {numero_op}')
+                    else:
+                        # Lote ainda tem peso restante - permanece disponível
+                        lote.peso_liquido = novo_peso
+                        logger.info(f'Lote {lote.numero_lote}: deduzido {float(peso_a_deduzir_lote):.2f}kg, restante: {float(novo_peso):.2f}kg')
+            else:
+                # Consumir todos os lotes completamente
+                for lote in lotes_para_deduzir:
                     lote.status = 'em_producao'
                     logger.info(f'Lote {lote.numero_lote} marcado como em_producao para OP {numero_op}')
         
@@ -515,9 +545,24 @@ def adicionar_item(op_id):
             return jsonify({'erro': 'Classificação não encontrada'}), 404
 
         peso_kg = Decimal(str(dados.get('peso_kg', 0)))
+        
+        # Validar que o peso total separado não excede o peso de entrada da OP
+        peso_entrada = float(ordem.peso_entrada) if ordem.peso_entrada else 0
+        peso_ja_separado = sum(float(item.peso_kg) for item in ordem.itens_separados)
+        peso_total_apos_adicao = peso_ja_separado + float(peso_kg)
+        peso_disponivel = peso_entrada - peso_ja_separado
+        
+        if peso_total_apos_adicao > peso_entrada:
+            return jsonify({
+                'erro': f'Peso excede o limite da OP. Disponível: {peso_disponivel:.2f}kg, Solicitado: {float(peso_kg):.2f}kg',
+                'peso_entrada': peso_entrada,
+                'peso_ja_separado': peso_ja_separado,
+                'peso_disponivel': peso_disponivel,
+                'peso_solicitado': float(peso_kg)
+            }), 400
+        
         custo_total = float(ordem.custo_total) if ordem.custo_total else 0
-        peso_entrada = float(ordem.peso_entrada) if ordem.peso_entrada else 1
-        custo_proporcional = (float(peso_kg) / peso_entrada) * custo_total
+        custo_proporcional = (float(peso_kg) / peso_entrada) * custo_total if peso_entrada > 0 else 0
 
         preco_kg = float(classificacao.preco_estimado_kg) if classificacao.preco_estimado_kg else 0
         valor_estimado = float(peso_kg) * preco_kg

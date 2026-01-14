@@ -96,7 +96,10 @@
                     <div class="progress-bar">
                         <div class="progress-fill" id="progressBar" style="width: 0%;"></div>
                     </div>
-                    <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;" id="progressText">0%</div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-top: 0.25rem;">
+                        <span id="progressText" style="color: var(--gray-500);">0%</span>
+                        <span id="pesoRestanteText" style="font-weight: bold;">Restante: 0 kg</span>
+                    </div>
                 </div>
             </div>
 
@@ -145,7 +148,7 @@
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
-                        <label>Peso (kg)</label>
+                        <label>Peso (kg) <small id="pesoDisponivelInfo" style="color: var(--info-color);"></small></label>
                         <input type="number" id="itemPeso" step="0.001" min="0.001" required>
                     </div>
                     <div class="form-group">
@@ -303,6 +306,12 @@
             document.getElementById('progressBar').style.width = `${progresso}%`;
             document.getElementById('progressText').textContent = `${progresso.toFixed(1)}% separado`;
             
+            // Mostrar peso restante disponível
+            const pesoRestante = Math.max(0, pesoEntrada - pesoSeparado);
+            const pesoRestanteEl = document.getElementById('pesoRestanteText');
+            pesoRestanteEl.textContent = `Restante: ${pesoRestante.toFixed(3)} kg`;
+            pesoRestanteEl.style.color = pesoRestante > 0 ? 'var(--success-color)' : 'var(--danger-color)';
+            
             renderizarItens(ordem.itens_separados || []);
             atualizarBotoes();
             analisarCategorias();
@@ -395,16 +404,39 @@
 
         function abrirModalNovoItem() {
             document.getElementById('formNovoItem').reset();
+            
+            // Calcular peso disponível
+            const pesoEntrada = parseFloat(ordem.peso_entrada) || 0;
+            const pesoSeparado = (ordem.itens_separados || []).reduce((sum, item) => sum + parseFloat(item.peso_kg || 0), 0);
+            const pesoDisponivel = Math.max(0, pesoEntrada - pesoSeparado);
+            
+            const infoEl = document.getElementById('pesoDisponivelInfo');
+            infoEl.textContent = `(Disponível: ${pesoDisponivel.toFixed(3)} kg)`;
+            
+            // Definir max no input de peso
+            const pesoInput = document.getElementById('itemPeso');
+            pesoInput.max = pesoDisponivel.toFixed(3);
+            
             document.getElementById('modalNovoItem').style.display = 'flex';
         }
 
         async function salvarItem(event) {
             event.preventDefault();
             try {
+                const pesoSolicitado = parseFloat(document.getElementById('itemPeso').value);
+                const pesoEntrada = parseFloat(ordem.peso_entrada) || 0;
+                const pesoSeparado = (ordem.itens_separados || []).reduce((sum, item) => sum + parseFloat(item.peso_kg || 0), 0);
+                const pesoDisponivel = pesoEntrada - pesoSeparado;
+                
+                if (pesoSolicitado > pesoDisponivel) {
+                    showAlert(`Peso excede o disponível! Máximo: ${pesoDisponivel.toFixed(3)} kg`, 'error');
+                    return;
+                }
+                
                 const dados = {
                     classificacao_grade_id: parseInt(document.getElementById('itemClassificacao').value),
                     nome_item: document.getElementById('itemNome').value,
-                    peso_kg: parseFloat(document.getElementById('itemPeso').value),
+                    peso_kg: pesoSolicitado,
                     quantidade: parseInt(document.getElementById('itemQuantidade').value) || 1,
                     observacoes: document.getElementById('itemObservacoes').value
                 };

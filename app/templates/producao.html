@@ -284,13 +284,12 @@
                 <div class="form-group">
                     <label>Categoria</label>
                     <div class="input-group-inline">
-                        <select id="classificacaoCategoria" required>
                             <option value="HIGH_GRADE">High Grade</option>
-                            <option value="MID_GRADE">Mid Grade</option>
+                            <option value="MG1">MG1</option>
+                            <option value="MG2">MG2</option>
                             <option value="LOW_GRADE">Low Grade</option>
                             <option value="RESIDUO">Resíduo</option>
                             <option value="OUTRO">Outro</option>
-                        </select>
                         <button type="button" class="btn btn-secondary" onclick="abrirModalNovaCategoria()" title="Adicionar nova categoria">
                             <i class="fas fa-plus"></i>
                         </button>
@@ -428,19 +427,22 @@
             }
             
             // Cores para categorias
+            // Cores para categorias
             const categoriaCores = {
-                'HIGH_GRADE': '#FFD700',  // Gold
-                'high': '#FFD700',
-                'MID_GRADE': '#3B82F6',   // Blue
-                'MID_GRADE_1': '#3B82F6',
-                'mg1': '#3B82F6',
-                'MG1': '#3B82F6',
-                'MID_GRADE_2': '#8B5CF6',  // Purple
-                'mg2': '#8B5CF6',
-                'MG2': '#8B5CF6',
-                'LOW_GRADE': '#10B981',   // Green
-                'low': '#10B981',
-                'RESIDUO': '#6B7280'       // Gray
+                'HIGH_GRADE': '#10B981',  // Verde
+                'high': '#10B981',
+                'High Category': '#10B981',
+                'MID_GRADE': '#EAB308',   // Amarelo
+                'MID_GRADE_1': '#EAB308',
+                'mg1': '#EAB308',
+                'MG1': '#EAB308',
+                'MID_GRADE_2': '#F97316',  // Laranja
+                'mg2': '#F97316',
+                'MG2': '#F97316',
+                'LOW_GRADE': '#EF4444',   // Vermelho
+                'low': '#EF4444',
+                'RESIDUO': '#6B7280',     // Cinza
+                'OUTRO': '#6B7280'
             };
             
             container.innerHTML = bags.map(bag => {
@@ -1212,7 +1214,19 @@
         }
 
         function getCategoriaLabel(cat) {
-            const labels = { HIGH_GRADE: 'High Grade', MID_GRADE: 'Mid Grade', LOW_GRADE: 'Low Grade', RESIDUO: 'Resíduo', OUTRO: 'Outro' };
+            const labels = { 
+                HIGH_GRADE: 'High Grade', 
+                high: 'High Grade',
+                MID_GRADE: 'MG1', 
+                MG1: 'MG1',
+                MID_GRADE_1: 'MG1',
+                MID_GRADE_2: 'MG2',
+                MG2: 'MG2',
+                LOW_GRADE: 'Low Grade', 
+                low: 'Low Grade',
+                RESIDUO: 'Resíduo', 
+                OUTRO: 'Outro' 
+            };
             if (labels[cat]) return labels[cat];
             return cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         }

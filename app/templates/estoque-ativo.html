@@ -196,13 +196,12 @@
                     </div>
                     <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
                         <label>Categoria</label>
-                        <select id="filtroCategoriaBag" onchange="carregarBagsEstoque()">
                             <option value="">Todas</option>
                             <option value="HIGH_GRADE">High Grade</option>
-                            <option value="MID_GRADE">Mid Grade</option>
+                            <option value="MG1">MG1</option>
+                            <option value="MG2">MG2</option>
                             <option value="LOW_GRADE">Low Grade</option>
                             <option value="RESIDUO">Resíduo</option>
-                        </select>
                     </div>
                     <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
                         <label>Buscar</label>
@@ -409,19 +408,22 @@
             }
             
             // Cores para categorias
+            // Cores para categorias
             const categoriaCores = {
-                'HIGH_GRADE': '#FFD700',
-                'high': '#FFD700',
-                'MID_GRADE': '#3B82F6',
-                'MID_GRADE_1': '#3B82F6',
-                'mg1': '#3B82F6',
-                'MG1': '#3B82F6',
-                'MID_GRADE_2': '#8B5CF6',
-                'mg2': '#8B5CF6',
-                'MG2': '#8B5CF6',
-                'LOW_GRADE': '#10B981',
-                'low': '#10B981',
-                'RESIDUO': '#6B7280'
+                'HIGH_GRADE': '#10B981',  // Verde
+                'high': '#10B981',
+                'High Category': '#10B981',
+                'MID_GRADE': '#EAB308',   // Amarelo
+                'MID_GRADE_1': '#EAB308',
+                'mg1': '#EAB308',
+                'MG1': '#EAB308',
+                'MID_GRADE_2': '#F97316',  // Laranja
+                'mg2': '#F97316',
+                'MG2': '#F97316',
+                'LOW_GRADE': '#EF4444',   // Vermelho
+                'low': '#EF4444',
+                'RESIDUO': '#6B7280',     // Cinza
+                'OUTRO': '#6B7280'
             };
             
             const categoriaNomes = {
@@ -587,8 +589,16 @@
         function getCategoriaLabel(categoria) {
             switch(categoria) {
                 case 'HIGH_GRADE': return 'High Grade';
-                case 'MID_GRADE': return 'Mid Grade';
+                case 'high': return 'High Grade';
+                case 'MID_GRADE': return 'MG1';
+                case 'MID_GRADE_1': return 'MG1';
+                case 'mg1': return 'MG1';
+                case 'MG1': return 'MG1';
+                case 'MID_GRADE_2': return 'MG2';
+                case 'mg2': return 'MG2';
+                case 'MG2': return 'MG2';
                 case 'LOW_GRADE': return 'Low Grade';
+                case 'low': return 'Low Grade';
                 case 'RESIDUO': return 'Resíduo';
                 default: return categoria || 'N/A';
             }
