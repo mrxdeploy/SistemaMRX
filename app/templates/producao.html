@@ -180,10 +180,27 @@
                     <label>Origem do Material</label>
                     <select id="opOrigemTipo" onchange="atualizarOrigemOP()" required>
                         <option value="">Selecione...</option>
+                        <option value="estoque_materiais">Materiais em Estoque</option>
                         <option value="lote">Lote do Estoque</option>
                         <option value="fornecedor">Fornecedor Direto</option>
                         <option value="outro">Outro</option>
                     </select>
+                </div>
+                <div class="form-group" id="grupoMateriaisEstoque" style="display: none;">
+                    <label>Materiais Disponíveis em Estoque</label>
+                    <div id="listaMateriaisEstoque" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--gray-200); border-radius: 8px; background: var(--gray-50);">
+                        <p style="text-align: center; padding: 1rem; color: var(--gray-500);">Carregando materiais...</p>
+                    </div>
+                    <div id="materialSelecionadoInfo" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--success-bg); border-radius: 8px; border-left: 4px solid var(--success-color);">
+                        <p style="margin: 0 0 0.5rem 0; font-weight: bold;"><i class="fas fa-check-circle" style="color: var(--success-color);"></i> Material Selecionado: <span id="materialSelecionadoNome"></span></p>
+                        <p style="margin: 0; font-size: 0.875rem; color: var(--gray-600);">Disponível: <span id="materialDisponivelKg"></span> kg</p>
+                        <div class="form-group" style="margin-top: 1rem; margin-bottom: 0;">
+                            <label>Quantidade a Retirar (kg) *</label>
+                            <input type="number" id="quantidadeRetirar" step="0.01" min="0.01" placeholder="Ex: 20.00" required>
+                        </div>
+                    </div>
+                    <input type="hidden" id="materialSelecionadoId">
+                    <input type="hidden" id="lotesIdsSelecionados">
                 </div>
                 
                 <div class="form-group" id="grupoFornecedor" style="display: none;">
@@ -410,22 +427,63 @@
                 container.innerHTML = '<div class="card" style="text-align: center; color: var(--gray-500);">Nenhum bag encontrado</div>';
                 return;
             }
-            container.innerHTML = bags.map(bag => `
-                <div class="card bag-card ${bag.status}">
+            
+            // Cores para categorias
+            const categoriaCores = {
+                'HIGH_GRADE': '#FFD700',  // Gold
+                'high': '#FFD700',
+                'MID_GRADE': '#3B82F6',   // Blue
+                'MID_GRADE_1': '#3B82F6',
+                'mg1': '#3B82F6',
+                'MG1': '#3B82F6',
+                'MID_GRADE_2': '#8B5CF6',  // Purple
+                'mg2': '#8B5CF6',
+                'MG2': '#8B5CF6',
+                'LOW_GRADE': '#10B981',   // Green
+                'low': '#10B981',
+                'RESIDUO': '#6B7280'       // Gray
+            };
+            
+            container.innerHTML = bags.map(bag => {
+                const corCategoria = categoriaCores[bag.categoria_exibicao] || 'var(--primary-color)';
+                const nomeCategoria = bag.categoria_nome || getCategoriaLabel(bag.categoria_exibicao) || bag.classificacao_nome || 'Sem classificação';
+                
+                // Renderizar detalhamento de itens
+                let itensHtml = '';
+                if (bag.itens_por_classificacao && bag.itens_por_classificacao.length > 0) {
+                    itensHtml = `
+                        <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--gray-200);">
+                            <p style="font-size: 0.75rem; color: var(--gray-500); margin-bottom: 0.5rem; text-transform: uppercase;">Detalhamento:</p>
+                            ${bag.itens_por_classificacao.map(item => `
+                                <div style="display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.875rem;">
+                                    <span>${item.nome}</span>
+                                    <span style="font-weight: bold;">${item.peso_total_kg.toFixed(2)} kg</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+                
+                return `
+                <div class="card bag-card ${bag.status}" style="border-left-color: ${corCategoria};">
                     <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 0.5rem;">
                         <div>
-                            <h4 style="margin: 0 0 0.25rem 0; color: var(--primary-color);">${bag.codigo}</h4>
-                            <p style="margin: 0; font-size: 0.875rem; color: var(--gray-600);">
-                                ${bag.categoria_exibicao ? getCategoriaLabel(bag.categoria_exibicao) : (bag.classificacao_nome || 'Sem classificação')}
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${corCategoria};"></span>
+                                <h4 style="margin: 0; color: var(--primary-color);">${nomeCategoria}</h4>
+                            </div>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--gray-500);">
+                                ${bag.codigo}
                                 ${bag.categorias_mistas ? '<span class="badge badge-warning" style="margin-left: 0.5rem; font-size: 0.65rem;">Misto</span>' : ''}
                             </p>
                         </div>
                         <span class="badge ${getBagBadgeClass(bag.status)}">${getBagStatusLabel(bag.status)}</span>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem; margin-top: 1rem; font-size: 0.875rem;">
-                        <div><strong>Peso:</strong> ${parseFloat(bag.peso_acumulado || 0).toFixed(2)} kg</div>
+                        <div><strong>Peso Total:</strong> ${parseFloat(bag.peso_acumulado || 0).toFixed(2)} kg</div>
                         <div><strong>Itens:</strong> ${bag.quantidade_itens || 0}</div>
                     </div>
+                    ${itensHtml}
                     ${bag.status === 'devolvido_estoque' ? `
                         <div style="margin-top: 1rem;">
                             <span class="badge badge-success" style="font-size: 0.8rem;">
@@ -441,7 +499,8 @@
                         </div>
                     ` : ''}
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         async function carregarClassificacoes() {
@@ -549,6 +608,13 @@
             document.getElementById('tiposMaterialSelecionados').innerHTML = '';
             document.getElementById('opPesoEntrada').readOnly = false;
             
+            // Reset materiais estoque
+            document.getElementById('listaMateriaisEstoque').innerHTML = '<p style="text-align: center; padding: 1rem; color: var(--gray-500);">Carregando materiais...</p>';
+            document.getElementById('materialSelecionadoInfo').style.display = 'none';
+            document.getElementById('materialSelecionadoId').value = '';
+            document.getElementById('lotesIdsSelecionados').value = '';
+            materialSelecionadoData = null;
+            
             outrosOrigensLista = [];
             tiposMaterialLista = [];
             
@@ -632,6 +698,8 @@
 
         let outrosOrigensLista = [];
         let tiposMaterialLista = [];
+        let materiaisEstoque = [];
+        let materialSelecionadoData = null;
         
         function adicionarTipoMaterial() {
             const input = document.getElementById('opTipoMaterialInput');
@@ -671,6 +739,7 @@
         
         function atualizarOrigemOP() {
             const tipo = document.getElementById('opOrigemTipo').value;
+            document.getElementById('grupoMateriaisEstoque').style.display = tipo === 'estoque_materiais' ? 'block' : 'none';
             document.getElementById('grupoFornecedor').style.display = tipo === 'fornecedor' ? 'block' : 'none';
             document.getElementById('grupoLote').style.display = tipo === 'lote' ? 'block' : 'none';
             document.getElementById('grupoOutro').style.display = tipo === 'outro' ? 'block' : 'none';
@@ -682,13 +751,85 @@
             
             if (tipo === 'lote') {
                 atualizarPesoLotes();
+            } else if (tipo === 'estoque_materiais') {
+                carregarMateriaisEstoque();
+                // Para materiais em estoque, peso será definido pela quantidade selecionada
+                pesoInput.readOnly = true;
+                pesoInput.value = '';
+                pesoLockInfo.style.display = 'inline';
+                pesoLockInfo.textContent = '(Definido pela quantidade)';
+                // Custo não é obrigatório para este tipo
+                custoInput.removeAttribute('required');
             } else {
                 pesoInput.readOnly = false;
                 pesoLockInfo.style.display = 'none';
                 custoInput.readOnly = false;
                 custoLockInfo.style.display = 'none';
+                custoInput.setAttribute('required', 'required');
             }
         }
+        
+        async function carregarMateriaisEstoque() {
+            try {
+                const response = await fetchAPI('/producao/estoque-agregado');
+                if (response.ok) {
+                    materiaisEstoque = await response.json();
+                    renderizarMateriaisEstoque();
+                } else {
+                    document.getElementById('listaMateriaisEstoque').innerHTML = '<p style="text-align: center; padding: 1rem; color: var(--danger-color);">Erro ao carregar materiais</p>';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar materiais:', error);
+                document.getElementById('listaMateriaisEstoque').innerHTML = '<p style="text-align: center; padding: 1rem; color: var(--danger-color);">Erro ao carregar materiais</p>';
+            }
+        }
+        
+        function renderizarMateriaisEstoque() {
+            const container = document.getElementById('listaMateriaisEstoque');
+            if (!materiaisEstoque || materiaisEstoque.length === 0) {
+                container.innerHTML = '<p style="text-align: center; padding: 1rem; color: var(--gray-500);">Nenhum material disponível no estoque</p>';
+                return;
+            }
+            
+            container.innerHTML = materiaisEstoque.map((m, idx) => `
+                <div class="material-estoque-item" onclick="selecionarMaterialEstoque(${idx})" style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--gray-200); cursor: pointer; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;" 
+                     onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='transparent'">
+                    <div>
+                        <strong>${m.material_nome}</strong>
+                        <br><small style="color: var(--gray-500);">${m.quantidade_lotes} lote(s)</small>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="font-size: 1.125rem; font-weight: bold; color: var(--primary-color);">${m.peso_total_kg.toFixed(2)} kg</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function selecionarMaterialEstoque(index) {
+            const material = materiaisEstoque[index];
+            if (!material) return;
+            
+            materialSelecionadoData = material;
+            document.getElementById('materialSelecionadoId').value = material.material_nome;
+            document.getElementById('lotesIdsSelecionados').value = JSON.stringify(material.lotes_ids);
+            document.getElementById('materialSelecionadoNome').textContent = material.material_nome;
+            document.getElementById('materialDisponivelKg').textContent = material.peso_total_kg.toFixed(2);
+            document.getElementById('materialSelecionadoInfo').style.display = 'block';
+            document.getElementById('quantidadeRetirar').max = material.peso_total_kg;
+            document.getElementById('quantidadeRetirar').value = '';
+            document.getElementById('quantidadeRetirar').focus();
+            
+            // Preencher tipo de material automaticamente
+            tiposMaterialLista = [material.material_nome];
+            renderizarTiposMaterial();
+        }
+        
+        // Atualizar peso quando quantidade for informada
+        document.getElementById('quantidadeRetirar')?.addEventListener('input', function() {
+            const quantidade = parseFloat(this.value) || 0;
+            document.getElementById('opPesoEntrada').value = quantidade.toFixed(3);
+            calcularCustoUnitario();
+        });
         
         function atualizarPesoLotes() {
             const selectLote = document.getElementById('opLote');
@@ -795,7 +936,15 @@
                 const custoTotal = parseFloat(document.getElementById('opCustoTotal').value) || 0;
                 
                 const fornecedoresIds = Array.from(selectFornecedor.selectedOptions).map(opt => parseInt(opt.value));
-                const lotesIds = Array.from(selectLote.selectedOptions).map(opt => parseInt(opt.value));
+                let lotesIds = Array.from(selectLote.selectedOptions).map(opt => parseInt(opt.value));
+                
+                // Para estoque_materiais, usar os IDs dos lotes do material selecionado
+                if (origemTipo === 'estoque_materiais') {
+                    const lotesIdsStr = document.getElementById('lotesIdsSelecionados').value;
+                    if (lotesIdsStr) {
+                        lotesIds = JSON.parse(lotesIdsStr);
+                    }
+                }
 
                 if (!origemTipo) {
                     showAlert('Selecione a origem do material', 'error');
@@ -810,6 +959,22 @@
                 if (origemTipo === 'lote' && lotesIds.length === 0) {
                     showAlert('Selecione pelo menos um lote do estoque', 'error');
                     return;
+                }
+                
+                if (origemTipo === 'estoque_materiais') {
+                    if (!materialSelecionadoData) {
+                        showAlert('Selecione um material do estoque', 'error');
+                        return;
+                    }
+                    const quantidade = parseFloat(document.getElementById('quantidadeRetirar').value) || 0;
+                    if (quantidade <= 0) {
+                        showAlert('Informe a quantidade a retirar', 'error');
+                        return;
+                    }
+                    if (quantidade > materialSelecionadoData.peso_total_kg) {
+                        showAlert(`Quantidade (${quantidade} kg) excede o disponível (${materialSelecionadoData.peso_total_kg} kg)`, 'error');
+                        return;
+                    }
                 }
                 
                 if (origemTipo === 'outro' && outrosOrigensLista.length === 0) {

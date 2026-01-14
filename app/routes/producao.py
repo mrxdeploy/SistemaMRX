@@ -601,17 +601,59 @@ def remover_item(id):
 # ============================
 
 def encontrar_ou_criar_bag(classificacao, usuario_id):
-    """Encontra um bag aberto ou cria um novo para a classificação"""
-    bag = BagProducao.query.filter(
-        BagProducao.classificacao_grade_id == classificacao.id,
+    """Encontra um bag aberto ou cria um novo para a categoria da classificação.
+    
+    Sistema de 4 bags principais:
+    - High: para HIGH_GRADE ou 'high'
+    - MG1: para MID_GRADE_1 ou 'mg1'
+    - MG2: para MID_GRADE_2 ou 'mg2'  
+    - Low: para LOW_GRADE ou 'low'
+    - [Nome da categoria]: para outras categorias customizadas
+    """
+    categoria = classificacao.categoria if classificacao else 'OUTROS'
+    
+    # Normalizar categoria (lowercase para comparar)
+    cat_lower = categoria.lower() if categoria else 'outros'
+    
+    # Mapear categorias para nomes de bag (4 principais)
+    nomes_bag = {
+        'high_grade': 'High',
+        'high': 'High',
+        'mid_grade': 'MG1',  # MID_GRADE genérico vai para MG1
+        'mid_grade_1': 'MG1',
+        'mg1': 'MG1',
+        'mid_grade_2': 'MG2',
+        'mg2': 'MG2',
+        'low_grade': 'Low',
+        'low': 'Low',
+        'residuo': 'Residuo'
+    }
+    
+    nome_bag = nomes_bag.get(cat_lower, categoria.replace('_', ' ').title())
+    
+    # Buscar bag aberto para esta CATEGORIA (não para classificação individual)
+    # Normalizar busca para agrupar categorias equivalentes
+    categorias_equivalentes = [categoria]
+    if cat_lower in ['high_grade', 'high']:
+        categorias_equivalentes = ['HIGH_GRADE', 'high', 'HIGH']
+    elif cat_lower in ['mg1', 'mid_grade_1', 'mid_grade']:
+        categorias_equivalentes = ['MID_GRADE', 'MID_GRADE_1', 'mg1', 'MG1']
+    elif cat_lower in ['mg2', 'mid_grade_2']:
+        categorias_equivalentes = ['MID_GRADE_2', 'mg2', 'MG2']
+    elif cat_lower in ['low_grade', 'low']:
+        categorias_equivalentes = ['LOW_GRADE', 'low', 'LOW']
+    
+    bag = BagProducao.query.join(ClassificacaoGrade).filter(
+        ClassificacaoGrade.categoria.in_(categorias_equivalentes),
         BagProducao.status == 'aberto'
     ).first()
 
     if not bag:
-        codigo = BagProducao.gerar_codigo_bag(classificacao.nome)
+        # Criar novo bag para a categoria
+        codigo = BagProducao.gerar_codigo_bag(nome_bag)
         bag = BagProducao(
             codigo=codigo,
-            classificacao_grade_id=classificacao.id,
+            classificacao_grade_id=classificacao.id,  # Usar primeira classificação da categoria
             status='aberto',
             criado_por_id=usuario_id,
             responsavel_id=usuario_id,
@@ -619,6 +661,10 @@ def encontrar_ou_criar_bag(classificacao, usuario_id):
         )
         db.session.add(bag)
         db.session.flush()
+        logger.info(f'Novo bag criado: {codigo} para categoria {categoria}')
+    else:
+        logger.info(f'Usando bag existente: {bag.codigo} para categoria {categoria}')
+    
     return bag
 
 
@@ -782,6 +828,82 @@ def listar_lotes_estoque():
         return jsonify({'erro': str(e), 'lotes': []}), 500
 
 
+@bp.route('/estoque-agregado', methods=['GET'])
+@jwt_required()
+def listar_estoque_agregado():
+    """Lista materiais agregados do estoque para seleção na criação de OP.
+    Agrupa sublotes por nome do material e calcula peso total disponível.
+    """
+    try:
+        # Status válidos para lotes disponíveis
+        status_disponiveis = [
+            'em_estoque', 'disponivel', 'aprovado',
+            'CRIADO_SEPARACAO', 'criado_separacao', 'Em Estoque',
+            'em_conferencia', 'conferido', 'aprovada', 'APROVADA',
+            'APROVADO', 'concluido', 'CONCLUIDO', 'RECEBIDO', 'recebido',
+            'aprovada_adm', 'APROVADA_ADM', 'concluido_conferencia',
+            'liberado', 'LIBERADO', 'disponivel_producao', 'ATIVO', 'ativo'
+        ]
+
+        # Buscar sublotes disponíveis
+        lotes = Lote.query.filter(
+            Lote.status.in_(status_disponiveis)
+        ).order_by(Lote.id.desc()).limit(500).all()
+
+        # Agrupar por nome do material
+        materiais = {}
+        for l in lotes:
+            # Extrair nome do material das observações ou tipo_lote
+            material_nome = None
+            
+            # Prioridade 1: Observações com MATERIAL: ou MATERIAL_MANUAL:
+            if l.observacoes:
+                if l.observacoes.startswith('MATERIAL:'):
+                    material_nome = l.observacoes.split('|')[0].replace('MATERIAL:', '').strip()
+                elif l.observacoes.startswith('MATERIAL_MANUAL:'):
+                    material_nome = l.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').strip()
+            
+            # Prioridade 2: Tipo de lote
+            if not material_nome and l.tipo_lote:
+                material_nome = l.tipo_lote.nome
+            
+            # Se ainda não tem nome, usar genérico
+            if not material_nome:
+                material_nome = 'Material não identificado'
+            
+            peso = float(l.peso_liquido or l.peso_total_kg or 0)
+            
+            if material_nome not in materiais:
+                materiais[material_nome] = {
+                    'material_nome': material_nome,
+                    'peso_total_kg': 0,
+                    'quantidade_lotes': 0,
+                    'lotes_ids': []
+                }
+            
+            materiais[material_nome]['peso_total_kg'] += peso
+            materiais[material_nome]['quantidade_lotes'] += 1
+            materiais[material_nome]['lotes_ids'].append(l.id)
+
+        # Converter para lista e ordenar por peso
+        resultado = sorted(
+            materiais.values(), 
+            key=lambda x: x['peso_total_kg'], 
+            reverse=True
+        )
+        
+        # Arredondar pesos
+        for m in resultado:
+            m['peso_total_kg'] = round(m['peso_total_kg'], 2)
+
+        logger.info(f'Retornando {len(resultado)} materiais agregados')
+        return jsonify(resultado), 200
+
+    except Exception as e:
+        logger.error(f'Erro ao listar estoque agregado: {str(e)}')
+        return jsonify({'erro': str(e)}), 500
+
+
 # ============================
 # PÁGINAS HTML
 # ============================
@@ -893,7 +1015,9 @@ def exportar_op_excel(id):
 @bp.route('/bags', methods=['GET'])
 @jwt_required()
 def listar_bags_producao():
-    """Lista todos os bags disponíveis para a produção"""
+    """Lista todos os bags disponíveis para a produção.
+    Agrupa por categoria e inclui detalhamento de materiais dentro de cada bag.
+    """
     try:
         status = request.args.get('status')
         categoria = request.args.get('categoria')
@@ -914,7 +1038,54 @@ def listar_bags_producao():
             )
             
         bags = query.order_by(BagProducao.data_criacao.desc()).all()
-        return jsonify([b.to_dict() for b in bags])
+        
+        # Processar cada bag para incluir detalhamento de itens
+        resultado = []
+        for bag in bags:
+            bag_dict = bag.to_dict()
+            
+            # Agregar itens por classificação dentro do bag
+            itens_por_classificacao = {}
+            for item in bag.itens:
+                classif_nome = item.classificacao_grade.nome if item.classificacao_grade else 'Sem classificação'
+                if classif_nome not in itens_por_classificacao:
+                    itens_por_classificacao[classif_nome] = {
+                        'nome': classif_nome,
+                        'peso_total_kg': 0,
+                        'quantidade_itens': 0
+                    }
+                itens_por_classificacao[classif_nome]['peso_total_kg'] += float(item.peso_kg or 0)
+                itens_por_classificacao[classif_nome]['quantidade_itens'] += 1
+            
+            # Converter para lista ordenada por peso
+            bag_dict['itens_por_classificacao'] = sorted(
+                itens_por_classificacao.values(),
+                key=lambda x: x['peso_total_kg'],
+                reverse=True
+            )
+            
+            # Determinar categoria exibição
+            if bag.classificacao_grade:
+                cat = bag.classificacao_grade.categoria
+                cat_lower = cat.lower() if cat else ''
+                bag_dict['categoria_exibicao'] = cat
+                categoria_nomes = {
+                    'high_grade': 'High',
+                    'high': 'High',
+                    'mid_grade': 'MG1',
+                    'mid_grade_1': 'MG1',
+                    'mg1': 'MG1',
+                    'mid_grade_2': 'MG2',
+                    'mg2': 'MG2',
+                    'low_grade': 'Low',
+                    'low': 'Low',
+                    'residuo': 'Residuo'
+                }
+                bag_dict['categoria_nome'] = categoria_nomes.get(cat_lower, cat.replace('_', ' ').title())
+            
+            resultado.append(bag_dict)
+        
+        return jsonify(resultado)
     except Exception as e:
         logger.error(f'Erro ao listar bags na produção: {str(e)}')
         return jsonify({'erro': str(e)}), 500

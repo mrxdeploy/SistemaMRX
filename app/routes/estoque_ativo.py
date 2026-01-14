@@ -165,14 +165,52 @@ def listar_bags_estoque():
             itens_data = []
             tem_lotes_origem = False
             
+            # Agregar itens por classificação
+            itens_por_classificacao = {}
             for item in itens:
                 item_dict = item.to_dict()
                 itens_data.append(item_dict)
                 if item.ordem_producao_id:
                     tem_lotes_origem = True
+                
+                # Agregar por classificação
+                classif_nome = item.classificacao_grade.nome if item.classificacao_grade else 'Sem classificação'
+                if classif_nome not in itens_por_classificacao:
+                    itens_por_classificacao[classif_nome] = {
+                        'nome': classif_nome,
+                        'peso_total_kg': 0,
+                        'quantidade_itens': 0
+                    }
+                itens_por_classificacao[classif_nome]['peso_total_kg'] += float(item.peso_kg or 0)
+                itens_por_classificacao[classif_nome]['quantidade_itens'] += 1
             
             bag_dict['itens'] = itens_data
             bag_dict['origem_lotes'] = tem_lotes_origem
+            bag_dict['itens_por_classificacao'] = sorted(
+                itens_por_classificacao.values(),
+                key=lambda x: x['peso_total_kg'],
+                reverse=True
+            )
+            
+            # Determinar categoria exibição
+            if bag.classificacao_grade:
+                cat = bag.classificacao_grade.categoria
+                cat_lower = cat.lower() if cat else ''
+                bag_dict['categoria_exibicao'] = cat
+                categoria_nomes = {
+                    'high_grade': 'High',
+                    'high': 'High',
+                    'mid_grade': 'MG1',
+                    'mid_grade_1': 'MG1',
+                    'mg1': 'MG1',
+                    'mid_grade_2': 'MG2',
+                    'mg2': 'MG2',
+                    'low_grade': 'Low',
+                    'low': 'Low',
+                    'residuo': 'Residuo'
+                }
+                bag_dict['categoria_nome'] = categoria_nomes.get(cat_lower, cat.replace('_', ' ').title())
+            
             resultado.append(bag_dict)
 
         return jsonify(resultado)

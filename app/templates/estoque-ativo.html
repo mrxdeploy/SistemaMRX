@@ -296,7 +296,7 @@
                                 <i class="fas fa-box"></i> ${lote.numero_lote}
                             </h4>
                             <p style="margin: 0; font-size: 0.875rem; color: var(--gray-600);">
-                                ${lote.observacoes && lote.observacoes.startsWith('MATERIAL_MANUAL:') ? lote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').trim() : (lote.tipo_lote_nome || 'Tipo não especificado')}
+                                ${lote.observacoes && (lote.observacoes.startsWith('MATERIAL:') || lote.observacoes.startsWith('MATERIAL_MANUAL:')) ? lote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').replace('MATERIAL:', '').trim() : (lote.tipo_lote_nome || 'Tipo não especificado')}
                             </p>
                         </div>
                         <span class="badge ${getBadgeClassLote(lote.status)}">${getStatusLabelLote(lote.status)}</span>
@@ -327,7 +327,7 @@
                                                 <strong style="color: var(--primary-color);">${sublote.numero_lote}</strong>
                                             </div>
                                             <div style="font-size: 0.8rem; color: var(--gray-700); margin-left: 2rem;">
-                                                <i class="fas fa-tag"></i> <strong>Material:</strong> ${sublote.observacoes && sublote.observacoes.startsWith('MATERIAL_MANUAL:') ? sublote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').trim() : (sublote.tipo_lote_nome || 'N/A')}
+                                                <i class="fas fa-tag"></i> <strong>Material:</strong> ${sublote.observacoes && (sublote.observacoes.startsWith('MATERIAL:') || sublote.observacoes.startsWith('MATERIAL_MANUAL:')) ? sublote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').replace('MATERIAL:', '').trim() : (sublote.tipo_lote_nome || 'N/A')}
                                             </div>
                                             <div style="font-size: 0.8rem; color: var(--gray-700); margin-left: 2rem;">
                                                 <i class="fas fa-weight"></i> <strong>Peso:</strong> <span style="color: var(--success-color); font-weight: bold;">${parseFloat(sublote.peso_liquido || sublote.peso_total_kg || 0).toFixed(2)} kg</span>
@@ -407,30 +407,81 @@
                 container.innerHTML = '<div class="card" style="text-align: center; color: var(--gray-500);"><i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 0.5rem;"></i><br>Nenhum bag encontrado no estoque</div>';
                 return;
             }
+            
+            // Cores para categorias
+            const categoriaCores = {
+                'HIGH_GRADE': '#FFD700',
+                'high': '#FFD700',
+                'MID_GRADE': '#3B82F6',
+                'MID_GRADE_1': '#3B82F6',
+                'mg1': '#3B82F6',
+                'MG1': '#3B82F6',
+                'MID_GRADE_2': '#8B5CF6',
+                'mg2': '#8B5CF6',
+                'MG2': '#8B5CF6',
+                'LOW_GRADE': '#10B981',
+                'low': '#10B981',
+                'RESIDUO': '#6B7280'
+            };
+            
+            const categoriaNomes = {
+                'HIGH_GRADE': 'High',
+                'high': 'High',
+                'MID_GRADE': 'MG1',
+                'MID_GRADE_1': 'MG1',
+                'mg1': 'MG1',
+                'MG1': 'MG1',
+                'MID_GRADE_2': 'MG2',
+                'mg2': 'MG2',
+                'MG2': 'MG2',
+                'LOW_GRADE': 'Low',
+                'low': 'Low',
+                'RESIDUO': 'Resíduo'
+            };
 
             container.innerHTML = bags.map(bag => {
                 const temItens = bag.itens && bag.itens.length > 0;
                 const origemTexto = bag.origem_lotes ? 'Origem: Lotes separados' : 'Origem: Criado manualmente';
+                const corCategoria = categoriaCores[bag.categoria_exibicao] || 'var(--primary-color)';
+                const nomeCategoria = categoriaNomes[bag.categoria_exibicao] || getCategoriaLabel(bag.categoria_exibicao) || bag.classificacao_nome || 'Sem classificação';
+                
+                // Renderizar breakdown de itens
+                let itensBreakdownHtml = '';
+                if (bag.itens_por_classificacao && bag.itens_por_classificacao.length > 0) {
+                    itensBreakdownHtml = `
+                        <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--gray-200);">
+                            <p style="font-size: 0.7rem; color: var(--gray-500); margin-bottom: 0.5rem; text-transform: uppercase;">Detalhamento:</p>
+                            ${bag.itens_por_classificacao.map(item => `
+                                <div style="display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.8rem;">
+                                    <span>${item.nome}</span>
+                                    <span style="font-weight: bold;">${item.peso_total_kg.toFixed(2)} kg</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+                
                 return `
-                <div class="card bag-card ${bag.status}" id="bag-${bag.id}">
+                <div class="card bag-card ${bag.status}" id="bag-${bag.id}" style="border-left-color: ${corCategoria};">
                     <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 0.5rem;">
                         <div>
-                            <h4 style="margin: 0 0 0.25rem 0; color: var(--primary-color);">
-                                <i class="fas fa-box"></i> ${bag.codigo}
-                            </h4>
-                            <p style="margin: 0; font-size: 0.875rem; color: var(--gray-600);">
-                                ${bag.classificacao_nome || 'Sem classificação'}
-                                ${bag.categorias_mistas ? '<span class="badge badge-warning" style="margin-left: 0.5rem; font-size: 0.65rem;">Misto</span>' : ''}
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${corCategoria};"></span>
+                                <h4 style="margin: 0; color: var(--primary-color);">${nomeCategoria}</h4>
+                            </div>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--gray-500);">
+                                ${bag.codigo}
+                                ${bag.categorias_mistas ? '<span class="badge badge-warning" style="margin-left: 0.5rem; font-size: 0.6rem;">Misto</span>' : ''}
                             </p>
                         </div>
                         <span class="badge ${getBagBadgeClass(bag.status)}">${getBagStatusLabel(bag.status)}</span>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem; margin-top: 1rem; font-size: 0.875rem;">
-                        <div><strong>Tipo Material:</strong> ${getCategoriaLabel(bag.categoria_exibicao)}</div>
-                        <div><strong>Peso:</strong> ${parseFloat(bag.peso_acumulado || 0).toFixed(2)} kg</div>
+                        <div><strong>Peso Total:</strong> ${parseFloat(bag.peso_acumulado || 0).toFixed(2)} kg</div>
                         <div><strong>Itens:</strong> ${bag.quantidade_itens || 0}</div>
                     </div>
-                    <div style="font-size: 0.8rem; color: var(--gray-500); margin-top: 0.5rem;">
+                    ${itensBreakdownHtml}
+                    <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.5rem;">
                         <i class="fas fa-info-circle"></i> ${origemTexto}
                     </div>
                     ${temItens ? `
