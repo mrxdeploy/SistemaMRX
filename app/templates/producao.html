@@ -181,7 +181,6 @@
                     <select id="opOrigemTipo" onchange="atualizarOrigemOP()" required>
                         <option value="">Selecione...</option>
                         <option value="estoque_materiais">Materiais em Estoque</option>
-                        <option value="lote">Lote do Estoque</option>
                         <option value="fornecedor">Fornecedor Direto</option>
                         <option value="outro">Outro</option>
                     </select>
@@ -998,7 +997,7 @@
                 }
 
                 const dados = {
-                    origem_tipo: origemTipo === 'lote' ? 'estoque' : origemTipo,
+                    origem_tipo: (origemTipo === 'lote' || origemTipo === 'estoque_materiais') ? 'estoque' : origemTipo,
                     fornecedor_id: fornecedoresIds.length > 0 ? fornecedoresIds[0] : null,
                     lote_origem_id: lotesIds.length > 0 ? lotesIds[0] : null,
                     lotes_ids: lotesIds,
