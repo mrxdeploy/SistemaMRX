@@ -715,13 +715,22 @@ def atualizar_comprador_fornecedor(id):
 @bp.route('/compradores', methods=['GET'])
 @admin_required
 def listar_compradores():
-    perfil_comprador = Perfil.query.filter(Perfil.nome.ilike('%comprador%')).first()
+    perfis_comprador = Perfil.query.filter(
+        db.or_(
+            Perfil.nome.ilike('%comprador%'),
+            Perfil.nome.ilike('%gestor%'),
+            Perfil.nome.ilike('%producao%'),
+            Perfil.nome.ilike('%produção%')
+        )
+    ).all()
     
-    if perfil_comprador:
+    ids_perfis = [p.id for p in perfis_comprador]
+    
+    if ids_perfis:
         compradores = Usuario.query.filter(
             Usuario.ativo == True,
             db.or_(
-                Usuario.perfil_id == perfil_comprador.id,
+                Usuario.perfil_id.in_(ids_perfis),
                 Usuario.tipo == 'admin'
             )
         ).order_by(Usuario.nome).all()

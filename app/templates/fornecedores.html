@@ -886,7 +886,9 @@
                 if (!response || !response.ok) return;
 
                 const usuarios = await response.json();
-                listaCompradores = usuarios.filter(u => u.perfil_nome && u.perfil_nome.includes('Comprador'));
+                // Permitir Compradores, Gestores e Produção
+                const perfisPermitidos = ['Comprador', 'Gestor', 'Producao', 'Produção'];
+                listaCompradores = usuarios.filter(u => u.perfil_nome && perfisPermitidos.some(p => u.perfil_nome.includes(p)));
 
                 const select = document.getElementById('compradorResponsavelId');
                 if (select) {

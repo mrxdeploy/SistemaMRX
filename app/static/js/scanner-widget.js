@@ -15,7 +15,8 @@ function initScannerWidget() {
         return;
     }
 
-    if (!isUserAdmin()) {
+    // Mostrar para todos exceto Auditoria / BI
+    if (currentUser.perfil_nome === 'Auditoria / BI') {
         return;
     }
 
