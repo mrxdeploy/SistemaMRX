@@ -178,6 +178,25 @@ def create_app():
                         perfil.ativo = True
                         db.session.commit()
                         print(f"Activated existing profile '{perfil_nome}'.")
+                
+                # Check / Create 'Gestor'
+                gestor_nome = 'Gestor'
+                perfil_gestor = Perfil.query.filter_by(nome=gestor_nome).first()
+                if not perfil_gestor:
+                    print(f"Creating profile '{gestor_nome}'...")
+                    novo_gestor = Perfil(
+                        nome=gestor_nome,
+                        descricao='Perfil de gestão com acesso a compras, fornecedores, estoque ativo e WMS',
+                        permissoes={'visualizar_producao': True, 'visualizar_estoque': True},
+                        ativo=True
+                    )
+                    db.session.add(novo_gestor)
+                    db.session.commit()
+                else:
+                    if not perfil_gestor.ativo:
+                        perfil_gestor.ativo = True
+                        db.session.commit()
+                        print(f"Activated existing profile '{gestor_nome}'.")
 
             except Exception as e:
                 print(f"Profiles migration error: {e}")

@@ -59,10 +59,15 @@ def verificar_acesso_fornecedor(fornecedor_id, usuario_id):
     # 1. For o comprador responsável (comprador_responsavel_id)
     # 2. Foi quem criou o fornecedor (criado_por_id)
     # 3. Tem tabela de preços aprovada (para criar solicitações)
+    
+    # Perfis com permissão total sobre fornecedores
+    perfis_permitidos = ['Comprador (PJ)', 'Financeiro', 'Administrador', 'Producao', 'Produção', 'Gestor']
+    perfil_nome = usuario.perfil.nome if usuario.perfil else None
+
     tem_acesso = (
         fornecedor.comprador_responsavel_id == usuario_id or 
         fornecedor.criado_por_id == usuario_id or
-        (usuario.perfil and usuario.perfil.nome in ['Comprador (PJ)', 'Producao', 'Produção'])
+        (perfil_nome in perfis_permitidos)
     )
     
     return tem_acesso

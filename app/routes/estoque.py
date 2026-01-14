@@ -189,7 +189,7 @@ def criar_movimentacao():
         usuario = Usuario.query.get(usuario_id)
 
         perfil_nome = usuario.perfil.nome if usuario.perfil else None
-        if perfil_nome not in ['Conferente / Estoque', 'Administrador', 'Producao', 'Produção'] and usuario.tipo != 'admin':
+        if perfil_nome not in ['Conferente / Estoque', 'Administrador', 'Producao', 'Produção', 'Gestor'] and usuario.tipo != 'admin':
             return jsonify({'erro': 'Acesso negado. Apenas conferentes e administradores podem movimentar estoque'}), 403
 
         data = request.get_json()

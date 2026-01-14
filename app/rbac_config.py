@@ -76,6 +76,43 @@ PERFIL_CONFIG = {
             {'id': 'fornecedores', 'nome': 'Fornecedores', 'url': '/fornecedores.html', 'icone': 'business'}
         ]
     },
+    'Gestor': {
+        'tela_inicial': '/solicitacoes.html',
+        'rotas_api_permitidas': [
+            '/api/solicitacoes',
+            '/api/fornecedores',
+            '/api/tipos-lote',
+            '/api/notificacoes',
+            '/api/fornecedor-tabela-precos',
+            '/api/materiais-base',
+            '/api/lotes',
+            '/api/estoque',
+            '/api/estoque-ativo',
+            '/api/producao',
+            '/api/wms',
+            '/api/entradas'
+        ],
+        'paginas_permitidas': [
+            '/solicitacoes.html',
+            '/fornecedores.html',
+            '/fornecedores-lista.html',
+            '/notificacoes.html',
+            '/compras.html',
+            '/fornecedor-tabela-precos.html',
+            '/estoque-ativo.html',
+            '/lotes.html',
+            '/lotes-detalhes.html',
+            '/separacao-workflow.html',
+            '/producao.html',
+            '/producao-ordem.html'
+        ],
+        'menus': [
+            {'id': 'solicitacoes', 'nome': 'Compra', 'url': '/solicitacoes.html', 'icone': 'request_quote'},
+            {'id': 'fornecedores', 'nome': 'Fornecedores', 'url': '/fornecedores.html', 'icone': 'business'},
+            {'id': 'estoque-ativo', 'nome': 'Estoque Ativo', 'url': '/estoque-ativo.html', 'icone': 'warehouse'},
+            {'id': 'wms', 'nome': 'WMS', 'url': '/lotes.html', 'icone': 'inventory_2'}
+        ]
+    },
     'Conferente / Estoque': {
         'tela_inicial': '/entradas.html',
         'rotas_api_permitidas': [
