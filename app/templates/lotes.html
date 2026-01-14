@@ -989,7 +989,7 @@
                     return `
                         <tr onclick="verDetalhesLote(${lote.id})" style="cursor: pointer;">
                             <td><strong>${lote.numero_lote}</strong></td>
-                            <td>${lote.observacoes && lote.observacoes.startsWith('MATERIAL_MANUAL:') ? lote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').trim() : (lote.tipo_lote_nome || '—')}</td>
+                            <td>${lote.observacoes && (lote.observacoes.startsWith('MATERIAL:') || lote.observacoes.startsWith('MATERIAL_MANUAL:')) ? lote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').replace('MATERIAL:', '').trim() : (lote.tipo_lote_nome || '—')}</td>
                             <td>${lote.peso_total_kg.toFixed(2)}</td>
                             <td>${lote.fornecedor_nome || '—'}</td>
                             <td>${origem}</td>

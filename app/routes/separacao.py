@@ -159,8 +159,8 @@ def criar_sublote(id):
         if not data or not data.get('peso'):
             return jsonify({'erro': 'peso é obrigatório'}), 400
 
-        if not data.get('tipo_lote_id') and not data.get('tipo_lote_nome'):
-            return jsonify({'erro': 'tipo_lote_id ou tipo_lote_nome é obrigatório'}), 400
+        if not data.get('material_id') and not data.get('tipo_lote_id') and not data.get('tipo_lote_nome'):
+            return jsonify({'erro': 'material_id ou tipo_lote_id ou tipo_lote_nome é obrigatório'}), 400
 
         separacao = LoteSeparacao.query.get(id)
         if not separacao:
@@ -201,9 +201,31 @@ def criar_sublote(id):
 
         tipo_lote_id = data.get('tipo_lote_id')
         tipo_lote_nome = data.get('tipo_lote_nome')
+        material_nome = data.get('material_nome') or tipo_lote_nome
 
-        # Se for material manual, tenta encontrar ou criar o tipo de material
-        if data.get('is_manual') and tipo_lote_nome:
+        # NOVO FLUXO: Se material_id foi fornecido, usar para buscar um TipoLote correspondente
+        if data.get('material_id'):
+            from app.models import TipoLote, MaterialBase
+            material = MaterialBase.query.get(data['material_id'])
+            if material:
+                material_nome = material.nome
+                # Tenta encontrar um TipoLote com o mesmo nome do material
+                tipo_lote = TipoLote.query.filter_by(nome=material.nome).first()
+                if tipo_lote:
+                    tipo_lote_id = tipo_lote.id
+                else:
+                    # Buscar tipo genérico como fallback
+                    generico = TipoLote.query.filter(TipoLote.nome.ilike('%generico%')).first() or \
+                               TipoLote.query.filter(TipoLote.nome.ilike('%outros%')).first()
+                    if generico:
+                        tipo_lote_id = generico.id
+                    else:
+                        tipo_lote_id = lote_pai.tipo_lote_id
+            else:
+                return jsonify({'erro': f'Material com ID {data["material_id"]} não encontrado'}), 404
+
+        # FLUXO LEGADO: Se for material manual, tenta encontrar ou criar o tipo de material
+        elif data.get('is_manual') and tipo_lote_nome:
             from app.models import TipoLote
             tipo_lote = TipoLote.query.filter_by(nome=tipo_lote_nome).first()
             if tipo_lote:
@@ -221,12 +243,12 @@ def criar_sublote(id):
                 tipo_lote_id = tipo_lote.id
         
         # Se ainda assim estiver nulo e NÃO for manual, tenta usar o tipo do lote pai
-        if not tipo_lote_id and not data.get('is_manual'):
+        if not tipo_lote_id and not data.get('is_manual') and not data.get('material_id'):
             tipo_lote_id = lote_pai.tipo_lote_id
 
         # Se for manual e ainda não tiver ID, precisamos de um ID válido para o modelo Lote
         # Vamos buscar um tipo de lote "Genérico" ou "Outros" se existir, ou usar o do pai como fallback técnico
-        if not tipo_lote_id and data.get('is_manual'):
+        if not tipo_lote_id and (data.get('is_manual') or data.get('material_id')):
             # Tenta buscar um tipo genérico primeiro
             from app.models import TipoLote
             generico = TipoLote.query.filter(TipoLote.nome.ilike('%generico%')).first() or \
@@ -249,7 +271,7 @@ def criar_sublote(id):
             status='CRIADO_SEPARACAO',
             lote_pai_id=lote_pai.id,  # Vincula ao lote pai
             quantidade_itens=data.get('quantidade', 1),
-            observacoes=f"MATERIAL_MANUAL:{tipo_lote_nome} | {data.get('observacoes', '')}" if data.get('is_manual') else data.get('observacoes', ''),
+            observacoes=f"MATERIAL:{material_nome} | {data.get('observacoes', '')}" if material_nome else data.get('observacoes', ''),
             anexos=data.get('fotos', []),
             auditoria=[{
                 'acao': 'SUBLOTE_CRIADO_NA_SEPARACAO',
