@@ -391,7 +391,8 @@ def obter_resumo_compra():
             MaterialBase.nome,
             MaterialBase.classificacao,
             func.sum(ItemSolicitacao.peso_kg).label('peso_total'),
-            func.sum(ItemSolicitacao.preco_por_kg_snapshot * ItemSolicitacao.peso_kg).label('valor_total')
+            func.sum(ItemSolicitacao.preco_por_kg_snapshot * ItemSolicitacao.peso_kg).label('valor_total'),
+            func.sum(ItemSolicitacao.preco_por_kg_snapshot).label('soma_precos_unitarios')
         ).join(
             ItemSolicitacao.material
         ).join(
@@ -414,7 +415,7 @@ def obter_resumo_compra():
         
         # Estruturar por classificação (high, mg1, mg2, low)
         dados = {}
-        for mat_id, mat_codigo, mat_nome, mat_classif, peso, valor in resultados:
+        for mat_id, mat_codigo, mat_nome, mat_classif, peso, valor, soma_precos in resultados:
             cat_key = mat_classif.upper() if mat_classif else 'OUTROS'
             
             if cat_key not in dados:
@@ -427,7 +428,12 @@ def obter_resumo_compra():
             
             p = float(peso or 0)
             v = float(valor or 0)
-            media = round(v / p, 2) if p > 0 else 0.0
+            sp = float(soma_precos or 0)
+            
+            # Cálculo específico solicitado pelo usuário:
+            # (Peso1*Preco1 + Peso2*Preco2) / (Preco1 + Preco2)
+            # Ou seja: Solma Valor Total / Soma Preços Unitários
+            media = round(v / sp, 2) if sp > 0 else 0.0
             
             dados[cat_key]['peso_total'] += p
             dados[cat_key]['total_valor'] += v
@@ -461,8 +467,10 @@ def obter_resumo_compra():
                 }
                 item['categoria_label'] = labels.get(cat_key, cat_key.title())
                 
-                # Calcular média geral da categoria
-                item['media_geral'] = round(item['total_valor'] / item['peso_total'], 2) if item['peso_total'] > 0 else 0.0
+                # Calcular média geral da categoria conforme fórmula solicitada:
+                # Média Geral = (Soma das Médias de todos os itens) / (Peso Total da Categoria)
+                soma_medias_itens = sum(mat['media_preco'] for mat in item['materiais'])
+                item['media_geral'] = round(soma_medias_itens / item['peso_total'], 2) if item['peso_total'] > 0 else 0.0
                 item['show_prices'] = True
                 
                 lista_final.append(item)
