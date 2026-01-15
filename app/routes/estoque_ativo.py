@@ -341,10 +341,18 @@ def obter_resumo_estoque():
             
             # Adicionar flag de admin/gestor e calcular média geral da categoria
             item['show_prices'] = is_admin_or_gestor
-            if is_admin_or_gestor and item['peso_total'] > 0:
-                item['media_geral'] = round(item['total_valor'] / item['peso_total'], 2) if item['total_valor'] > 0 else 0.0
+            if is_admin_or_gestor:
+                if item['peso_total'] > 0:
+                    item['media_geral'] = round(item['total_valor'] / item['peso_total'], 2) if item['total_valor'] > 0 else 0.0
+                else:
+                    item['media_geral'] = 0.0
+                
+                # Calcular soma das médias (solicitado pelo usuário)
+                item['soma_medias'] = sum(cls.get('media_preco', 0) for cls in item['classificacoes'])
+                item['soma_medias'] = round(item['soma_medias'], 2)
             else:
                 item['media_geral'] = 0.0
+                item['soma_medias'] = 0.0
             
             lista_final.append(item)
             
