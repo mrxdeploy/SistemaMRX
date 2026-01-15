@@ -1,7 +1,8 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import db, Lote, BagProducao, ItemSeparadoProducao, ClassificacaoGrade
+from app.models import db, Lote, BagProducao, ItemSeparadoProducao, ClassificacaoGrade, ItemSolicitacao, MaterialBase, Usuario
 from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy import func
 import logging
 
 logger = logging.getLogger(__name__)
@@ -259,6 +260,11 @@ def obter_itens_bag(bag_id):
 @jwt_required()
 def obter_resumo_estoque():
     try:
+        # Verificar se usuário é admin ou gestor para retornar dados de preço
+        current_user_id = get_jwt_identity()
+        usuario = Usuario.query.get(current_user_id)
+        is_admin_or_gestor = usuario and usuario.tipo in ['admin', 'gestor']
+        
         # Calcular somatório por classificação/categoria
         # Filtra apenas bags ativos que contam como estoque
         bags_ativos = ['devolvido_estoque', 'cheio', 'aberto', 'enviado_refinaria']
@@ -278,6 +284,33 @@ def obter_resumo_estoque():
             ClassificacaoGrade.nome
         ).all()
         
+        # Calcular médias de preço por classificação do material (apenas se admin/gestor)
+        precos_por_classificacao = {}
+        if is_admin_or_gestor:
+            # Buscar ItemSolicitacao com preco_por_kg_snapshot agrupado por classificação do material
+            # Calcula média ponderada: SUM(preco * peso) / SUM(peso)
+            precos_query = db.session.query(
+                MaterialBase.classificacao,
+                func.sum(ItemSolicitacao.preco_por_kg_snapshot * ItemSolicitacao.peso_kg).label('valor_total'),
+                func.sum(ItemSolicitacao.peso_kg).label('peso_total')
+            ).join(
+                ItemSolicitacao.material
+            ).filter(
+                ItemSolicitacao.preco_por_kg_snapshot.isnot(None),
+                ItemSolicitacao.preco_por_kg_snapshot > 0,
+                ItemSolicitacao.peso_kg > 0
+            ).group_by(
+                MaterialBase.classificacao
+            ).all()
+            
+            for classif, valor_total, peso_total in precos_query:
+                if classif and peso_total and peso_total > 0:
+                    precos_por_classificacao[classif.lower()] = {
+                        'media_preco': float(valor_total) / float(peso_total),
+                        'total_valor': float(valor_total),
+                        'total_peso_comprado': float(peso_total)
+                    }
+        
         # Estruturar resposta
         dados = {}
         for cat, classif, peso in resultados:
@@ -286,15 +319,32 @@ def obter_resumo_estoque():
                 dados[cat_key] = {
                     'categoria': cat_key,
                     'peso_total': 0.0,
+                    'total_valor': 0.0,
                     'classificacoes': []
                 }
             
             p = float(peso or 0)
             dados[cat_key]['peso_total'] += p
-            dados[cat_key]['classificacoes'].append({
+            
+            # Buscar dados de preço para esta classificação
+            classif_data = {
                 'nome': classif,
                 'peso': p
-            })
+            }
+            
+            if is_admin_or_gestor:
+                # Tentar encontrar preço para esta classificação
+                classif_lower = classif.lower() if classif else ''
+                preco_info = precos_por_classificacao.get(classif_lower)
+                if preco_info:
+                    classif_data['media_preco'] = round(preco_info['media_preco'], 2)
+                    classif_data['total_valor'] = round(preco_info['total_valor'], 2)
+                    dados[cat_key]['total_valor'] += preco_info['total_valor']
+                else:
+                    classif_data['media_preco'] = 0.0
+                    classif_data['total_valor'] = 0.0
+            
+            dados[cat_key]['classificacoes'].append(classif_data)
             
         # Ordenar e formatar para lista (Categoria > Maior Peso Total)
         lista_final = []
@@ -315,10 +365,19 @@ def obter_resumo_estoque():
             }
             item['categoria_label'] = labels.get(cat_lower, cat_key.replace('_', ' ').title())
             
+            # Adicionar flag de admin/gestor e calcular média geral da categoria
+            item['show_prices'] = is_admin_or_gestor
+            if is_admin_or_gestor and item['peso_total'] > 0:
+                item['media_geral'] = round(item['total_valor'] / item['peso_total'], 2) if item['total_valor'] > 0 else 0.0
+            else:
+                item['media_geral'] = 0.0
+            
             lista_final.append(item)
             
         return jsonify(lista_final)
 
     except Exception as e:
         logger.error(f'Erro ao obter resumo: {str(e)}')
+        import traceback
+        traceback.print_exc()
         return jsonify({'erro': str(e)}), 500

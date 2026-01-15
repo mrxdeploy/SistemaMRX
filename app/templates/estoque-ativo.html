@@ -226,7 +226,7 @@
                 </h3>
                 <div class="table-container">
                     <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
+                        <thead id="tabelaResumoHead">
                             <tr style="background: var(--gray-100); text-align: left;">
                                 <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Classificação</th>
                                 <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Categoria</th>
@@ -448,11 +448,44 @@
                 'Resíduo': '#6B7280'
             };
 
+            // Labels SUCATA por categoria
+            const sucataLabels = {
+                'High Grade': 'SUCATA DE CIRCUITO H',
+                'MG1': 'SUCATA DE CIRCUITO M',
+                'MG2': 'SUCATA DE CIRCUITO M',
+                'Low Grade': 'SUCATA DE CIRCUITO L',
+                'Resíduo': 'SUCATA RESÍDUO'
+            };
+
+            // Verificar se deve mostrar preços (baseado no primeiro item)
+            const showPrices = dados && dados.length > 0 && dados[0].show_prices;
+
+            // Atualizar cabeçalho da tabela condicionalmente
+            const thead = document.getElementById('tabelaResumoHead');
+            if (showPrices) {
+                thead.innerHTML = `
+                    <tr style="background: var(--gray-100); text-align: left;">
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Classificação</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Categoria</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right;">Peso Total</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #8b5cf6;">Média R$/kg</th>
+                    </tr>
+                `;
+            } else {
+                thead.innerHTML = `
+                    <tr style="background: var(--gray-100); text-align: left;">
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Classificação</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Categoria</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right;">Peso Total</th>
+                    </tr>
+                `;
+            }
+
             // Renderizar Cards
             const grid = document.getElementById('resumoGrid');
             if(!dados || dados.length === 0) {
                 grid.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center;">Nenhum dado encontrado</div>';
-                document.getElementById('tabelaResumoBody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1rem;">Nenhum registro</td></tr>';
+                document.getElementById('tabelaResumoBody').innerHTML = `<tr><td colspan="${showPrices ? 4 : 3}" style="text-align:center; padding: 1rem;">Nenhum registro</td></tr>`;
                 return;
             }
 
@@ -467,6 +500,11 @@
                         <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
                             ${cat.classificacoes.length} classificações
                         </div>
+                        ${showPrices && cat.media_geral > 0 ? `
+                            <div style="font-size: 0.85rem; color: #8b5cf6; margin-top: 0.5rem; font-weight: bold;">
+                                <i class="fas fa-coins"></i> R$ ${cat.media_geral.toFixed(2)}/kg
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }).join('');
@@ -474,45 +512,97 @@
             // Renderizar Seções separadas por categoria
             const tbody = document.getElementById('tabelaResumoBody');
             let rows = '';
+            const colSpan = showPrices ? 4 : 3;
+            
             dados.forEach((cat, index) => {
                 const corCategoria = categoriaCores[cat.categoria_label] || 'var(--primary-color)';
+                const sucataLabel = sucataLabels[cat.categoria_label] || `SUCATA ${cat.categoria_label.toUpperCase()}`;
                 
                 // Espaço entre seções (exceto a primeira)
                 if (index > 0) {
-                    rows += `<tr><td colspan="3" style="padding: 1rem; background: transparent;"></td></tr>`;
+                    rows += `<tr><td colspan="${colSpan}" style="padding: 1rem; background: transparent;"></td></tr>`;
                 }
                 
                 // Cabeçalho de categoria estilizado
                 rows += `
                     <tr style="background: linear-gradient(135deg, ${corCategoria}15, ${corCategoria}08); border-left: 4px solid ${corCategoria};">
-                        <td colspan="3" style="padding: 0.75rem 1rem; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
+                        <td colspan="${colSpan}" style="padding: 0.75rem 1rem; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
                             <i class="fas fa-layer-group" style="margin-right: 0.5rem;"></i> ${cat.categoria_label}
                         </td>
                     </tr>
                 `;
                 
+                // Calcular soma das médias
+                let somaMedias = 0;
+                
                 // Itens da categoria
                 cat.classificacoes.forEach(cls => {
-                    rows += `
-                        <tr style="border-bottom: 1px solid var(--gray-200); border-left: 4px solid ${corCategoria}20;">
-                            <td style="padding: 0.75rem 0.75rem 0.75rem 2rem;">${cls.nome}</td>
-                            <td style="padding: 0.75rem;">${cat.categoria_label}</td>
-                            <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${cls.peso.toFixed(2)} kg</td>
-                        </tr>
-                    `;
+                    if (showPrices) {
+                        somaMedias += cls.media_preco || 0;
+                        rows += `
+                            <tr style="border-bottom: 1px solid var(--gray-200); border-left: 4px solid ${corCategoria}20;">
+                                <td style="padding: 0.75rem 0.75rem 0.75rem 2rem;">${cls.nome}</td>
+                                <td style="padding: 0.75rem;">${cat.categoria_label}</td>
+                                <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${cls.peso.toFixed(2)} kg</td>
+                                <td style="padding: 0.75rem; text-align: right; color: #8b5cf6; font-weight: bold;">R$ ${(cls.media_preco || 0).toFixed(2)}</td>
+                            </tr>
+                        `;
+                    } else {
+                        rows += `
+                            <tr style="border-bottom: 1px solid var(--gray-200); border-left: 4px solid ${corCategoria}20;">
+                                <td style="padding: 0.75rem 0.75rem 0.75rem 2rem;">${cls.nome}</td>
+                                <td style="padding: 0.75rem;">${cat.categoria_label}</td>
+                                <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${cls.peso.toFixed(2)} kg</td>
+                            </tr>
+                        `;
+                    }
                 });
                 
-                // Subtotal da categoria
-                rows += `
-                    <tr style="background: ${corCategoria}15; border-left: 4px solid ${corCategoria}; border-top: 2px solid ${corCategoria}40;">
-                        <td colspan="2" style="padding: 0.75rem 1rem; font-weight: bold; color: ${corCategoria};">
-                            <i class="fas fa-calculator" style="margin-right: 0.5rem;"></i> Total ${cat.categoria_label}
-                        </td>
-                        <td style="padding: 0.75rem 1rem; text-align: right; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
-                            ${cat.peso_total.toFixed(2)} kg
-                        </td>
-                    </tr>
-                `;
+                // Subtotal da categoria - aprimorado para admin/gestor
+                if (showPrices) {
+                    const totalValor = cat.total_valor || 0;
+                    const mediaGeral = cat.media_geral || 0;
+                    
+                    rows += `
+                        <tr style="background: ${corCategoria}15; border-left: 4px solid ${corCategoria}; border-top: 2px solid ${corCategoria}40;">
+                            <td colspan="${colSpan}" style="padding: 0;">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem; padding: 0.75rem 1rem;">
+                                    <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
+                                        <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Tipo</div>
+                                        <div style="font-weight: bold; color: ${corCategoria}; font-size: 0.9rem;">${sucataLabel}</div>
+                                    </div>
+                                    <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
+                                        <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Peso Total</div>
+                                        <div style="font-weight: bold; color: ${corCategoria}; font-size: 1rem;">${cat.peso_total.toFixed(2)} kg</div>
+                                    </div>
+                                    <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
+                                        <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Σ Médias</div>
+                                        <div style="font-weight: bold; color: #8b5cf6; font-size: 1rem;">R$ ${somaMedias.toFixed(2)}</div>
+                                    </div>
+                                    <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
+                                        <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Valor Pago</div>
+                                        <div style="font-weight: bold; color: #059669; font-size: 1rem;">R$ ${totalValor.toFixed(2)}</div>
+                                    </div>
+                                    <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
+                                        <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Média/kg</div>
+                                        <div style="font-weight: bold; color: #8b5cf6; font-size: 1rem;">R$ ${mediaGeral.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    rows += `
+                        <tr style="background: ${corCategoria}15; border-left: 4px solid ${corCategoria}; border-top: 2px solid ${corCategoria}40;">
+                            <td colspan="2" style="padding: 0.75rem 1rem; font-weight: bold; color: ${corCategoria};">
+                                <i class="fas fa-calculator" style="margin-right: 0.5rem;"></i> Total ${cat.categoria_label}
+                            </td>
+                            <td style="padding: 0.75rem 1rem; text-align: right; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
+                                ${cat.peso_total.toFixed(2)} kg
+                            </td>
+                        </tr>
+                    `;
+                }
             });
             tbody.innerHTML = rows;
         }
