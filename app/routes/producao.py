@@ -279,9 +279,13 @@ def criar_ordem():
             peso_total_lotes = Decimal('0')
             for lote_id in lotes_ids:
                 lote = Lote.query.get(lote_id)
-                if lote and lote.peso_liquido:
-                    peso_total_lotes += Decimal(str(lote.peso_liquido))
-            if peso_total_lotes > 0:
+                if lote:
+                    peso_atual = lote.peso_liquido if lote.peso_liquido is not None else lote.peso_total_kg
+                    if peso_atual:
+                        peso_total_lotes += Decimal(str(peso_atual))
+            
+            # Apenas define peso_entrada automaticamente se o usuário não informou (ou informou 0)
+            if peso_entrada == 0 and peso_total_lotes > 0:
                 peso_entrada = peso_total_lotes
 
         ordem = OrdemProducao(
@@ -311,21 +315,29 @@ def criar_ordem():
             lotes_para_deduzir = []
             for lote_id in lotes_ids:
                 lote = Lote.query.get(lote_id)
-                if lote and lote.peso_liquido:
-                    peso_total_disponivel += Decimal(str(lote.peso_liquido))
-                    lotes_para_deduzir.append(lote)
+                if lote:
+                    peso_atual = lote.peso_liquido if lote.peso_liquido is not None else lote.peso_total_kg
+                    if peso_atual:
+                        peso_total_disponivel += Decimal(str(peso_atual))
+                        lotes_para_deduzir.append(lote)
             
             # Se peso_entrada é menor que peso_total_disponivel, deduzir proporcionalmente
+            # Usar uma tolerância pequena para evitar erros de ponto flutuante na comparação de igualdade se necessário
             if peso_entrada < peso_total_disponivel and peso_total_disponivel > 0:
                 # Deduzir proporcionalmente de cada lote
-                peso_restante_a_deduzir = peso_entrada
                 for lote in lotes_para_deduzir:
-                    peso_lote = Decimal(str(lote.peso_liquido))
+                    peso_atual_lote = Decimal(str(lote.peso_liquido if lote.peso_liquido is not None else lote.peso_total_kg))
+                    
                     # Calcular quanto deduzir deste lote (proporcional)
-                    proporcao = peso_lote / peso_total_disponivel
+                    proporcao = peso_atual_lote / peso_total_disponivel
                     peso_a_deduzir_lote = peso_entrada * proporcao
                     
-                    novo_peso = peso_lote - peso_a_deduzir_lote
+                    novo_peso = peso_atual_lote - peso_a_deduzir_lote
+                    
+                    # Garantir precisão e evitar valores negativos minúsculos
+                    if novo_peso < Decimal('0.001'): 
+                        novo_peso = Decimal('0')
+
                     if novo_peso <= 0:
                         # Lote foi completamente consumido
                         lote.status = 'em_producao'
@@ -335,10 +347,11 @@ def criar_ordem():
                         # Lote ainda tem peso restante - permanece disponível
                         lote.peso_liquido = novo_peso
                         logger.info(f'Lote {lote.numero_lote}: deduzido {float(peso_a_deduzir_lote):.2f}kg, restante: {float(novo_peso):.2f}kg')
-            else:
-                # Consumir todos os lotes completamente
+            elif peso_total_disponivel > 0:
+                # Consumir todos os lotes completamente (Entrada >= Total Disponível / ou igual)
                 for lote in lotes_para_deduzir:
                     lote.status = 'em_producao'
+                    lote.peso_liquido = Decimal('0')
                     logger.info(f'Lote {lote.numero_lote} marcado como em_producao para OP {numero_op}')
         
         db.session.commit()
