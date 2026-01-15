@@ -1653,13 +1653,61 @@
                                             ${item.material_codigo ? `<span style="background: var(--gray-100); padding: 2px 6px; border-radius: 4px;">${item.material_codigo}</span>` : ''}
                                             ${item.lote_numero ? `<span style="margin-left: 0.5rem;"><i class="fas fa-box"></i> Lote: ${item.lote_numero}</span>` : ''}
                                         </div>
-                html += `
-                    <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
-                        <div style="display: flex; justify-content: space-between;"><span><strong>Total de itens:</strong></span><span>${solicitacaoAtual.total_itens}</span></div>
-                        <div style="display: flex; justify-content: space-between;"><span><strong>Peso total:</strong></span><span>${solicitacaoAtual.total_peso_kg.toFixed(2)} kg</span></div>
-                        <div style="display: flex; justify-content: space-between;"><span><strong>Valor total:</strong></span><span style="font-size: 1.2rem; color: var(--primary-color);">R$ ${solicitacaoAtual.total_valor.toFixed(2)}</span></div>
-                    </div>
-                `;
+                                    </div>
+                                    <span style="background: ${cor}20; color: ${cor}; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; border: 1px solid ${cor}40;">
+                                        ${label}
+                                    </span>
+                                </div>
+                                
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--gray-100);">
+                                    <div>
+                                        <div style="font-size: 0.75rem; color: var(--gray-500); text-transform: uppercase;">Peso</div>
+                                        <div style="font-weight: bold; color: var(--gray-800); font-size: 1.1rem;">${item.peso_kg.toFixed(2)} <span style="font-size: 0.9rem; font-weight: normal;">kg</span></div>
+                                    </div>
+                                    
+                                    <div>
+                                        <div style="font-size: 0.75rem; color: var(--gray-500); text-transform: uppercase;">Preço Unit.</div>
+                                        ${temPrecoCustomizado ? `
+                                             <div style="font-weight: bold; color: #f59e0b; font-size: 1.1rem;">
+                                                R$ ${item.preco_oferecido.toFixed(2)}
+                                                <i class="fas fa-exclamation-circle" title="Preço Customizado" style="font-size: 0.8rem; margin-left: 4px;"></i>
+                                             </div>
+                                        ` : `
+                                             <div style="font-weight: bold; color: var(--gray-800); font-size: 1.1rem;">R$ ${item.preco_por_kg_snapshot ? item.preco_por_kg_snapshot.toFixed(2) : '0.00'}</div>
+                                        `}
+                                    </div>
+                                    
+                                    <div>
+                                        <div style="font-size: 0.75rem; color: var(--gray-500); text-transform: uppercase;">Total Item</div>
+                                        <div style="font-weight: bold; color: var(--success-color); font-size: 1.1rem;">R$ ${item.valor_calculado.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                                
+                                ${item.observacoes ? `
+                                    <div style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--gray-600); background: var(--gray-50); padding: 0.5rem; border-radius: 4px;">
+                                        <i class="fas fa-comment-alt" style="margin-right: 4px; color: var(--gray-400);"></i> ${item.observacoes}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    });
+                    
+                    html += `</div>`;
+                    
+                    // Resumo Totalizador no Final
+                    html += `
+                        <div style="margin-top: 1.5rem; background: var(--gray-900); color: white; padding: 1.5rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.9rem; opacity: 0.8;">Peso Total</div>
+                                <div style="font-size: 1.5rem; font-weight: bold;">${solicitacaoAtual.total_peso_kg.toFixed(2)} kg</div>
+                            </div>
+                             <div style="text-align: right;">
+                                <div style="font-size: 0.9rem; opacity: 0.8;">Valor Total do Pedido</div>
+                                <div style="font-size: 1.8rem; font-weight: bold; color: #34d399;">R$ ${solicitacaoAtual.total_valor.toFixed(2)}</div>
+                            </div>
+                        </div>
+                    `;
+                }
 
                 document.getElementById('detalhesConteudo').innerHTML = html;
                 
