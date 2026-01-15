@@ -276,7 +276,14 @@ def obter_resumo_estoque():
             ClassificacaoGrade.nome,
             ClassificacaoGrade.id,
             db.func.sum(ItemSeparadoProducao.peso_kg).label('peso_total'),
-            db.func.sum(ItemSeparadoProducao.custo_proporcional).label('custo_total')
+            db.func.sum(ItemSeparadoProducao.custo_proporcional).label('custo_total'),
+            # Soma dos custos unitários (custo / peso) para cálculo de média estilo "Total Compra"
+            db.func.sum(
+                db.case(
+                    (ItemSeparadoProducao.peso_kg > 0, ItemSeparadoProducao.custo_proporcional / ItemSeparadoProducao.peso_kg),
+                    else_=0
+                )
+            ).label('soma_precos_unitarios')
         ).join(
             ItemSeparadoProducao.classificacao_grade
         ).join(
@@ -291,7 +298,7 @@ def obter_resumo_estoque():
         
         # Estruturar resposta
         dados = {}
-        for cat, classif_nome, classif_id, peso, custo in resultados:
+        for cat, classif_nome, classif_id, peso, custo, soma_precos in resultados:
             cat_key = cat or 'OUTROS'
             if cat_key not in dados:
                 dados[cat_key] = {
@@ -303,6 +310,8 @@ def obter_resumo_estoque():
             
             p = float(peso or 0)
             c = float(custo or 0)
+            sp = float(soma_precos or 0)
+            
             dados[cat_key]['peso_total'] += p
             dados[cat_key]['total_valor'] += c
             
@@ -313,8 +322,9 @@ def obter_resumo_estoque():
             }
             
             if is_admin_or_gestor:
-                # Calcular média de preço para esta classificação
-                media_preco = round(c / p, 2) if p > 0 else 0.0
+                # Calcular média de preço usando lógica "Total Compra": 
+                # (Soma Total Valor) / (Soma Preços Unitários)
+                media_preco = round(c / sp, 2) if sp > 0 else 0.0
                 classif_data['media_preco'] = media_preco
                 classif_data['total_valor'] = round(c, 2)
             
@@ -342,14 +352,13 @@ def obter_resumo_estoque():
             # Adicionar flag de admin/gestor e calcular média geral da categoria
             item['show_prices'] = is_admin_or_gestor
             if is_admin_or_gestor:
-                if item['peso_total'] > 0:
-                    item['media_geral'] = round(item['total_valor'] / item['peso_total'], 2) if item['total_valor'] > 0 else 0.0
-                else:
-                    item['media_geral'] = 0.0
-                
                 # Calcular soma das médias (solicitado pelo usuário)
                 item['soma_medias'] = sum(cls.get('media_preco', 0) for cls in item['classificacoes'])
                 item['soma_medias'] = round(item['soma_medias'], 2)
+                
+                # Média Geral da Categoria = (Soma das Médias de todos os itens) / (Peso Total da Categoria)
+                # Mesma lógica aplicada em Total Compra
+                item['media_geral'] = round(item['soma_medias'] / item['peso_total'], 2) if item['peso_total'] > 0 else 0.0
             else:
                 item['media_geral'] = 0.0
                 item['soma_medias'] = 0.0
