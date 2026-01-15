@@ -161,6 +161,9 @@
             <button class="tab-btn" onclick="abrirTab('total')">
                 <i class="fas fa-calculator"></i> Total Bags
             </button>
+            <button class="tab-btn admin-only" onclick="abrirTab('compra')" id="tabBtnCompra" style="display: none;">
+                <i class="fas fa-shopping-cart"></i> Total Compra
+            </button>
         </div>
 
         <div id="tabLotes" class="tab-content active">
@@ -238,6 +241,30 @@
                 </div>
             </div>
         </div>
+
+        <!-- Aba Total Compra (apenas admin/gestor) -->
+        <div id="tabCompra" class="tab-content admin-only" style="display: none;">
+            <div class="stats-grid" id="resumoCompraGrid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));"></div>
+             
+            <div class="card">
+                <h3 style="margin-top: 0; color: #8b5cf6; border-bottom: 2px solid var(--gray-200); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                    <i class="fas fa-shopping-cart"></i> Detalhamento por Material (OC Aprovadas)
+                </h3>
+                <div class="table-container">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead id="tabelaCompraHead">
+                            <tr style="background: var(--gray-100); text-align: left;">
+                                <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Material</th>
+                                <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Classificação</th>
+                                <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right;">Peso Comprado</th>
+                                <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #8b5cf6;">Média R$/kg</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaCompraBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </main>
 
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -249,9 +276,18 @@
         let lotesAtivos = [];
         let bagsEstoque = [];
 
+        let isAdminOrGestor = false;
+
         async function carregarPagina() {
             const user = await verificarAuth();
             if (!user) return;
+            
+            // Verificar se é admin ou gestor para mostrar aba Total Compra
+            isAdminOrGestor = user.tipo === 'admin' || user.tipo === 'gestor';
+            if (isAdminOrGestor) {
+                document.getElementById('tabBtnCompra').style.display = 'inline-flex';
+            }
+            
             await Promise.all([
                 carregarDashboardEstoque(),
                 carregarLotesAtivos(),
@@ -742,6 +778,10 @@
             
             if (tabName === 'bags') {
                 carregarBagsEstoque();
+            } else if (tabName === 'compra') {
+                carregarTotalCompra();
+            } else if (tabName === 'total') {
+                carregarTotalBags();
             } else {
                 carregarLotesAtivos();
             }
@@ -815,6 +855,133 @@
             if (!dataStr) return 'N/A';
             const data = new Date(dataStr);
             return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+
+        async function carregarTotalCompra() {
+            try {
+                const response = await fetchAPI('/estoque-ativo/resumo-compra');
+                if(response.ok) {
+                    const result = await response.json();
+                    if (result.show_tab && result.dados) {
+                        renderizarResumoCompra(result.dados);
+                    }
+                }
+            } catch(e) { console.error('Erro ao carregar resumo de compras:', e); }
+        }
+
+        function renderizarResumoCompra(dados) {
+            // Cores para cada categoria
+            const categoriaCores = {
+                'High Grade': '#10B981',
+                'MG1': '#EAB308',
+                'MG2': '#F97316',
+                'Low Grade': '#EF4444'
+            };
+
+            // Labels SUCATA por categoria
+            const sucataLabels = {
+                'High Grade': 'SUCATA DE CIRCUITO H',
+                'MG1': 'SUCATA DE CIRCUITO M',
+                'MG2': 'SUCATA DE CIRCUITO M',
+                'Low Grade': 'SUCATA DE CIRCUITO L'
+            };
+
+            // Renderizar Cards
+            const grid = document.getElementById('resumoCompraGrid');
+            if(!dados || dados.length === 0) {
+                grid.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center;">Nenhuma OC aprovada encontrada</div>';
+                document.getElementById('tabelaCompraBody').innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">Nenhum registro</td></tr>';
+                return;
+            }
+
+            grid.innerHTML = dados.map(cat => {
+                const corCategoria = categoriaCores[cat.categoria_label] || 'var(--primary-color)';
+                return `
+                    <div class="card stat-card" style="border-left: 4px solid ${corCategoria};">
+                        <div class="stat-number" style="font-size: 1.5rem; color: ${corCategoria};">
+                            ${cat.peso_total.toFixed(2)} kg
+                        </div>
+                        <div class="stat-label" style="font-weight: bold; color: var(--gray-700);">${cat.categoria_label}</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
+                            ${cat.materiais.length} materiais
+                        </div>
+                        <div style="font-size: 0.85rem; color: #8b5cf6; margin-top: 0.5rem; font-weight: bold;">
+                            <i class="fas fa-coins"></i> R$ ${cat.media_geral.toFixed(2)}/kg
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Renderizar Tabela
+            const tbody = document.getElementById('tabelaCompraBody');
+            let rows = '';
+            
+            dados.forEach((cat, index) => {
+                const corCategoria = categoriaCores[cat.categoria_label] || 'var(--primary-color)';
+                const sucataLabel = sucataLabels[cat.categoria_label] || `SUCATA ${cat.categoria_label.toUpperCase()}`;
+                
+                // Espaço entre seções
+                if (index > 0) {
+                    rows += `<tr><td colspan="4" style="padding: 1rem; background: transparent;"></td></tr>`;
+                }
+                
+                // Cabeçalho de categoria
+                rows += `
+                    <tr style="background: linear-gradient(135deg, ${corCategoria}15, ${corCategoria}08); border-left: 4px solid ${corCategoria};">
+                        <td colspan="4" style="padding: 0.75rem 1rem; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
+                            <i class="fas fa-layer-group" style="margin-right: 0.5rem;"></i> ${cat.categoria_label}
+                        </td>
+                    </tr>
+                `;
+                
+                // Calcular soma das médias
+                let somaMedias = 0;
+                
+                // Materiais da categoria
+                cat.materiais.forEach(mat => {
+                    somaMedias += mat.media_preco || 0;
+                    rows += `
+                        <tr style="border-bottom: 1px solid var(--gray-200); border-left: 4px solid ${corCategoria}20;">
+                            <td style="padding: 0.75rem 0.75rem 0.75rem 2rem;">${mat.nome}</td>
+                            <td style="padding: 0.75rem;">${cat.categoria_label}</td>
+                            <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${mat.peso.toFixed(2)} kg</td>
+                            <td style="padding: 0.75rem; text-align: right; color: #8b5cf6; font-weight: bold;">R$ ${mat.media_preco.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+                
+                // Subtotal da categoria
+                rows += `
+                    <tr style="background: ${corCategoria}15; border-left: 4px solid ${corCategoria}; border-top: 2px solid ${corCategoria}40;">
+                        <td colspan="4" style="padding: 0;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem; padding: 0.75rem 1rem;">
+                                <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
+                                    <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Tipo</div>
+                                    <div style="font-weight: bold; color: ${corCategoria}; font-size: 0.9rem;">${sucataLabel}</div>
+                                </div>
+                                <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
+                                    <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Peso Total</div>
+                                    <div style="font-weight: bold; color: ${corCategoria}; font-size: 1rem;">${cat.peso_total.toFixed(2)} kg</div>
+                                </div>
+                                <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
+                                    <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Σ Médias</div>
+                                    <div style="font-weight: bold; color: #8b5cf6; font-size: 1rem;">R$ ${somaMedias.toFixed(2)}</div>
+                                </div>
+                                <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
+                                    <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Valor Pago</div>
+                                    <div style="font-weight: bold; color: #059669; font-size: 1rem;">R$ ${cat.total_valor.toFixed(2)}</div>
+                                </div>
+                                <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
+                                    <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Média/kg</div>
+                                    <div style="font-weight: bold; color: #8b5cf6; font-size: 1rem;">R$ ${cat.media_geral.toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = rows;
         }
 
         carregarPagina();

@@ -259,6 +259,7 @@ def obter_itens_bag(bag_id):
 @bp.route('/resumo', methods=['GET'])
 @jwt_required()
 def obter_resumo_estoque():
+    """Resumo de estoque por categoria - dados de BAGS/OP (produção)"""
     try:
         # Verificar se usuário é admin ou gestor para retornar dados de preço
         current_user_id = get_jwt_identity()
@@ -269,10 +270,13 @@ def obter_resumo_estoque():
         # Filtra apenas bags ativos que contam como estoque
         bags_ativos = ['devolvido_estoque', 'cheio', 'aberto', 'enviado_refinaria']
         
+        # Query principal: peso e custo por classificação (usando custo_proporcional dos itens separados)
         resultados = db.session.query(
             ClassificacaoGrade.categoria,
             ClassificacaoGrade.nome,
-            db.func.sum(ItemSeparadoProducao.peso_kg)
+            ClassificacaoGrade.id,
+            db.func.sum(ItemSeparadoProducao.peso_kg).label('peso_total'),
+            db.func.sum(ItemSeparadoProducao.custo_proporcional).label('custo_total')
         ).join(
             ItemSeparadoProducao.classificacao_grade
         ).join(
@@ -281,39 +285,13 @@ def obter_resumo_estoque():
             BagProducao.status.in_(bags_ativos)
         ).group_by(
             ClassificacaoGrade.categoria,
-            ClassificacaoGrade.nome
+            ClassificacaoGrade.nome,
+            ClassificacaoGrade.id
         ).all()
-        
-        # Calcular médias de preço por classificação do material (apenas se admin/gestor)
-        precos_por_classificacao = {}
-        if is_admin_or_gestor:
-            # Buscar ItemSolicitacao com preco_por_kg_snapshot agrupado por classificação do material
-            # Calcula média ponderada: SUM(preco * peso) / SUM(peso)
-            precos_query = db.session.query(
-                MaterialBase.classificacao,
-                func.sum(ItemSolicitacao.preco_por_kg_snapshot * ItemSolicitacao.peso_kg).label('valor_total'),
-                func.sum(ItemSolicitacao.peso_kg).label('peso_total')
-            ).join(
-                ItemSolicitacao.material
-            ).filter(
-                ItemSolicitacao.preco_por_kg_snapshot.isnot(None),
-                ItemSolicitacao.preco_por_kg_snapshot > 0,
-                ItemSolicitacao.peso_kg > 0
-            ).group_by(
-                MaterialBase.classificacao
-            ).all()
-            
-            for classif, valor_total, peso_total in precos_query:
-                if classif and peso_total and peso_total > 0:
-                    precos_por_classificacao[classif.lower()] = {
-                        'media_preco': float(valor_total) / float(peso_total),
-                        'total_valor': float(valor_total),
-                        'total_peso_comprado': float(peso_total)
-                    }
         
         # Estruturar resposta
         dados = {}
-        for cat, classif, peso in resultados:
+        for cat, classif_nome, classif_id, peso, custo in resultados:
             cat_key = cat or 'OUTROS'
             if cat_key not in dados:
                 dados[cat_key] = {
@@ -324,25 +302,21 @@ def obter_resumo_estoque():
                 }
             
             p = float(peso or 0)
+            c = float(custo or 0)
             dados[cat_key]['peso_total'] += p
+            dados[cat_key]['total_valor'] += c
             
-            # Buscar dados de preço para esta classificação
+            # Dados da classificação
             classif_data = {
-                'nome': classif,
+                'nome': classif_nome,
                 'peso': p
             }
             
             if is_admin_or_gestor:
-                # Tentar encontrar preço para esta classificação
-                classif_lower = classif.lower() if classif else ''
-                preco_info = precos_por_classificacao.get(classif_lower)
-                if preco_info:
-                    classif_data['media_preco'] = round(preco_info['media_preco'], 2)
-                    classif_data['total_valor'] = round(preco_info['total_valor'], 2)
-                    dados[cat_key]['total_valor'] += preco_info['total_valor']
-                else:
-                    classif_data['media_preco'] = 0.0
-                    classif_data['total_valor'] = 0.0
+                # Calcular média de preço para esta classificação
+                media_preco = round(c / p, 2) if p > 0 else 0.0
+                classif_data['media_preco'] = media_preco
+                classif_data['total_valor'] = round(c, 2)
             
             dados[cat_key]['classificacoes'].append(classif_data)
             
@@ -381,3 +355,118 @@ def obter_resumo_estoque():
         import traceback
         traceback.print_exc()
         return jsonify({'erro': str(e)}), 500
+
+
+@bp.route('/resumo-compra', methods=['GET'])
+@jwt_required()
+def obter_resumo_compra():
+    """Resumo de compras - dados de OC aprovadas (materiais da tabela tipos-lote)"""
+    try:
+        # Verificar se usuário é admin ou gestor
+        current_user_id = get_jwt_identity()
+        usuario = Usuario.query.get(current_user_id)
+        is_admin_or_gestor = usuario and usuario.tipo in ['admin', 'gestor']
+        
+        if not is_admin_or_gestor:
+            return jsonify({'erro': 'Acesso não autorizado', 'show_tab': False}), 403
+        
+        from app.models import OrdemCompra, Solicitacao
+        
+        # Buscar itens de solicitações com OC aprovadas (ou qualquer status que indique compra efetivada)
+        # Status de OC que indicam compra aprovada/efetivada
+        oc_status_aprovados = ['aprovada', 'em_transporte', 'recebida', 'conferida', 'finalizada']
+        
+        # Query: agrupar por MaterialBase (materiais da tela tipos-lote)
+        resultados = db.session.query(
+            MaterialBase.id,
+            MaterialBase.codigo,
+            MaterialBase.nome,
+            MaterialBase.classificacao,
+            func.sum(ItemSolicitacao.peso_kg).label('peso_total'),
+            func.sum(ItemSolicitacao.preco_por_kg_snapshot * ItemSolicitacao.peso_kg).label('valor_total')
+        ).join(
+            ItemSolicitacao.material
+        ).join(
+            ItemSolicitacao.solicitacao
+        ).join(
+            Solicitacao.ordem_compra
+        ).filter(
+            OrdemCompra.status.in_(oc_status_aprovados),
+            ItemSolicitacao.preco_por_kg_snapshot.isnot(None),
+            ItemSolicitacao.peso_kg > 0
+        ).group_by(
+            MaterialBase.id,
+            MaterialBase.codigo,
+            MaterialBase.nome,
+            MaterialBase.classificacao
+        ).order_by(
+            MaterialBase.classificacao,
+            MaterialBase.nome
+        ).all()
+        
+        # Estruturar por classificação (high, mg1, mg2, low)
+        dados = {}
+        for mat_id, mat_codigo, mat_nome, mat_classif, peso, valor in resultados:
+            cat_key = mat_classif.upper() if mat_classif else 'OUTROS'
+            
+            if cat_key not in dados:
+                dados[cat_key] = {
+                    'categoria': cat_key,
+                    'peso_total': 0.0,
+                    'total_valor': 0.0,
+                    'materiais': []
+                }
+            
+            p = float(peso or 0)
+            v = float(valor or 0)
+            media = round(v / p, 2) if p > 0 else 0.0
+            
+            dados[cat_key]['peso_total'] += p
+            dados[cat_key]['total_valor'] += v
+            
+            dados[cat_key]['materiais'].append({
+                'id': mat_id,
+                'codigo': mat_codigo,
+                'nome': mat_nome,
+                'peso': round(p, 2),
+                'valor': round(v, 2),
+                'media_preco': media
+            })
+        
+        # Ordenar e formatar resposta
+        lista_final = []
+        # Ordem de prioridade: high > mg1 > mg2 > low
+        ordem_categorias = ['HIGH', 'MG1', 'MG2', 'LOW', 'OUTROS']
+        
+        for cat_key in ordem_categorias:
+            if cat_key in dados:
+                item = dados[cat_key]
+                # Ordenar materiais por peso dentro da categoria
+                item['materiais'].sort(key=lambda x: x['peso'], reverse=True)
+                
+                # Labels amigáveis
+                labels = {
+                    'HIGH': 'High Grade',
+                    'MG1': 'MG1',
+                    'MG2': 'MG2',
+                    'LOW': 'Low Grade'
+                }
+                item['categoria_label'] = labels.get(cat_key, cat_key.title())
+                
+                # Calcular média geral da categoria
+                item['media_geral'] = round(item['total_valor'] / item['peso_total'], 2) if item['peso_total'] > 0 else 0.0
+                item['show_prices'] = True
+                
+                lista_final.append(item)
+        
+        return jsonify({
+            'show_tab': True,
+            'dados': lista_final
+        })
+
+    except Exception as e:
+        logger.error(f'Erro ao obter resumo de compras: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'erro': str(e), 'show_tab': False}), 500
+
