@@ -253,3 +253,72 @@ def obter_itens_bag(bag_id):
     except Exception as e:
         logger.error(f'Erro ao obter itens do bag {bag_id}: {str(e)}')
         return jsonify({'erro': str(e)}), 500
+
+
+@bp.route('/resumo', methods=['GET'])
+@jwt_required()
+def obter_resumo_estoque():
+    try:
+        # Calcular somatório por classificação/categoria
+        # Filtra apenas bags ativos que contam como estoque
+        bags_ativos = ['devolvido_estoque', 'cheio', 'aberto', 'enviado_refinaria']
+        
+        resultados = db.session.query(
+            ClassificacaoGrade.categoria,
+            ClassificacaoGrade.nome,
+            db.func.sum(ItemSeparadoProducao.peso_kg)
+        ).join(
+            ItemSeparadoProducao.classificacao_grade
+        ).join(
+            ItemSeparadoProducao.bag
+        ).filter(
+            BagProducao.status.in_(bags_ativos)
+        ).group_by(
+            ClassificacaoGrade.categoria,
+            ClassificacaoGrade.nome
+        ).all()
+        
+        # Estruturar resposta
+        dados = {}
+        for cat, classif, peso in resultados:
+            cat_key = cat or 'OUTROS'
+            if cat_key not in dados:
+                dados[cat_key] = {
+                    'categoria': cat_key,
+                    'peso_total': 0.0,
+                    'classificacoes': []
+                }
+            
+            p = float(peso or 0)
+            dados[cat_key]['peso_total'] += p
+            dados[cat_key]['classificacoes'].append({
+                'nome': classif,
+                'peso': p
+            })
+            
+        # Ordenar e formatar para lista (Categoria > Maior Peso Total)
+        lista_final = []
+        # Ordenar categorias por peso total decrescente
+        for cat_key in sorted(dados.keys(), key=lambda k: dados[k]['peso_total'], reverse=True):
+            item = dados[cat_key]
+            # Ordenar classificações por peso dentro da categoria
+            item['classificacoes'].sort(key=lambda x: x['peso'], reverse=True)
+            
+            # Normalizar nome categoria para exibição (Labels amigáveis)
+            cat_lower = cat_key.lower()
+            labels = {
+                'high_grade': 'High Grade', 'high': 'High Grade',
+                'mg1': 'MG1', 'mid_grade': 'MG1',
+                'mg2': 'MG2',
+                'low_grade': 'Low Grade', 'low': 'Low Grade',
+                'residuo': 'Resíduo'
+            }
+            item['categoria_label'] = labels.get(cat_lower, cat_key.replace('_', ' ').title())
+            
+            lista_final.append(item)
+            
+        return jsonify(lista_final)
+
+    except Exception as e:
+        logger.error(f'Erro ao obter resumo: {str(e)}')
+        return jsonify({'erro': str(e)}), 500

@@ -158,6 +158,9 @@
             <button class="tab-btn" onclick="abrirTab('bags')">
                 <i class="fas fa-box"></i> Bags
             </button>
+            <button class="tab-btn" onclick="abrirTab('total')">
+                <i class="fas fa-calculator"></i> Total Bags
+            </button>
         </div>
 
         <div id="tabLotes" class="tab-content active">
@@ -196,12 +199,14 @@
                     </div>
                     <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
                         <label>Categoria</label>
+                        <select id="filtroCategoriaBag" onchange="carregarBagsEstoque()">
                             <option value="">Todas</option>
                             <option value="HIGH_GRADE">High Grade</option>
                             <option value="MG1">MG1</option>
                             <option value="MG2">MG2</option>
                             <option value="LOW_GRADE">Low Grade</option>
                             <option value="RESIDUO">Resíduo</option>
+                        </select>
                     </div>
                     <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
                         <label>Buscar</label>
@@ -210,6 +215,28 @@
                 </div>
             </div>
             <div id="listaBags"></div>
+        </div>
+
+        <div id="tabTotal" class="tab-content">
+            <div class="stats-grid" id="resumoGrid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));"></div>
+             
+            <div class="card">
+                <h3 style="margin-top: 0; color: var(--primary-color); border-bottom: 2px solid var(--gray-200); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                    <i class="fas fa-list"></i> Detalhamento por Classificação
+                </h3>
+                <div class="table-container">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: var(--gray-100); text-align: left;">
+                                <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Classificação</th>
+                                <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Categoria</th>
+                                <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right;">Peso Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaResumoBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -228,7 +255,8 @@
             await Promise.all([
                 carregarDashboardEstoque(),
                 carregarLotesAtivos(),
-                carregarBagsEstoque()
+                carregarBagsEstoque(),
+                carregarTotalBags()
             ]);
             await atualizarNotificacoes();
         }
@@ -398,6 +426,57 @@
                 return codigo.includes(busca) || classificacao.includes(busca);
             });
             renderizarBags(bagsFiltrados);
+        }
+
+        async function carregarTotalBags() {
+            try {
+                const response = await fetchAPI('/estoque-ativo/resumo');
+                if(response.ok) {
+                     const dados = await response.json();
+                     renderizarResumo(dados);
+                }
+            } catch(e) { console.error('Erro ao carregar resumo:', e); }
+        }
+
+        function renderizarResumo(dados) {
+            // Renderizar Cards
+            const grid = document.getElementById('resumoGrid');
+            if(!dados || dados.length === 0) {
+                grid.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center;">Nenhum dado encontrado</div>';
+                document.getElementById('tabelaResumoBody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 1rem;">Nenhum registro</td></tr>';
+                return;
+            }
+
+            grid.innerHTML = dados.map(cat => `
+                <div class="card stat-card" style="border-left: 4px solid var(--primary-color);">
+                    <div class="stat-number" style="font-size: 1.5rem; color: var(--primary-color);">
+                        ${cat.peso_total.toFixed(2)} kg
+                    </div>
+                    <div class="stat-label" style="font-weight: bold; color: var(--gray-700);">${cat.categoria_label}</div>
+                    <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
+                        ${cat.classificacoes.length} classificações
+                    </div>
+                </div>
+            `).join('');
+
+            // Renderizar Tabela
+            const tbody = document.getElementById('tabelaResumoBody');
+            let rows = '';
+            dados.forEach(cat => {
+                // Cabeçalho de categoria
+                rows += `<tr style="background-color: var(--gray-100); font-weight: bold;"><td colspan="3" style="padding: 0.5rem 0.75rem; color: var(--gray-800);">${cat.categoria_label}</td></tr>`;
+                
+                cat.classificacoes.forEach(cls => {
+                    rows += `
+                        <tr style="border-bottom: 1px solid var(--gray-200);">
+                            <td style="padding: 0.75rem 0.75rem 0.75rem 2rem;">${cls.nome}</td>
+                            <td style="padding: 0.75rem;">${cat.categoria_label}</td>
+                            <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${cls.peso.toFixed(2)} kg</td>
+                        </tr>
+                    `;
+                });
+            });
+            tbody.innerHTML = rows;
         }
 
         function renderizarBags(bags) {
