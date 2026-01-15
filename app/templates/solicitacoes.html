@@ -2077,38 +2077,105 @@
                         }
                     }
                 }
+
+                // --- MAPEAMENTO DE CORES (Igual ao Modal de Pedidos) ---
+                const categoriaCores = {
+                    'HIGH_GRADE': '#10B981', 'HIGH': '#10B981', 'High Grade': '#10B981',
+                    'MID_GRADE': '#F59E0B', 'MG1': '#F59E0B', 'MG2': '#F97316',
+                    'LOW_GRADE': '#EF4444', 'LOW': '#EF4444', 'Low Grade': '#EF4444',
+                    'RESIDUO': '#6B7280', 'Resíduo': '#6B7280'
+                };
+                const categoriaLabels = {
+                    'HIGH_GRADE': 'High Grade', 'HIGH': 'High Grade',
+                    'MID_GRADE': 'MG', 'MG1': 'MG1', 'MG2': 'MG2',
+                    'LOW_GRADE': 'Low Grade', 'LOW': 'Low Grade',
+                    'RESIDUO': 'Resíduo'
+                };
                 
-                // Usamos o mesmo modal de detalhes, mas adaptado para OC
                 let html = `
-                    <div style="background: #f9fafb; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                        <h3 style="margin: 0 0 1rem 0;">Informações da Ordem de Compra</h3>
-                        <p><strong>OC ID:</strong> #${ocAtual.id}</p>
-                        <p><strong>Pedido Original:</strong> #${ocAtual.solicitacao_id}</p>
-                        <p><strong>Fornecedor:</strong> ${ocAtual.fornecedor_nome}</p>
-                        <p><strong>Status:</strong> <span class="badge badge-${ocAtual.status}">${ocAtual.status.toUpperCase()}</span></p>
-                        <p><strong>Aprovador:</strong> ${ocAtual.aprovador_nome || 'N/A'}</p>
-                        <p><strong>Data:</strong> ${safeFormatDate(ocAtual.data_criacao || ocAtual.data_envio || ocAtual.data_atualizacao)}</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div class="card" style="border-left: 4px solid var(--primary-color);">
+                            <h4 style="color: var(--gray-500); font-size: 0.8rem; text-transform: uppercase; margin: 0 0 0.5rem 0;">Ordem de Compra</h4>
+                            <div style="font-size: 0.95rem;">
+                                <div style="margin-bottom: 0.25rem;"><strong>OC ID:</strong> #${ocAtual.id}</div>
+                                <div style="margin-bottom: 0.25rem;"><strong>Pedido Orig.:</strong> #${ocAtual.solicitacao_id || 'N/A'}</div>
+                                <div style="margin-bottom: 0.25rem;"><strong>Data:</strong> ${safeFormatDate(ocAtual.data_criacao || ocAtual.data_envio || ocAtual.data_atualizacao)}</div>
+                                <div><strong>Status:</strong> <span class="badge badge-${ocAtual.status}">${ocAtual.status.toUpperCase()}</span></div>
+                            </div>
+                        </div>
+                         <div class="card" style="border-left: 4px solid #3b82f6;">
+                            <h4 style="color: var(--gray-500); font-size: 0.8rem; text-transform: uppercase; margin: 0 0 0.5rem 0;">Detalhes</h4>
+                            <div style="font-size: 0.95rem;">
+                                <div style="margin-bottom: 0.25rem;"><strong>Fornecedor:</strong> ${ocAtual.fornecedor_nome}</div>
+                                <div style="margin-bottom: 0.25rem;"><strong>Aprovado por:</strong> ${ocAtual.aprovador_nome || 'N/A'}</div>
+                            </div>
+                        </div>
                     </div>
                 `;
 
                 if (ocAtual.itens && ocAtual.itens.length > 0) {
-                    html += `
-                        <h3 style="margin: 1.5rem 0 1rem 0;"> Itens (${ocAtual.itens.length})</h3>
-                        ${ocAtual.itens.map(item => `
-                            <div class="card" style="margin-bottom: 1rem;">
-                                <p><strong>Material:</strong> ${item.material_nome || item.tipo_lote_nome || 'N/A'}</p>
-                                <p><strong>Código:</strong> ${item.material_codigo || '-'}</p>
-                                <p><strong>Peso:</strong> ${item.peso_kg || 0} kg</p>
-                                <p><strong>Preço/kg:</strong> R$ ${(item.preco_unitario || item.preco_por_kg_snapshot || 0).toFixed(2)}</p>
-                                <p><strong>Valor Total:</strong> R$ ${(item.valor_total || item.valor_calculado || 0).toFixed(2)}</p>
+                    html += `<h3 style="margin: 0 0 1rem 0; color: var(--gray-800); border-bottom: 2px solid var(--gray-200); padding-bottom: 0.5rem;">Itens da OC (${ocAtual.itens.length})</h3>`;
+                    
+                    html += `<div style="display: grid; gap: 1rem;">`;
+                    
+                    ocAtual.itens.forEach(item => {
+                        const classif = item.classificacao ? item.classificacao.toUpperCase() : 'OUTROS';
+                        let corKey = classif;
+                        if (classif.includes('HIGH')) corKey = 'HIGH_GRADE';
+                        else if (classif.includes('MG1')) corKey = 'MG1';
+                        else if (classif.includes('MG2')) corKey = 'MG2';
+                        else if (classif.includes('LOW')) corKey = 'LOW_GRADE';
+                        else if (classif.includes('RESIDUO')) corKey = 'RESIDUO';
+                        
+                        const cor = categoriaCores[corKey] || '#6B7280';
+                        const label = categoriaLabels[corKey] || classif;
+                        
+                        // Fallback para propriedades que podem vir com nomes diferentes dependendo da origem (OC ou Solicitacao)
+                        const preco = item.preco_unitario || item.preco_por_kg_snapshot || 0;
+                        const total = item.valor_total || item.valor_calculado || 0;
+
+                        html += `
+                            <div class="card" style="border-left: 5px solid ${cor}; padding: 1rem; transition: transform 0.2s;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                                    <div>
+                                        <h4 style="margin: 0; color: var(--gray-800); font-size: 1rem;">${item.material_nome || item.tipo_lote_nome || 'Material Desconhecido'}</h4>
+                                        <div style="font-size: 0.8rem; color: var(--gray-500); margin-top: 0.25rem;">
+                                            ${item.material_codigo ? `<span style="background: var(--gray-100); padding: 2px 6px; border-radius: 4px;">${item.material_codigo}</span>` : ''}
+                                        </div>
+                                    </div>
+                                    <span style="background: ${cor}20; color: ${cor}; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; border: 1px solid ${cor}40;">
+                                        ${label}
+                                    </span>
+                                </div>
+                                
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--gray-100);">
+                                    <div>
+                                        <div style="font-size: 0.75rem; color: var(--gray-500); text-transform: uppercase;">Peso</div>
+                                        <div style="font-weight: bold; color: var(--gray-800); font-size: 1.1rem;">${(item.peso_kg || 0).toFixed(2)} <span style="font-size: 0.9rem; font-weight: normal;">kg</span></div>
+                                    </div>
+                                    
+                                    <div>
+                                        <div style="font-size: 0.75rem; color: var(--gray-500); text-transform: uppercase;">Preço Unit.</div>
+                                        <div style="font-weight: bold; color: var(--gray-800); font-size: 1.1rem;">R$ ${preco.toFixed(2)}</div>
+                                    </div>
+                                    
+                                    <div>
+                                        <div style="font-size: 0.75rem; color: var(--gray-500); text-transform: uppercase;">Total Item</div>
+                                        <div style="font-weight: bold; color: var(--success-color); font-size: 1.1rem;">R$ ${total.toFixed(2)}</div>
+                                    </div>
+                                </div>
                             </div>
-                        `).join('')}
-                    `;
+                        `;
+                    });
+                    html += `</div>`;
                 }
 
                 html += `
-                    <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
-                        <div style="display: flex; justify-content: space-between;"><span><strong>Valor Total OC:</strong></span><span style="font-size: 1.2rem; color: var(--primary-color);">R$ ${(ocAtual.valor_total || ocAtual.total_valor || 0).toFixed(2)}</span></div>
+                    <div style="margin-top: 1.5rem; background: var(--gray-900); color: white; padding: 1.5rem; border-radius: 12px; display: flex; justify-content: flex-end; align-items: center; gap: 1rem;">
+                         <div style="text-align: right;">
+                            <div style="font-size: 0.9rem; opacity: 0.8;">Valor Total da OC</div>
+                            <div style="font-size: 1.8rem; font-weight: bold; color: #34d399;">R$ ${(ocAtual.valor_total || ocAtual.total_valor || 0).toFixed(2)}</div>
+                        </div>
                     </div>
                 `;
 
