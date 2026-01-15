@@ -439,6 +439,15 @@
         }
 
         function renderizarResumo(dados) {
+            // Cores para cada categoria
+            const categoriaCores = {
+                'High Grade': '#10B981',
+                'MG1': '#EAB308',
+                'MG2': '#F97316',
+                'Low Grade': '#EF4444',
+                'Resíduo': '#6B7280'
+            };
+
             // Renderizar Cards
             const grid = document.getElementById('resumoGrid');
             if(!dados || dados.length === 0) {
@@ -447,34 +456,63 @@
                 return;
             }
 
-            grid.innerHTML = dados.map(cat => `
-                <div class="card stat-card" style="border-left: 4px solid var(--primary-color);">
-                    <div class="stat-number" style="font-size: 1.5rem; color: var(--primary-color);">
-                        ${cat.peso_total.toFixed(2)} kg
+            grid.innerHTML = dados.map(cat => {
+                const corCategoria = categoriaCores[cat.categoria_label] || 'var(--primary-color)';
+                return `
+                    <div class="card stat-card" style="border-left: 4px solid ${corCategoria};">
+                        <div class="stat-number" style="font-size: 1.5rem; color: ${corCategoria};">
+                            ${cat.peso_total.toFixed(2)} kg
+                        </div>
+                        <div class="stat-label" style="font-weight: bold; color: var(--gray-700);">${cat.categoria_label}</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
+                            ${cat.classificacoes.length} classificações
+                        </div>
                     </div>
-                    <div class="stat-label" style="font-weight: bold; color: var(--gray-700);">${cat.categoria_label}</div>
-                    <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
-                        ${cat.classificacoes.length} classificações
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
-            // Renderizar Tabela
+            // Renderizar Seções separadas por categoria
             const tbody = document.getElementById('tabelaResumoBody');
             let rows = '';
-            dados.forEach(cat => {
-                // Cabeçalho de categoria
-                rows += `<tr style="background-color: var(--gray-100); font-weight: bold;"><td colspan="3" style="padding: 0.5rem 0.75rem; color: var(--gray-800);">${cat.categoria_label}</td></tr>`;
+            dados.forEach((cat, index) => {
+                const corCategoria = categoriaCores[cat.categoria_label] || 'var(--primary-color)';
                 
+                // Espaço entre seções (exceto a primeira)
+                if (index > 0) {
+                    rows += `<tr><td colspan="3" style="padding: 1rem; background: transparent;"></td></tr>`;
+                }
+                
+                // Cabeçalho de categoria estilizado
+                rows += `
+                    <tr style="background: linear-gradient(135deg, ${corCategoria}15, ${corCategoria}08); border-left: 4px solid ${corCategoria};">
+                        <td colspan="3" style="padding: 0.75rem 1rem; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
+                            <i class="fas fa-layer-group" style="margin-right: 0.5rem;"></i> ${cat.categoria_label}
+                        </td>
+                    </tr>
+                `;
+                
+                // Itens da categoria
                 cat.classificacoes.forEach(cls => {
                     rows += `
-                        <tr style="border-bottom: 1px solid var(--gray-200);">
+                        <tr style="border-bottom: 1px solid var(--gray-200); border-left: 4px solid ${corCategoria}20;">
                             <td style="padding: 0.75rem 0.75rem 0.75rem 2rem;">${cls.nome}</td>
                             <td style="padding: 0.75rem;">${cat.categoria_label}</td>
                             <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${cls.peso.toFixed(2)} kg</td>
                         </tr>
                     `;
                 });
+                
+                // Subtotal da categoria
+                rows += `
+                    <tr style="background: ${corCategoria}15; border-left: 4px solid ${corCategoria}; border-top: 2px solid ${corCategoria}40;">
+                        <td colspan="2" style="padding: 0.75rem 1rem; font-weight: bold; color: ${corCategoria};">
+                            <i class="fas fa-calculator" style="margin-right: 0.5rem;"></i> Total ${cat.categoria_label}
+                        </td>
+                        <td style="padding: 0.75rem 1rem; text-align: right; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
+                            ${cat.peso_total.toFixed(2)} kg
+                        </td>
+                    </tr>
+                `;
             });
             tbody.innerHTML = rows;
         }
