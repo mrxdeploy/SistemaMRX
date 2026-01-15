@@ -2250,22 +2250,29 @@
                     columnStyles: { 0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' } }
                 });
 
-                // Itens
+                // Itens (OC é sempre Admin/Gestor, então mostra TUDO)
                 const itens = ocAtual.itens || [];
-                const tableData = itens.map(item => [
+                const tableHead = [['Material', 'Código', 'Classif.', 'Peso', 'Preço/kg', 'Total', 'Lote']];
+                const tableBody = itens.map(item => [
                     item.material_nome || item.tipo_lote_nome || 'N/A',
                     item.material_codigo || "-",
-                    `${item.peso_kg || 0} kg`,
+                    item.classificacao ? item.classificacao.toUpperCase() : "-",
+                    `${(item.peso_kg || 0).toFixed(2)} kg`,
                     `R$ ${(item.preco_unitario || item.preco_por_kg_snapshot || 0).toFixed(2)}`,
-                    `R$ ${(item.valor_total || item.valor_calculado || 0).toFixed(2)}`
+                    `R$ ${(item.valor_total || item.valor_calculado || 0).toFixed(2)}`,
+                    item.lote_numero || "-"
                 ]);
 
                 doc.autoTable({
                     startY: doc.lastAutoTable.finalY + 10,
-                    head: [['Material', 'Código', 'Peso', 'Preço/kg', 'Total']],
-                    body: tableData,
+                    head: tableHead,
+                    body: tableBody,
                     theme: 'striped',
-                    headStyles: { fillColor: primaryColor }
+                    headStyles: { fillColor: primaryColor },
+                    columnStyles: {
+                        5: { fontStyle: 'bold', halign: 'right' },
+                        3: { halign: 'center' }
+                    }
                 });
 
                 // Total
