@@ -1003,7 +1003,7 @@
                 return;
             }
 
-            container.innerHTML = itensSolicitacao.map(item => `
+            let html = itensSolicitacao.map(item => `
                 <div class="card" style="margin-bottom: 1rem; background: #fafafa;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h4 style="margin: 0;">Item #${item.id}</h4>
@@ -1077,6 +1077,19 @@
                     </div>
                 </div>
             `).join('');
+
+            // Adicionar botão secundário "+ Adicionar Item" abaixo dos cards (só aparece se tiver pelo menos 1 item)
+            if (itensSolicitacao.length > 0) {
+                html += `
+                    <div id="btnAdicionarItemSecundario" style="text-align: center; padding: 1rem; margin-bottom: 1rem; border: 2px dashed #059669; border-radius: 8px; background: #f0fdf4;">
+                        <button type="button" class="btn btn-primary" onclick="adicionarItem()" style="width: 100%; max-width: 300px;">
+                            <i class="fas fa-plus"></i> Adicionar Novo Item
+                        </button>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
         }
 
         function atualizarItemCampo(itemId, campo, valor) {
