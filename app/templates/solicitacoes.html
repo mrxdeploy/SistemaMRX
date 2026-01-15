@@ -1463,26 +1463,49 @@
                 doc.text(`Itens do Pedido (${solicitacaoAtual.itens.length})`, 14, currentY);
                 doc.line(14, currentY + 2, 196, currentY + 2);
 
-                const tableData = solicitacaoAtual.itens.map(item => [
-                    item.material_nome || item.tipo_lote_nome || 'N/A',
-                    item.material_codigo || "-",
-                    item.classificacao ? item.classificacao.toUpperCase() : "-",
-                    `${item.peso_kg} kg`,
-                    `R$ ${item.preco_por_kg_snapshot ? item.preco_por_kg_snapshot.toFixed(2) : '0.00'}`,
-                    `R$ ${item.valor_calculado.toFixed(2)}`,
-                    item.lote_numero || "-"
-                ]);
+                // --- LÓGICA CONDICIONAL DE COLUNAS (ADMIN/GESTOR) ---
+                const isAdminOrGestor = usuarioAtual && (usuarioAtual.tipo === 'admin' || usuarioAtual.tipo === 'gestor');
+                
+                let tableHead = [];
+                let tableBody = [];
+                
+                if (isAdminOrGestor) {
+                    tableHead = [['Material', 'Código', 'Classif.', 'Peso', 'Preço/kg', 'Total', 'Lote']];
+                    tableBody = solicitacaoAtual.itens.map(item => [
+                        item.material_nome || item.tipo_lote_nome || 'N/A',
+                        item.material_codigo || "-",
+                        item.classificacao ? item.classificacao.toUpperCase() : "-",
+                        `${item.peso_kg} kg`,
+                        `R$ ${item.preco_por_kg_snapshot ? item.preco_por_kg_snapshot.toFixed(2) : '0.00'}`,
+                        `R$ ${item.valor_calculado.toFixed(2)}`,
+                        item.lote_numero || "-"
+                    ]);
+                } else {
+                    // Remove Classificação e Lote para usuários comuns (ou conforme necessidade)
+                    // Na especificação: "ao usar qualquer outro perfil e exportar a classificação é ocultada"
+                    tableHead = [['Material', 'Código', 'Peso', 'Preço/kg', 'Total']];
+                    tableBody = solicitacaoAtual.itens.map(item => [
+                        item.material_nome || item.tipo_lote_nome || 'N/A',
+                        item.material_codigo || "-",
+                        `${item.peso_kg} kg`,
+                        `R$ ${item.preco_por_kg_snapshot ? item.preco_por_kg_snapshot.toFixed(2) : '0.00'}`,
+                        `R$ ${item.valor_calculado.toFixed(2)}`
+                    ]);
+                }
 
                 doc.autoTable({
                     startY: currentY + 7,
-                    head: [['Material', 'Código', 'Classif.', 'Peso', 'Preço/kg', 'Total', 'Lote']],
-                    body: tableData,
+                    head: tableHead,
+                    body: tableBody,
                     theme: 'striped',
                     headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
                     styles: { fontSize: 9, cellPadding: 3 },
-                    columnStyles: {
+                    columnStyles: isAdminOrGestor ? {
                         5: { fontStyle: 'bold', halign: 'right' },
                         3: { halign: 'center' }
+                    } : {
+                        4: { fontStyle: 'bold', halign: 'right' },
+                        2: { halign: 'center' }
                     }
                 });
 
@@ -1540,71 +1563,96 @@
                 }
                 solicitacaoAtual = await response.json();
 
+                // --- MAPEAMENTO DE CORES POR CATEGORIA ---
+                const categoriaCores = {
+                    'HIGH_GRADE': '#10B981', 'HIGH': '#10B981', 'High Grade': '#10B981',
+                    'MID_GRADE': '#F59E0B', 'MG1': '#F59E0B', 'MG2': '#F97316',
+                    'LOW_GRADE': '#EF4444', 'LOW': '#EF4444', 'Low Grade': '#EF4444',
+                    'RESIDUO': '#6B7280', 'Resíduo': '#6B7280'
+                };
+                
+                const categoriaLabels = {
+                    'HIGH_GRADE': 'High Grade', 'HIGH': 'High Grade',
+                    'MID_GRADE': 'MG', 'MG1': 'MG1', 'MG2': 'MG2',
+                    'LOW_GRADE': 'Low Grade', 'LOW': 'Low Grade',
+                    'RESIDUO': 'Resíduo'
+                };
+
+                // Cabeçalho e Informações Gerais
                 let html = `
-                    <div style="background: #f9fafb; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                        <h3 style="margin: 0 0 1rem 0;">Informações Gerais</h3>
-                        <p><strong>ID:</strong> #${solicitacaoAtual.id}</p>
-                        <p><strong>Funcionário:</strong> ${solicitacaoAtual.funcionario_nome}</p>
-                        <p><strong>Fornecedor:</strong> ${solicitacaoAtual.fornecedor_nome}</p>
-                        <p><strong>Tipo de Retirada:</strong> ${solicitacaoAtual.tipo_retirada === 'buscar' ? 'Buscar no fornecedor' : 'Fornecedor entrega'}</p>
-                        <p><strong>Modalidade de Frete:</strong> ${solicitacaoAtual.modalidade_frete || 'FOB'} ${solicitacaoAtual.modalidade_frete === 'FOB' ? '(Comprador paga o frete)' : '(Vendedor paga o frete)'}</p>
-                        <p><strong>Status:</strong> <span class="badge badge-${solicitacaoAtual.status}">${solicitacaoAtual.status.toUpperCase()}</span></p>
-                        <p><strong>Data de Envio:</strong> ${formatDate(solicitacaoAtual.data_envio)}</p>
-                        ${solicitacaoAtual.data_confirmacao ? `<p><strong>Data de Confirmação:</strong> ${formatDate(solicitacaoAtual.data_confirmacao)}</p>` : ''}
-                        ${solicitacaoAtual.admin_nome ? `<p><strong>Admin Responsável:</strong> ${solicitacaoAtual.admin_nome}</p>` : ''}
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div class="card" style="border-left: 4px solid var(--primary-color);">
+                            <h4 style="color: var(--gray-500); font-size: 0.8rem; text-transform: uppercase; margin: 0 0 0.5rem 0;">Informações do Pedido</h4>
+                            <div style="font-size: 0.95rem;">
+                                <div style="margin-bottom: 0.25rem;"><strong>ID:</strong> #${solicitacaoAtual.id}</div>
+                                <div style="margin-bottom: 0.25rem;"><strong>Data:</strong> ${formatDate(solicitacaoAtual.data_envio)}</div>
+                                <div style="margin-bottom: 0.25rem;"><strong>Status:</strong> <span class="badge badge-${solicitacaoAtual.status}">${solicitacaoAtual.status.toUpperCase()}</span></div>
+                                <div><strong>Funcionário:</strong> ${solicitacaoAtual.funcionario_nome}</div>
+                            </div>
+                        </div>
+                        
+                         <div class="card" style="border-left: 4px solid #3b82f6;">
+                            <h4 style="color: var(--gray-500); font-size: 0.8rem; text-transform: uppercase; margin: 0 0 0.5rem 0;">Logística e Fornecedor</h4>
+                            <div style="font-size: 0.95rem;">
+                                <div style="margin-bottom: 0.25rem;"><strong>Fornecedor:</strong> ${solicitacaoAtual.fornecedor_nome}</div>
+                                <div style="margin-bottom: 0.25rem;"><strong>Retirada:</strong> ${solicitacaoAtual.tipo_retirada === 'buscar' ? 'Buscar no fornecedor' : 'Fornecedor entrega'}</div>
+                                <div style="margin-bottom: 0.25rem;"><strong>Frete:</strong> ${solicitacaoAtual.modalidade_frete || 'FOB'}</div>
+                            </div>
+                        </div>
                     </div>
                 `;
 
                 if (solicitacaoAtual.rua || solicitacaoAtual.localizacao_lat) {
                     html += `
-                        <div style="background: #eff6ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                            <h3 style="margin: 0 0 1rem 0;"> Localização</h3>
-                            ${solicitacaoAtual.endereco_completo ? `<p>${solicitacaoAtual.endereco_completo}</p>` : ''}
-                            ${solicitacaoAtual.localizacao_lat ? `<p>GPS: ${solicitacaoAtual.localizacao_lat.toFixed(6)}, ${solicitacaoAtual.localizacao_lng.toFixed(6)}</p>` : ''}
+                        <div class="card" style="margin-bottom: 1.5rem; background: #eff6ff; border: 1px solid #dbeafe;">
+                            <h4 style="color: #1e40af; font-size: 0.9rem; margin: 0 0 0.5rem 0;"><i class="fas fa-map-marker-alt"></i> Localização</h4>
+                            <div style="color: #1e3a8a; font-size: 0.9rem;">
+                                ${solicitacaoAtual.endereco_completo ? `<p style="margin: 0 0 0.25rem 0;">${solicitacaoAtual.endereco_completo}</p>` : ''}
+                                ${solicitacaoAtual.localizacao_lat ? `<p style="margin: 0; font-size: 0.8rem;">GPS: ${solicitacaoAtual.localizacao_lat.toFixed(6)}, ${solicitacaoAtual.localizacao_lng.toFixed(6)}</p>` : ''}
+                            </div>
                         </div>
                     `;
                 }
 
                 if (solicitacaoAtual.observacoes) {
                     html += `
-                        <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                            <h3 style="margin: 0 0 0.5rem 0;"> Observações</h3>
-                            <p style="margin: 0;">${solicitacaoAtual.observacoes}</p>
+                        <div class="card" style="margin-bottom: 1.5rem; background: #fffbeb; border: 1px solid #fcd34d;">
+                            <h4 style="color: #92400e; font-size: 0.9rem; margin: 0 0 0.5rem 0;"><i class="fas fa-sticky-note"></i> Observações</h4>
+                            <p style="margin: 0; color: #92400e; font-size: 0.9rem;">${solicitacaoAtual.observacoes}</p>
                         </div>
                     `;
                 }
 
+                // Lista de Itens Estilizada
                 if (solicitacaoAtual.itens && solicitacaoAtual.itens.length > 0) {
-                    html += `
-                        <h3 style="margin: 1.5rem 0 1rem 0;"> Itens (${solicitacaoAtual.itens.length})</h3>
-                        ${solicitacaoAtual.itens.map(item => {
-                            const temPrecoCustomizado = item.preco_customizado && item.preco_oferecido;
-                            return `
-                                <div class="card" style="margin-bottom: 1rem; ${temPrecoCustomizado ? 'border-left: 4px solid #ff9800;' : ''}">
-                                    <p><strong>Material:</strong> ${item.material_nome || item.tipo_lote_nome || 'N/A'}</p>
-                                    ${item.material_codigo ? `<p><strong>Código:</strong> ${item.material_codigo}</p>` : ''}
-                                    <p><strong>Classificação:</strong> ${item.classificacao ? item.classificacao.toUpperCase() : 'N/A'}</p>
-                                    <p><strong>Peso:</strong> ${item.peso_kg} kg</p>
-                                    ${temPrecoCustomizado ? `
-                                        <div style="background: #fff3e0; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0;">
-                                            <p style="margin: 0; font-weight: 600; color: #f57c00;">💰 Preço Diferente Oferecido</p>
-                                            <p style="margin: 0.5rem 0 0 0;"><strong>Preço Oferecido:</strong> R$ ${item.preco_oferecido.toFixed(2)}/kg</p>
-                                            <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; color: #666;">
-                                                <strong>Preço da Tabela:</strong> R$ ${item.preco_por_kg_snapshot.toFixed(2)}/kg
-                                            </p>
-                                        </div>
-                                    ` : `
-                                        <p><strong>Preço/kg:</strong> R$ ${item.preco_por_kg_snapshot ? item.preco_por_kg_snapshot.toFixed(2) : '0.00'}/kg</p>
-                                    `}
-                                    <p><strong>Valor Total:</strong> R$ ${item.valor_calculado.toFixed(2)}</p>
-                                    ${item.observacoes ? `<p><strong>Obs:</strong> ${item.observacoes}</p>` : ''}
-                                    ${item.lote_numero ? `<p><strong>Lote Gerado:</strong> ${item.lote_numero}</p>` : ''}
-                                </div>
-                            `;
-                        }).join('')}
-                    `;
-                }
+                    html += `<h3 style="margin: 0 0 1rem 0; color: var(--gray-800); border-bottom: 2px solid var(--gray-200); padding-bottom: 0.5rem;">Itens do Pedido (${solicitacaoAtual.itens.length})</h3>`;
+                    
+                    html += `<div style="display: grid; gap: 1rem;">`;
+                    
+                    solicitacaoAtual.itens.forEach(item => {
+                        const classif = item.classificacao ? item.classificacao.toUpperCase() : 'OUTROS';
+                        // Normalizar chave de cor
+                        let corKey = classif;
+                        if (classif.includes('HIGH')) corKey = 'HIGH_GRADE';
+                        else if (classif.includes('MG1')) corKey = 'MG1';
+                        else if (classif.includes('MG2')) corKey = 'MG2';
+                        else if (classif.includes('LOW')) corKey = 'LOW_GRADE';
+                        else if (classif.includes('RESIDUO')) corKey = 'RESIDUO';
+                        
+                        const cor = categoriaCores[corKey] || '#6B7280';
+                        const label = categoriaLabels[corKey] || classif;
+                        
+                        const temPrecoCustomizado = item.preco_customizado && item.preco_oferecido;
 
+                        html += `
+                            <div class="card" style="border-left: 5px solid ${cor}; padding: 1rem; transition: transform 0.2s;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                                    <div>
+                                        <h4 style="margin: 0; color: var(--gray-800); font-size: 1rem;">${item.material_nome || item.tipo_lote_nome || 'Material Desconhecido'}</h4>
+                                        <div style="font-size: 0.8rem; color: var(--gray-500); margin-top: 0.25rem;">
+                                            ${item.material_codigo ? `<span style="background: var(--gray-100); padding: 2px 6px; border-radius: 4px;">${item.material_codigo}</span>` : ''}
+                                            ${item.lote_numero ? `<span style="margin-left: 0.5rem;"><i class="fas fa-box"></i> Lote: ${item.lote_numero}</span>` : ''}
+                                        </div>
                 html += `
                     <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
                         <div style="display: flex; justify-content: space-between;"><span><strong>Total de itens:</strong></span><span>${solicitacaoAtual.total_itens}</span></div>
