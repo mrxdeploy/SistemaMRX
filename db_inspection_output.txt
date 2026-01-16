@@ -1,0 +1,16 @@
+--- Database Inspection Start ---
+Active Price Tables: [(1, '1 Estrela'), (2, '2 Estrelas'), (3, '3 Estrelas')]
+
+Checking Material: 'SUCATA PLACA CENTRAL B'
+  Found Material ID: 15, Classificacao: high
+  ❌ No price entries found in ACTIVE tables (1, 2, 3).
+
+Checking Material: 'SUCATA PLACA HD'
+  Found Material ID: 20, Classificacao: high
+  ❌ No price entries found in ACTIVE tables (1, 2, 3).
+
+Checking Material: 'SUCATA PLACA DE CELULAR'
+  Found Material ID: 21, Classificacao: high
+  ❌ No price entries found in ACTIVE tables (1, 2, 3).
+
+--- Database Inspection End ---

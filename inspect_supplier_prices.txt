@@ -1,0 +1,21 @@
+--- Supplier Prices Inspection Start ---
+
+Checking Material: 'SUCATA PLACA CENTRAL B'
+  ID: 15, Class: high
+  Found 1 active supplier prices:
+    - Supplier 'Jefersson santos pires': 110.0
+  Total Sum: 110.0
+
+Checking Material: 'SUCATA PLACA HD'
+  ID: 20, Class: high
+  Found 1 active supplier prices:
+    - Supplier 'Jefersson santos pires': 200.0
+  Total Sum: 200.0
+
+Checking Material: 'SUCATA PLACA DE CELULAR'
+  ID: 21, Class: high
+  Found 1 active supplier prices:
+    - Supplier 'Jefersson santos pires': 200.0
+  Total Sum: 200.0
+
+--- Supplier Prices Inspection End ---

@@ -419,24 +419,22 @@ def obter_resumo_compra():
             MaterialBase.nome
         ).all()
         
-        # Buscar IDs das tabelas de preço ativas
-        tabelas_ativas_ids = [t.id for t in db.session.query(TabelaPreco.id).filter_by(ativo=True).all()]
+        from app.models import FornecedorTabelaPrecos
         
-        # Buscar todos os preços de tabela para os materiais retornados
-        # Dicionário: material_id -> soma_precos_tabelas
+        # Buscar soma dos preços ativos nas tabelas PROPRIAS DOS FORNECEDORES (FornecedorTabelaPrecos)
+        # Dicionário: material_id -> soma_precos_fornecedores
         soma_precos_por_material = {}
-        if tabelas_ativas_ids:
-            precos_itens = db.session.query(
-                TabelaPrecoItem.material_id,
-                func.sum(TabelaPrecoItem.preco_por_kg)
-            ).filter(
-                TabelaPrecoItem.tabela_preco_id.in_(tabelas_ativas_ids),
-                TabelaPrecoItem.ativo == True
-            ).group_by(
-                TabelaPrecoItem.material_id
-            ).all()
-            
-            soma_precos_por_material = {pid: float(soma or 0) for pid, soma in precos_itens}
+        
+        precos_fornecedores = db.session.query(
+            FornecedorTabelaPrecos.material_id,
+            func.sum(FornecedorTabelaPrecos.preco_fornecedor)
+        ).filter(
+            FornecedorTabelaPrecos.status == 'ativo'
+        ).group_by(
+            FornecedorTabelaPrecos.material_id
+        ).all()
+        
+        soma_precos_por_material = {pid: float(soma or 0) for pid, soma in precos_fornecedores}
 
         # Estruturar por classificação (high, mg1, mg2, low)
         dados = {}
@@ -464,15 +462,10 @@ def obter_resumo_compra():
             p = float(peso or 0)
             v = float(valor or 0)
             
-            # Cálculo específico solicitado pelo usuário para "Média R$":
-            # (Valor Total Pago) / (Soma dos Preços das Tabelas Ativas)
+            # Cálculo "Média R$": (Valor Total Pago) / (Soma dos Preços das Tabelas de Fornecedor Ativas)
             soma_tabelas = soma_precos_por_material.get(mat_id, 0.0)
             
-            # Filtrar conforme solicitado: "somente os que tem valor atribuidos"
-            # Se não tem preço de tabela, ignorar o item para não exibir média 0 ou causar ruído
-            # UPDATE: Usuário quer ver os itens mesmo se High Grade vier vazio. 
             # Se soma_tabelas for 0, media sera 0 para nao dar erro.
-            
             if soma_tabelas > 0:
                 media = round(v / soma_tabelas, 2)
             else:
@@ -488,7 +481,7 @@ def obter_resumo_compra():
                 'peso': round(p, 2),
                 'valor': round(v, 2),
                 'media_preco': media,
-                'soma_tabelas_debug': soma_tabelas # Para debug se necessário
+                'soma_tabelas_debug': soma_tabelas
             })
         
         # Ordenar e formatar resposta
@@ -511,9 +504,7 @@ def obter_resumo_compra():
                 }
                 item['categoria_label'] = labels.get(cat_key, cat_key.title())
                 
-                # Calcular média geral da categoria conforme fórmula correta:
-                # Média Geral = (Valor Total) / (Peso Total da Categoria)
-                # O valor total já está somado corretamente em item['total_valor']
+                # Calcular média geral da categoria
                 item['media_geral'] = round(item['total_valor'] / item['peso_total'], 2) if item['peso_total'] > 0 else 0.0
                 item['show_prices'] = True
                 
