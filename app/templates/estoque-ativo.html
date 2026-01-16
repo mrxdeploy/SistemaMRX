@@ -994,6 +994,20 @@
                 });
                 
                 // Subtotal da categoria
+                const valorPagoHtml = `
+                    <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
+                        <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Valor Pago</div>
+                        <div style="font-weight: bold; color: #059669; font-size: 1rem;">R$ ${(cat.total_valor || 0).toFixed(2)}</div>
+                    </div>
+                `;
+
+                const mediaGeralHtml = `
+                    <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
+                        <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Média/kg</div>
+                        <div style="font-weight: bold; color: #8b5cf6; font-size: 1rem;">R$ ${(cat.media_geral || 0).toFixed(2)}</div>
+                    </div>
+                `;
+
                 rows += `
                     <tr style="background: ${corCategoria}15; border-left: 4px solid ${corCategoria}; border-top: 2px solid ${corCategoria}40;">
                         <td colspan="5" style="padding: 0;">
