@@ -398,8 +398,7 @@ def obter_resumo_compra():
             MaterialBase.nome,
             MaterialBase.classificacao,
             func.sum(ItemSolicitacao.peso_kg).label('peso_total'),
-            func.sum(ItemSolicitacao.preco_por_kg_snapshot * ItemSolicitacao.peso_kg).label('valor_total'),
-            func.sum(ItemSolicitacao.preco_por_kg_snapshot).label('soma_precos_unitarios')
+            func.sum(ItemSolicitacao.preco_por_kg_snapshot * ItemSolicitacao.peso_kg).label('valor_total')
         ).join(
             ItemSolicitacao.material
         ).join(
