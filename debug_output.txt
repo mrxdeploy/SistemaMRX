@@ -1,0 +1,13 @@
+INFO:__main__:Importing app...
+INFO:__main__:App imported.
+INFO:__main__:=== SIMULATION START ===
+INFO:__main__:Executing Main Query...
+INFO:__main__:Main Query returned 7 rows.
+INFO:__main__:Sample row: (3, 'MAT-003', 'Alumínio de Dissipadores', 'leve', 3323.0, 16106.0)
+INFO:__main__:Sample row length: 6
+INFO:__main__:Executing Table Prices Query...
+INFO:__main__:Active Tables: [1, 2, 3]
+INFO:__main__:Prices dictionary built with 18 items.
+INFO:__main__:Starting Loop Processing...
+INFO:__main__:Successfully processed 7 items.
+INFO:__main__:=== SIMULATION SUCCESS ===

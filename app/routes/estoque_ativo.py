@@ -468,9 +468,13 @@ def obter_resumo_compra():
             # (Valor Total Pago) / (Soma dos Preços das Tabelas Ativas)
             soma_tabelas = soma_precos_por_material.get(mat_id, 0.0)
             
-            # Se não tiver preço de tabela, fallback para média ponderada real ou 0
-            # Mas a regra explícita é usar a soma das tabelas como divisor.
-            media = round(v / soma_tabelas, 2) if soma_tabelas > 0 else 0.0
+            # Filtrar conforme solicitado: "somente os que tem valor atribuidos"
+            # Se não tem preço de tabela, ignorar o item para não exibir média 0 ou causar ruído
+            if soma_tabelas == 0:
+                continue
+            
+            # Cálculo da média (já protegido contra divisão por zero pelo continue acima)
+            media = round(v / soma_tabelas, 2)
             
             dados[cat_key]['peso_total'] += p
             dados[cat_key]['total_valor'] += v
