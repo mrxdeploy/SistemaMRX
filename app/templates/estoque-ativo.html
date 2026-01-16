@@ -496,10 +496,10 @@
 
             // Labels SUCATA por categoria
             const sucataLabels = {
-                'High Grade': 'SUCATA DE CIRCUITO H',
-                'MG1': 'SUCATA DE CIRCUITO M',
-                'MG2': 'SUCATA DE CIRCUITO M',
-                'Low Grade': 'SUCATA DE CIRCUITO L',
+                'High Grade': 'SUCATA DE CIRCUITO IMPRESSO H',
+                'MG1': 'SUCATA DE CIRCUITO IMPRESSO M',
+                'MG2': 'SUCATA DE CIRCUITO IMPRESSO M',
+                'Low Grade': 'SUCATA DE CIRCUITO IMPRESSO L',
                 'Resíduo': 'SUCATA RESÍDUO'
             };
 
@@ -563,7 +563,7 @@
             
             dados.forEach((cat, index) => {
                 const corCategoria = categoriaCores[cat.categoria_label] || 'var(--primary-color)';
-                const sucataLabel = sucataLabels[cat.categoria_label] || `SUCATA ${cat.categoria_label.toUpperCase()}`;
+                const sucataLabel = sucataLabels[cat.categoria_label] || `SUCATA DE CIRCUITO IMPRESSO ${cat.categoria_label.toUpperCase().charAt(0)}`;
                 
                 // Espaço entre seções (exceto a primeira)
                 if (index > 0) {
@@ -918,10 +918,10 @@
 
             // Labels SUCATA por categoria
             const sucataLabels = {
-                'High Grade': 'SUCATA DE CIRCUITO H',
-                'MG1': 'SUCATA DE CIRCUITO M',
-                'MG2': 'SUCATA DE CIRCUITO M',
-                'Low Grade': 'SUCATA DE CIRCUITO L'
+                'High Grade': 'SUCATA DE CIRCUITO IMPRESSO H',
+                'MG1': 'SUCATA DE CIRCUITO IMPRESSO M',
+                'MG2': 'SUCATA DE CIRCUITO IMPRESSO M',
+                'Low Grade': 'SUCATA DE CIRCUITO IMPRESSO L'
             };
 
             // Renderizar Cards
@@ -956,7 +956,7 @@
             
             dados.forEach((cat, index) => {
                 const corCategoria = categoriaCores[cat.categoria_label] || 'var(--primary-color)';
-                const sucataLabel = sucataLabels[cat.categoria_label] || `SUCATA ${cat.categoria_label.toUpperCase()}`;
+                const sucataLabel = sucataLabels[cat.categoria_label] || `SUCATA DE CIRCUITO IMPRESSO ${cat.categoria_label.toUpperCase().charAt(0)}`;
                 
                 // Espaço entre seções
                 if (index > 0) {
@@ -1121,7 +1121,7 @@
             
             // Configurar colunas do resumo
             let columns = [];
-            const sucataLabel = `SUCATA ${dados.categoria_label.includes('SUCATA') ? '' : 'DE CIRCUITO'} ${dados.categoria_label.charAt(0)}`;
+            const sucataLabel = `SUCATA DE CIRCUITO IMPRESSO ${dados.categoria_label.includes('SUCATA') ? '' : dados.categoria_label.charAt(0)}`;
 
             if (showPrices) {
                 columns = [
