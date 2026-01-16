@@ -1142,9 +1142,19 @@
                 doc.setTextColor(100, 100, 100);
                 doc.text(col.title, xPos + (colWidth/2), finalY + 8, { align: 'center' });
                 
-                doc.setFontSize(10);
-                doc.setTextColor(...col.color);
+                // Dynamic font size for value
+                let fontSize = 10;
+                doc.setFontSize(fontSize);
                 doc.setFont(undefined, 'bold');
+                
+                // Reduce font size until it fits
+                const maxWidth = colWidth - 4; // 2mm padding each side
+                while (doc.getTextWidth(col.value) > maxWidth && fontSize > 6) {
+                    fontSize -= 0.5;
+                    doc.setFontSize(fontSize);
+                }
+
+                doc.setTextColor(...col.color);
                 doc.text(col.value, xPos + (colWidth/2), finalY + 18, { align: 'center' });
             });
 
