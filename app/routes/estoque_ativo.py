@@ -440,7 +440,7 @@ def obter_resumo_compra():
 
         # Estruturar por classificação (high, mg1, mg2, low)
         dados = {}
-        for mat_id, mat_codigo, mat_nome, mat_classif, peso, valor, soma_precos in resultados:
+        for mat_id, mat_codigo, mat_nome, mat_classif, peso, valor in resultados:
             cat_key = mat_classif.upper() if mat_classif else 'OUTROS'
             
             if cat_key not in dados:
