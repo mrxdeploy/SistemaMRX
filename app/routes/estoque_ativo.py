@@ -436,7 +436,7 @@ def obter_resumo_compra():
                 TabelaPrecoItem.material_id
             ).all()
             
-            soma_precos_por_material = {pid: float(soma) for pid, soma in precos_itens}
+            soma_precos_por_material = {pid: float(soma or 0) for pid, soma in precos_itens}
 
         # Estruturar por classificação (high, mg1, mg2, low)
         dados = {}
