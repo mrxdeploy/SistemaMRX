@@ -440,7 +440,17 @@ def obter_resumo_compra():
 
         # Estruturar por classificação (high, mg1, mg2, low)
         dados = {}
-        for mat_id, mat_codigo, mat_nome, mat_classif, peso, valor in resultados:
+        for row in resultados:
+            # Unpacking manual para robustez (evita ValueError se houver colunas extras)
+            if len(row) < 6:
+                continue
+                
+            mat_id = row[0]
+            mat_codigo = row[1]
+            mat_nome = row[2]
+            mat_classif = row[3]
+            peso = row[4]
+            valor = row[5]
             cat_key = mat_classif.upper() if mat_classif else 'OUTROS'
             
             if cat_key not in dados:
