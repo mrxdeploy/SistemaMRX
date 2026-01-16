@@ -1,13 +1,61 @@
-INFO:__main__:Importing app...
-INFO:__main__:App imported.
-INFO:__main__:=== SIMULATION START ===
-INFO:__main__:Executing Main Query...
-INFO:__main__:Main Query returned 7 rows.
-INFO:__main__:Sample row: (3, 'MAT-003', 'Alum�nio de Dissipadores', 'leve', 3323.0, 16106.0)
-INFO:__main__:Sample row length: 6
-INFO:__main__:Executing Table Prices Query...
-INFO:__main__:Active Tables: [1, 2, 3]
-INFO:__main__:Prices dictionary built with 18 items.
-INFO:__main__:Starting Loop Processing...
-INFO:__main__:Successfully processed 7 items.
-INFO:__main__:=== SIMULATION SUCCESS ===
+--- DEBUG START ---
+Total Approved OCs: 9
+Found 7 distinct materials in approved OCs:
+Active Price Table IDs: [1, 2, 3]
+
+[Material ID: 11] Sucata Mista de Informática
+  Classificacao: 'pesado'
+  Peso Total: 333.0
+  Valor Total: 999.0
+  Precos Tabela RAW: [(Decimal('3.90'), 1), (Decimal('5.48'), 2), (Decimal('5.82'), 3)]
+  Soma Precos Tabela: 15.200000000000001
+  ✅ INCLUDED. Calculated Avg: 65.72
+
+[Material ID: 9] Memórias RAM
+  Classificacao: 'medio'
+  Peso Total: 100.0
+  Valor Total: 40000.0
+  Precos Tabela RAW: [(Decimal('7.91'), 1), (Decimal('10.84'), 2), (Decimal('13.52'), 3)]
+  Soma Precos Tabela: 32.269999999999996
+  ✅ INCLUDED. Calculated Avg: 1239.54
+
+[Material ID: 15] Eletrodomésticos
+  Classificacao: 'pesado'
+  Peso Total: 1500.0
+  Valor Total: 750.0
+  Precos Tabela RAW: [(Decimal('3.36'), 1), (Decimal('5.36'), 2), (Decimal('5.77'), 3)]
+  Soma Precos Tabela: 14.49
+  ✅ INCLUDED. Calculated Avg: 51.76
+
+[Material ID: 3] Alumínio de Dissipadores
+  Classificacao: 'leve'
+  Peso Total: 3323.0
+  Valor Total: 16106.0
+  Precos Tabela RAW: [(Decimal('13.46'), 1), (Decimal('14.98'), 2), (Decimal('18.77'), 3)]
+  Soma Precos Tabela: 47.21
+  ✅ INCLUDED. Calculated Avg: 341.16
+
+[Material ID: 2] Conectores e Cabos
+  Classificacao: 'leve'
+  Peso Total: 357.0
+  Valor Total: 5712.0
+  Precos Tabela RAW: [(Decimal('11.59'), 1), (Decimal('13.29'), 2), (Decimal('16.16'), 3)]
+  Soma Precos Tabela: 41.04
+  ✅ INCLUDED. Calculated Avg: 139.18
+
+[Material ID: 7] Fontes de Alimentação
+  Classificacao: 'medio'
+  Peso Total: 150.0
+  Valor Total: 1500.0
+  Precos Tabela RAW: [(Decimal('7.09'), 1), (Decimal('10.23'), 2), (Decimal('13.71'), 3)]
+  Soma Precos Tabela: 31.03
+  ✅ INCLUDED. Calculated Avg: 48.34
+
+[Material ID: 18] Motor de Geladeira
+  Classificacao: 'leve'
+  Peso Total: 6832.0
+  Valor Total: 341600.0
+  Precos Tabela RAW: [(Decimal('100.00'), 1), (Decimal('150.00'), 2), (Decimal('180.00'), 3)]
+  Soma Precos Tabela: 430.0
+  ✅ INCLUDED. Calculated Avg: 794.42
+--- DEBUG END ---

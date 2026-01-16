@@ -470,11 +470,13 @@ def obter_resumo_compra():
             
             # Filtrar conforme solicitado: "somente os que tem valor atribuidos"
             # Se não tem preço de tabela, ignorar o item para não exibir média 0 ou causar ruído
-            if soma_tabelas == 0:
-                continue
+            # UPDATE: Usuário quer ver os itens mesmo se High Grade vier vazio. 
+            # Se soma_tabelas for 0, media sera 0 para nao dar erro.
             
-            # Cálculo da média (já protegido contra divisão por zero pelo continue acima)
-            media = round(v / soma_tabelas, 2)
+            if soma_tabelas > 0:
+                media = round(v / soma_tabelas, 2)
+            else:
+                media = 0.0
             
             dados[cat_key]['peso_total'] += p
             dados[cat_key]['total_valor'] += v
