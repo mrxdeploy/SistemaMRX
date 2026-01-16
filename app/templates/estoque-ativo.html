@@ -10,6 +10,8 @@
     <meta name="theme-color" content="#059669">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <style>
         @media (max-width: 768px) {
             .container { padding-left: var(--spacing-md); padding-right: var(--spacing-md); }
@@ -275,6 +277,8 @@
     <script>
         let lotesAtivos = [];
         let bagsEstoque = [];
+        let dadosResumo = [];
+        let dadosCompra = [];
 
         let isAdminOrGestor = false;
 
@@ -471,6 +475,7 @@
                 const response = await fetchAPI('/estoque-ativo/resumo');
                 if(response.ok) {
                      const dados = await response.json();
+                     dadosResumo = dados; // Store globally
                      renderizarResumo(dados);
                 }
             } catch(e) { console.error('Erro ao carregar resumo:', e); }
@@ -565,7 +570,12 @@
                 rows += `
                     <tr style="background: linear-gradient(135deg, ${corCategoria}15, ${corCategoria}08); border-left: 4px solid ${corCategoria};">
                         <td colspan="${colSpan}" style="padding: 0.75rem 1rem; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
-                            <i class="fas fa-layer-group" style="margin-right: 0.5rem;"></i> ${cat.categoria_label}
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span><i class="fas fa-layer-group" style="margin-right: 0.5rem;"></i> ${cat.categoria_label}</span>
+                                <button class="btn btn-sm" onclick="exportarPDFCategoria('resumo', ${index})" style="background: white; color: ${corCategoria}; border: 1px solid ${corCategoria}; padding: 0.25rem 0.75rem; font-size: 0.8rem;">
+                                    <i class="fas fa-file-pdf"></i> PDF
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -877,6 +887,7 @@
                     console.log('Dados recebidos:', result);
                     
                     if (result.dados && result.dados.length > 0) {
+                        dadosCompra = result.dados; // Store globally
                         renderizarResumoCompra(result.dados);
                     } else if (result.show_tab === false) {
                         document.getElementById('resumoCompraGrid').innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center; color: var(--gray-500);"><i class="fas fa-lock"></i> Acesso restrito a administradores e gestores</div>';
@@ -956,7 +967,12 @@
                 rows += `
                     <tr style="background: linear-gradient(135deg, ${corCategoria}15, ${corCategoria}08); border-left: 4px solid ${corCategoria};">
                         <td colspan="4" style="padding: 0.75rem 1rem; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
-                            <i class="fas fa-layer-group" style="margin-right: 0.5rem;"></i> ${cat.categoria_label}
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span><i class="fas fa-layer-group" style="margin-right: 0.5rem;"></i> ${cat.categoria_label}</span>
+                                <button class="btn btn-sm" onclick="exportarPDFCategoria('compra', ${index})" style="background: white; color: ${corCategoria}; border: 1px solid ${corCategoria}; padding: 0.25rem 0.75rem; font-size: 0.8rem;">
+                                    <i class="fas fa-file-pdf"></i> PDF
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -1009,6 +1025,130 @@
             });
             
             tbody.innerHTML = rows;
+        }
+
+        async function exportarPDFCategoria(tipo, index) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Obter dados corretos
+            const dados = tipo === 'resumo' ? dadosResumo[index] : dadosCompra[index];
+            if (!dados) return;
+
+            // Determinar se mostramos preços
+            const showPrices = isAdminOrGestor;
+            const corCategoria = {
+                'High Grade': [16, 185, 129], // #10B981
+                'MG1': [234, 179, 8],      // #EAB308
+                'MG2': [249, 115, 22],     // #F97316
+                'Low Grade': [239, 68, 68], // #EF4444
+                'Resíduo': [107, 114, 128] // #6B7280
+            }[dados.categoria_label] || [5, 150, 105];
+
+            // Título e Cabeçalho
+            doc.setFillColor(...corCategoria);
+            doc.rect(0, 0, 210, 20, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            doc.text(dados.categoria_label, 14, 13);
+            
+            doc.setFontSize(10);
+            doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, 195, 13, { align: 'right' });
+
+            // Preparar dados da tabela
+            let head = [];
+            let body = [];
+            
+            if (tipo === 'resumo') {
+                if (showPrices) {
+                    head = [['Classificação', 'Categoria', 'Peso Total', 'Média R$']];
+                    body = dados.classificacoes.map(item => [
+                        item.nome,
+                        dados.categoria_label,
+                        `${item.peso.toFixed(2)} kg`,
+                        `R$ ${(item.media_preco || 0).toFixed(2)}`
+                    ]);
+                } else {
+                    head = [['Classificação', 'Categoria', 'Peso Total']];
+                    body = dados.classificacoes.map(item => [
+                        item.nome,
+                        dados.categoria_label,
+                        `${item.peso.toFixed(2)} kg`
+                    ]);
+                }
+            } else {
+                // Compra sempre tem preços (pois só admin/gestor vê)
+                head = [['Material', 'Classificação', 'Peso Comprado', 'Média R$']];
+                body = dados.materiais.map(item => [
+                    item.nome,
+                    dados.categoria_label,
+                    `${item.peso.toFixed(2)} kg`,
+                    `R$ ${(item.media_preco || 0).toFixed(2)}`
+                ]);
+            }
+
+            // Gerar tabela principal
+            doc.autoTable({
+                startY: 30,
+                head: head,
+                body: body,
+                theme: 'striped',
+                headStyles: { fillColor: corCategoria, textColor: 255 },
+                columnStyles: {
+                    2: { halign: 'right', fontStyle: 'bold', textColor: [22, 163, 74] }, // Peso verde
+                    3: { halign: 'right', fontStyle: 'bold', textColor: [139, 92, 246] } // Preço roxo
+                }
+            });
+
+            // Resumo Cards (Footer)
+            let finalY = doc.lastAutoTable.finalY + 10;
+            
+            // Fundo leve para o resumo
+            doc.setFillColor(245, 247, 250);
+            doc.roundedRect(14, finalY, 180, 25, 3, 3, 'F');
+            doc.setDrawColor(200, 200, 200);
+            doc.roundedRect(14, finalY, 180, 25, 3, 3, 'S');
+
+            const pageWidth = doc.internal.pageSize.width;
+            
+            // Configurar colunas do resumo
+            let columns = [];
+            const sucataLabel = `SUCATA ${dados.categoria_label.includes('SUCATA') ? '' : 'DE CIRCUITO'} ${dados.categoria_label.charAt(0)}`;
+
+            if (showPrices) {
+                columns = [
+                    { title: "TIPO", value: sucataLabel, color: corCategoria },
+                    { title: "PESO TOTAL", value: `${dados.peso_total.toFixed(2)} kg`, color: corCategoria },
+                    { title: "Σ MÉDIAS", value: `R$ ${(tipo === 'resumo' ? dados.soma_medias : dados.materiais.reduce((acc, m) => acc + m.media_preco, 0)).toFixed(2)}`, color: [139, 92, 246] },
+                    { title: "VALOR PAGO", value: `R$ ${(dados.total_valor || 0).toFixed(2)}`, color: [22, 163, 74] },
+                    { title: "MÉDIA/KG", value: `R$ ${(dados.media_geral || 0).toFixed(2)}`, color: [139, 92, 246] }
+                ];
+            } else {
+                columns = [
+                    { title: "TIPO", value: sucataLabel, color: corCategoria },
+                    { title: "PESO TOTAL", value: `${dados.peso_total.toFixed(2)} kg`, color: corCategoria }
+                ];
+            }
+
+            // Renderizar colunas do resumo
+            const colWidth = 180 / columns.length;
+            
+            columns.forEach((col, i) => {
+                const xPos = 14 + (i * colWidth);
+                
+                doc.setFontSize(7);
+                doc.setTextColor(100, 100, 100);
+                doc.text(col.title, xPos + (colWidth/2), finalY + 8, { align: 'center' });
+                
+                doc.setFontSize(10);
+                doc.setTextColor(...col.color);
+                doc.setFont(undefined, 'bold');
+                doc.text(col.value, xPos + (colWidth/2), finalY + 18, { align: 'center' });
+            });
+
+            // Salvar PDF
+            const nomeArquivo = `Relatorio_${dados.categoria_label.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`;
+            doc.save(nomeArquivo);
         }
 
         carregarPagina();
