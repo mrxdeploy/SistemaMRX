@@ -328,9 +328,9 @@ def obter_resumo_estoque():
             }
             
             if is_admin_or_gestor:
-                # Calcular média de preço usando lógica "Total Compra": 
-                # (Soma Total Valor) / (Soma Preços Unitários)
-                media_preco = round(c / sp, 2) if sp > 0 else 0.0
+                # Calcular média de preço usando lógica "Media Ponderada Real": 
+                # (Total Valor) / (Peso Total)
+                media_preco = round(c / p, 2) if p > 0 else 0.0
                 classif_data['media_preco'] = media_preco
                 classif_data['total_valor'] = round(c, 2)
             
@@ -393,7 +393,7 @@ def obter_resumo_compra():
         if not is_admin_or_gestor:
             return jsonify({'erro': 'Acesso não autorizado', 'show_tab': False}), 403
         
-        from app.models import OrdemCompra, Solicitacao
+        from app.models import OrdemCompra, Solicitacao, TabelaPreco, TabelaPrecoItem
         
         # Buscar itens de solicitações com OC aprovadas (ou qualquer status que indique compra efetivada)
         # Status de OC que indicam compra aprovada/efetivada
@@ -428,6 +428,25 @@ def obter_resumo_compra():
             MaterialBase.nome
         ).all()
         
+        # Buscar IDs das tabelas de preço ativas
+        tabelas_ativas_ids = [t.id for t in db.session.query(TabelaPreco.id).filter_by(ativo=True).all()]
+        
+        # Buscar todos os preços de tabela para os materiais retornados
+        # Dicionário: material_id -> soma_precos_tabelas
+        soma_precos_por_material = {}
+        if tabelas_ativas_ids:
+            precos_itens = db.session.query(
+                TabelaPrecoItem.material_id,
+                func.sum(TabelaPrecoItem.preco_por_kg)
+            ).filter(
+                TabelaPrecoItem.tabela_preco_id.in_(tabelas_ativas_ids),
+                TabelaPrecoItem.ativo == True
+            ).group_by(
+                TabelaPrecoItem.material_id
+            ).all()
+            
+            soma_precos_por_material = {pid: float(soma) for pid, soma in precos_itens}
+
         # Estruturar por classificação (high, mg1, mg2, low)
         dados = {}
         for mat_id, mat_codigo, mat_nome, mat_classif, peso, valor, soma_precos in resultados:
@@ -443,12 +462,14 @@ def obter_resumo_compra():
             
             p = float(peso or 0)
             v = float(valor or 0)
-            sp = float(soma_precos or 0)
             
-            # Cálculo específico solicitado pelo usuário:
-            # (Peso1*Preco1 + Peso2*Preco2) / (Preco1 + Preco2)
-            # Ou seja: Solma Valor Total / Soma Preços Unitários
-            media = round(v / sp, 2) if sp > 0 else 0.0
+            # Cálculo específico solicitado pelo usuário para "Média R$":
+            # (Valor Total Pago) / (Soma dos Preços das Tabelas Ativas)
+            soma_tabelas = soma_precos_por_material.get(mat_id, 0.0)
+            
+            # Se não tiver preço de tabela, fallback para média ponderada real ou 0
+            # Mas a regra explícita é usar a soma das tabelas como divisor.
+            media = round(v / soma_tabelas, 2) if soma_tabelas > 0 else 0.0
             
             dados[cat_key]['peso_total'] += p
             dados[cat_key]['total_valor'] += v
@@ -459,7 +480,8 @@ def obter_resumo_compra():
                 'nome': mat_nome,
                 'peso': round(p, 2),
                 'valor': round(v, 2),
-                'media_preco': media
+                'media_preco': media,
+                'soma_tabelas_debug': soma_tabelas # Para debug se necessário
             })
         
         # Ordenar e formatar resposta

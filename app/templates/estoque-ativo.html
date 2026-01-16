@@ -584,12 +584,11 @@
                 `;
                 
                 // Calcular soma das medias
-                let somaMedias = 0;
+                // Itens da categoria
                 
                 // Itens da categoria
                 cat.classificacoes.forEach(cls => {
                     if (showPrices) {
-                        somaMedias += cls.media_preco || 0;
                         rows += `
                             <tr style="border-bottom: 1px solid var(--gray-200); border-left: 4px solid ${corCategoria}20;">
                                 <td style="padding: 0.75rem 0.75rem 0.75rem 2rem;">${cls.nome}</td>
