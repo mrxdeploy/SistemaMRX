@@ -264,7 +264,13 @@ def obter_resumo_estoque():
         # Verificar se usuário é admin ou gestor para retornar dados de preço
         current_user_id = get_jwt_identity()
         usuario = Usuario.query.get(current_user_id)
-        is_admin_or_gestor = usuario and usuario.tipo in ['admin', 'gestor']
+        
+        # Verificar permissão (Admin, Gestor por tipo ou Perfil com nome Gestor)
+        is_admin_or_gestor = False
+        if usuario:
+            is_tipo_ok = usuario.tipo in ['admin', 'gestor']
+            is_perfil_ok = usuario.perfil and 'gestor' in usuario.perfil.nome.lower()
+            is_admin_or_gestor = is_tipo_ok or is_perfil_ok
         
         # Calcular somatório por classificação/categoria
         # Filtra apenas bags ativos que contam como estoque
@@ -382,7 +388,13 @@ def obter_resumo_compra():
         # Verificar se usuário é admin ou gestor
         current_user_id = get_jwt_identity()
         usuario = Usuario.query.get(current_user_id)
-        is_admin_or_gestor = usuario and usuario.tipo in ['admin', 'gestor']
+        
+        # Verificar permissão (Admin, Gestor por tipo ou Perfil com nome Gestor)
+        is_admin_or_gestor = False
+        if usuario:
+            is_tipo_ok = usuario.tipo in ['admin', 'gestor']
+            is_perfil_ok = usuario.perfil and 'gestor' in usuario.perfil.nome.lower()
+            is_admin_or_gestor = is_tipo_ok or is_perfil_ok
         
         if not is_admin_or_gestor:
             return jsonify({'erro': 'Acesso não autorizado', 'show_tab': False}), 403

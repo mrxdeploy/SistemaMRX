@@ -283,7 +283,9 @@
             if (!user) return;
             
             // Verificar se é admin ou gestor para mostrar aba Total Compra
-            isAdminOrGestor = user.tipo === 'admin' || user.tipo === 'gestor';
+            const tipoOk = user.tipo === 'admin' || user.tipo === 'gestor';
+            const perfilOk = user.perfil_nome && user.perfil_nome.toLowerCase().includes('gestor');
+            isAdminOrGestor = tipoOk || perfilOk;
             if (isAdminOrGestor) {
                 document.getElementById('tabBtnCompra').style.display = 'inline-flex';
             }
