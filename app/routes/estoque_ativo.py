@@ -358,16 +358,10 @@ def obter_resumo_estoque():
             # Adicionar flag de admin/gestor e calcular média geral da categoria
             item['show_prices'] = is_admin_or_gestor
             if is_admin_or_gestor:
-                # Calcular soma das médias (solicitado pelo usuário)
-                item['soma_medias'] = sum(cls.get('media_preco', 0) for cls in item['classificacoes'])
-                item['soma_medias'] = round(item['soma_medias'], 2)
-                
-                # Média Geral da Categoria = (Soma das Médias de todos os itens) / (Peso Total da Categoria)
-                # Mesma lógica aplicada em Total Compra
-                item['media_geral'] = round(item['soma_medias'] / item['peso_total'], 2) if item['peso_total'] > 0 else 0.0
+                # Média Geral da Categoria = (Total Valor) / (Peso Total da Categoria)
+                item['media_geral'] = round(item['total_valor'] / item['peso_total'], 2) if item['peso_total'] > 0 else 0.0
             else:
                 item['media_geral'] = 0.0
-                item['soma_medias'] = 0.0
             
             lista_final.append(item)
             
@@ -488,10 +482,10 @@ def obter_resumo_compra():
                 }
                 item['categoria_label'] = labels.get(cat_key, cat_key.title())
                 
-                # Calcular média geral da categoria conforme fórmula solicitada:
-                # Média Geral = (Soma das Médias de todos os itens) / (Peso Total da Categoria)
-                soma_medias_itens = sum(mat['media_preco'] for mat in item['materiais'])
-                item['media_geral'] = round(soma_medias_itens / item['peso_total'], 2) if item['peso_total'] > 0 else 0.0
+                # Calcular média geral da categoria conforme fórmula correta:
+                # Média Geral = (Valor Total) / (Peso Total da Categoria)
+                # O valor total já está somado corretamente em item['total_valor']
+                item['media_geral'] = round(item['total_valor'] / item['peso_total'], 2) if item['peso_total'] > 0 else 0.0
                 item['show_prices'] = True
                 
                 lista_final.append(item)
