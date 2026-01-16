@@ -282,14 +282,7 @@ def obter_resumo_estoque():
             ClassificacaoGrade.nome,
             ClassificacaoGrade.id,
             db.func.sum(ItemSeparadoProducao.peso_kg).label('peso_total'),
-            db.func.sum(ItemSeparadoProducao.custo_proporcional).label('custo_total'),
-            # Soma dos custos unitários (custo / peso) para cálculo de média estilo "Total Compra"
-            db.func.sum(
-                db.case(
-                    (ItemSeparadoProducao.peso_kg > 0, ItemSeparadoProducao.custo_proporcional / ItemSeparadoProducao.peso_kg),
-                    else_=0
-                )
-            ).label('soma_precos_unitarios')
+            db.func.sum(ItemSeparadoProducao.custo_proporcional).label('custo_total')
         ).join(
             ItemSeparadoProducao.classificacao_grade
         ).join(
@@ -304,7 +297,7 @@ def obter_resumo_estoque():
         
         # Estruturar resposta
         dados = {}
-        for cat, classif_nome, classif_id, peso, custo, soma_precos in resultados:
+        for cat, classif_nome, classif_id, peso, custo in resultados:
             cat_key = cat or 'OUTROS'
             if cat_key not in dados:
                 dados[cat_key] = {
@@ -316,7 +309,6 @@ def obter_resumo_estoque():
             
             p = float(peso or 0)
             c = float(custo or 0)
-            sp = float(soma_precos or 0)
             
             dados[cat_key]['peso_total'] += p
             dados[cat_key]['total_valor'] += c
