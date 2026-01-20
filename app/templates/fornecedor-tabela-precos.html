@@ -206,8 +206,12 @@
         .search-select-dropdown.show { display: block; }
         .search-select-option {
             padding: 10px 12px;
-            cursor: pointer;
+            cursor: pointer !important;
             transition: background 0.2s;
+        }
+        .inactive-material {
+            color: #9ca3af;
+            font-style: italic;
         }
         .search-select-option:hover { background: #f3f4f6; }
         .search-select-option.selected { background: #ecfdf5; }
@@ -771,7 +775,7 @@
                 }
 
                 dropdown.innerHTML = materiaisFiltrados.map(m => `
-                    <div class="search-select-option ${!m.ativo ? 'text-gray-400 italic' : ''}" data-id="${m.id}" data-nome="${m.nome}">
+                    <div class="search-select-option ${!m.ativo ? 'inactive-material' : ''}" data-id="${m.id}" data-nome="${m.nome}" style="cursor: pointer !important;">
                         <strong>${m.nome}${!m.ativo ? ' (Inativo)' : ''}</strong>
                         <br><small style="color: #6b7280;">${m.codigo} - ${m.classificacao}</small>
                     </div>
