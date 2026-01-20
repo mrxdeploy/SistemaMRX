@@ -130,18 +130,20 @@ def adicionar_preco(fornecedor_id):
         if not material:
             return jsonify({'erro': 'Material não encontrado'}), 404
         
-        preco_existente = FornecedorTabelaPrecos.query.filter_by(
+        # Buscar a última versão existente
+        ultima_versao = db.session.query(db.func.max(FornecedorTabelaPrecos.versao)).filter_by(
+            fornecedor_id=fornecedor_id,
+            material_id=dados['material_id']
+        ).scalar() or 0
+        
+        nova_versao = ultima_versao + 1
+        
+        # Inativar preços anteriores
+        db.session.query(FornecedorTabelaPrecos).filter_by(
             fornecedor_id=fornecedor_id,
             material_id=dados['material_id'],
             status='ativo'
-        ).first()
-        
-        if preco_existente:
-            preco_existente.status = 'inativo'
-            preco_existente.updated_by = usuario_id
-            nova_versao = preco_existente.versao + 1
-        else:
-            nova_versao = 1
+        ).update({"status": "inativo", "updated_by": usuario_id})
         
         novo_preco = FornecedorTabelaPrecos(
             fornecedor_id=fornecedor_id,
@@ -220,20 +222,20 @@ def adicionar_precos_lote(fornecedor_id):
                 
                 logger.info(f'✅ Material encontrado: {material.nome}')
                 
-                preco_existente = FornecedorTabelaPrecos.query.filter_by(
+                # Buscar a última versão existente de forma segura
+                ultima_versao = db.session.query(db.func.max(FornecedorTabelaPrecos.versao)).filter_by(
+                    fornecedor_id=fornecedor_id,
+                    material_id=item['material_id']
+                ).scalar() or 0
+                
+                nova_versao = ultima_versao + 1
+                
+                # Inativar preços anteriores do mesmo material para este fornecedor
+                db.session.query(FornecedorTabelaPrecos).filter_by(
                     fornecedor_id=fornecedor_id,
                     material_id=item['material_id'],
                     status='ativo'
-                ).first()
-                
-                if preco_existente:
-                    logger.info(f'📝 Atualizando preço existente (versão {preco_existente.versao})')
-                    preco_existente.status = 'inativo'
-                    preco_existente.updated_by = usuario_id
-                    nova_versao = preco_existente.versao + 1
-                else:
-                    logger.info(f'✨ Criando novo preço (versão 1)')
-                    nova_versao = 1
+                ).update({"status": "inativo", "updated_by": usuario_id})
                 
                 novo_preco = FornecedorTabelaPrecos(
                     fornecedor_id=fornecedor_id,
@@ -370,18 +372,20 @@ def upload_tabela_precos(fornecedor_id):
                     erros.append(f'Linha {idx + 2}: Preço não pode ser negativo')
                     continue
                 
-                preco_existente = FornecedorTabelaPrecos.query.filter_by(
+                # Buscar a última versão existente
+                ultima_versao = db.session.query(db.func.max(FornecedorTabelaPrecos.versao)).filter_by(
+                    fornecedor_id=fornecedor_id,
+                    material_id=material.id
+                ).scalar() or 0
+                
+                nova_versao = ultima_versao + 1
+                
+                # Inativar preços anteriores
+                db.session.query(FornecedorTabelaPrecos).filter_by(
                     fornecedor_id=fornecedor_id,
                     material_id=material.id,
                     status='ativo'
-                ).first()
-                
-                if preco_existente:
-                    preco_existente.status = 'inativo'
-                    preco_existente.updated_by = usuario_id
-                    nova_versao = preco_existente.versao + 1
-                else:
-                    nova_versao = 1
+                ).update({"status": "inativo", "updated_by": usuario_id})
                 
                 novo_preco = FornecedorTabelaPrecos(
                     fornecedor_id=fornecedor_id,
