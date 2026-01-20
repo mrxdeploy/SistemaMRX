@@ -771,8 +771,8 @@
                 }
 
                 dropdown.innerHTML = materiaisFiltrados.map(m => `
-                    <div class="search-select-option" data-id="${m.id}" data-nome="${m.nome}">
-                        <strong>${m.nome}</strong>
+                    <div class="search-select-option ${!m.ativo ? 'text-gray-400 italic' : ''}" data-id="${m.id}" data-nome="${m.nome}">
+                        <strong>${m.nome}${!m.ativo ? ' (Inativo)' : ''}</strong>
                         <br><small style="color: #6b7280;">${m.codigo} - ${m.classificacao}</small>
                     </div>
                 `).join('');
