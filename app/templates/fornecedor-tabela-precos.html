@@ -584,7 +584,7 @@
                 const response = await fetchAPI('/materiais-base');
                 if (response.ok) {
                     const materiais = await response.json();
-                    // Remover informações de preços/estrelas - comprador não deve ver
+                    // Aceitar materiais ativos e inativos, mas filtrar apenas os que não têm nome vazio
                     materiaisDisponiveis = materiais.map(m => ({
                         id: m.id,
                         codigo: m.codigo,
