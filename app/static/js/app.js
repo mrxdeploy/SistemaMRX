@@ -641,7 +641,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 const token = getToken();
-                const response = await fetch(`${API_URL}/placas`, {
+                // Ensure the endpoint starts with /api
+                const apiEndpoint = endpoint && endpoint.startsWith('/api') ? endpoint : `/api${endpoint || '/placas'}`;
+                const response = await fetch(apiEndpoint, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`
