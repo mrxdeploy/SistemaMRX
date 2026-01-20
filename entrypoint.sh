@@ -45,15 +45,16 @@ python -c "from app import create_app; print('✅ App importado com sucesso')" |
 # Executa migrações de produção (adiciona colunas faltantes)
 echo ""
 echo "🔄 Executando migrações de produção..."
-python migrate_production.py 2>/dev/null || echo "⚠️  Migrações opcionais não aplicadas (pode ser primeira execução)"
+python migrate_production.py || echo "⚠️  Aviso: Falha ao executar migrate_production.py, continuando inicialização..."
 
 # Inicializa o banco de dados
 echo ""
 echo "📊 Inicializando banco de dados..."
 python init_db.py || {
     echo "❌ ERRO: Falha ao inicializar banco de dados"
-    echo "   Verifique se o PostgreSQL está ativo no Railway"
-    exit 1
+    echo "   Verifique se o PostgreSQL está ativo no Railway e se a URL está correta"
+    # Não vamos dar exit 1 aqui para tentar iniciar o servidor mesmo assim se o banco já estiver pronto
+    echo "   Tentando continuar mesmo com erro no init_db..."
 }
 
 # Inicia o servidor Gunicorn
@@ -63,7 +64,9 @@ echo "🌐 Iniciando servidor Gunicorn"
 echo "   - Worker: eventlet"
 echo "   - Workers: 1"
 echo "   - Bind: 0.0.0.0:$PORT"
-echo "   - Timeout: 120s"
+echo "   - Timeout: 300s"
 echo "   - WSGI: wsgi:application"
 echo "=========================================="
-exec gunicorn --worker-class eventlet -w 1 --bind "0.0.0.0:$PORT" --timeout 120 --log-level info wsgi:application
+# Adicionando --preload para detectar erros de importação na inicialização
+# Aumentando timeout para 300s para evitar 502 no deploy inicial
+exec gunicorn --worker-class eventlet -w 1 --bind "0.0.0.0:$PORT" --timeout 300 --log-level debug --preload wsgi:application

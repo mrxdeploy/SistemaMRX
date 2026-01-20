@@ -8,8 +8,14 @@ from flask_jwt_extended import decode_token
 from app.models import Usuario
 
 # Cria a aplicação
-application = create_app()
-app = application
+try:
+    application = create_app()
+    app = application
+except Exception as e:
+    print(f"❌ ERRO FATAL ao criar app: {e}")
+    import traceback
+    traceback.print_exc()
+    raise e
 
 # Rotas adicionais
 @app.route('/uploads/<path:filename>')
