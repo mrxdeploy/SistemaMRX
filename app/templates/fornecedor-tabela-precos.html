@@ -834,9 +834,35 @@
                     doc.text(`Página ${i} de ${pageCount}`, 196, 285, { align: 'right' });
                 }
 
-                // Salvar Arquivo
+                // Salvar ou Compartilhar Arquivo
                 const filename = `Tabela_Precos_${nomeFornecedor.replace(/[^a-z0-9]/gi, '_')}.pdf`;
-                doc.save(filename);
+
+                // Detecção robusta para iOS (iPad/iPhone)
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+                if (isIOS && navigator.canShare && navigator.canShare({ files: [new File([], filename)] })) {
+                    // Modo iOS: Usar compartilhamento nativo
+                    try {
+                        const pdfBlob = doc.output('blob');
+                        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+                        
+                        await navigator.share({
+                            files: [file],
+                            title: 'Tabela de Preços',
+                            text: `Segue em anexo a tabela de preços de ${nomeFornecedor}.`
+                        });
+                    } catch (err) {
+                        if (err.name !== 'AbortError') {
+                            console.error('Erro no compartilhamento:', err);
+                            // Fallback se falhar tecnicamente (não cancelamento do usuário)
+                            doc.save(filename);
+                        }
+                    }
+                } else {
+                    // Modo Desktop/Android: Download direto
+                    doc.save(filename);
+                }
 
             } catch (error) {
                 console.error('Erro ao gerar PDF:', error);
