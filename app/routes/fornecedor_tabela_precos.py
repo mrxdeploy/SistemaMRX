@@ -6,12 +6,6 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime, timedelta
 import logging
-import pytz
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
 
 logger = logging.getLogger(__name__)
 
@@ -1130,6 +1124,14 @@ def listar_itens_aprovados_fornecedor(fornecedor_id):
 def exportar_pdf_fornecedor(fornecedor_id):
     """Gera PDF com a tabela de preços aprovada do fornecedor"""
     try:
+        # Lazy imports to avoid eventlet monkey_patch conflicts
+        import pytz
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import cm
+        
         usuario_id = get_jwt_identity()
         
         # Verificar acesso (leitura)
