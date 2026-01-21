@@ -1,6 +1,8 @@
 """
 WSGI entry point para Gunicorn
 """
+import eventlet
+eventlet.monkey_patch()
 from app import create_app, socketio
 from flask import send_from_directory, render_template
 from flask_socketio import join_room
