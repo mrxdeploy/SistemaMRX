@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <style>
         /* Correção de responsividade e overlap */
         body {
@@ -544,6 +546,7 @@
         let fornecedorId = null;
         let materiaisDisponiveis = [];
         let itensAdicionados = [];
+        let todosPrecos = []; // Armazenar preços para exportação
 
         function voltar() {
             window.location.href = '/fornecedores.html';
@@ -615,6 +618,7 @@
                 const response = await fetchAPI(url);
                 if (response.ok) {
                     const data = await response.json();
+                    todosPrecos = data.precos; // Salvar para exportação
                     renderizarTabela(data.precos);
                     atualizarContadores(data.precos);
                 }
@@ -722,64 +726,111 @@
 
         async function exportarPDF() {
             try {
-                const token = localStorage.getItem('token');
-                if (!token) {
-                    alert('Sessão expirada. Por favor, faça login novamente.');
-                    window.location.href = '/login.html';
+                if (!todosPrecos || todosPrecos.length === 0) {
+                    alert('Não há dados para exportar.');
                     return;
                 }
 
-                // Mostrar loading
-                const btn = document.getElementById('btnExportarPDF');
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando...';
-                btn.disabled = true;
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Filtrar apenas itens APROVADOS (status = ativo)
+                // Usar um Map para pegar apenas a versão mais recente de cada material ativo
+                const precosMap = new Map();
+                
+                todosPrecos.forEach(p => {
+                    if (p.status === 'ativo') {
+                        // Se já existe, verifica se a versão atual é maior
+                        if (!precosMap.has(p.material_id) || p.versao > precosMap.get(p.material_id).versao) {
+                            precosMap.set(p.material_id, p);
+                        }
+                    }
+                });
+                
+                const itensExportacao = Array.from(precosMap.values());
+                
+                // Ordenar por nome do material
+                itensExportacao.sort((a, b) => {
+                    const nomeA = a.material_nome || '';
+                    const nomeB = b.material_nome || '';
+                    return nomeA.localeCompare(nomeB);
+                });
 
-                const response = await fetch(`/api/fornecedor-tabela-precos/fornecedor/${fornecedorId}/exportar-pdf`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
+                if (itensExportacao.length === 0) {
+                    alert('Não há itens aprovados para exportar.');
+                    return;
+                }
+
+                // Configurações de hora (Brasília)
+                const agora = new Date();
+                const opcoesData = { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+                const dataFormatada = agora.toLocaleString('pt-BR', opcoesData);
+                
+                const nomeFornecedor = document.getElementById('fornecedorNome').textContent || 'Fornecedor';
+
+                // --- Cabeçalho ---
+                const primaryColor = [5, 150, 105]; // #059669
+                
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(18);
+                doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+                doc.text("Tabela de Preços", 105, 20, { align: 'center' });
+                
+                doc.setFontSize(14);
+                doc.setTextColor(60, 60, 60);
+                doc.text(nomeFornecedor, 105, 30, { align: 'center' });
+                
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Exportado em: ${dataFormatada} (Horário de Brasília)`, 105, 38, { align: 'center' });
+
+                // --- Tabela ---
+                const tableBody = itensExportacao.map(item => [
+                    item.material_nome || 'N/A',
+                    `R$ ${parseFloat(item.preco_fornecedor).toFixed(2).replace('.', ',')}`
+                ]);
+
+                doc.autoTable({
+                    startY: 45,
+                    head: [['Material', 'Preço (R$/kg)']],
+                    body: tableBody,
+                    theme: 'striped',
+                    headStyles: { 
+                        fillColor: primaryColor,
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold',
+                        halign: 'left'
+                    },
+                    columnStyles: {
+                        0: { halign: 'left' },
+                        1: { halign: 'right', fontStyle: 'bold' }
+                    },
+                    styles: {
+                        fontSize: 11,
+                        cellPadding: 6
+                    },
+                    alternateRowStyles: {
+                        fillColor: [245, 247, 250]
                     }
                 });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.erro || 'Erro ao exportar PDF');
+                // --- Rodapé ---
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text('Sistema MRX Gestão', 14, 285);
+                    doc.text(`Página ${i} de ${pageCount}`, 196, 285, { align: 'right' });
                 }
 
-                // Baixar o arquivo
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                
-                // Extrair nome do arquivo do header ou usar padrão
-                const contentDisposition = response.headers.get('Content-Disposition');
-                let filename = 'tabela_precos.pdf';
-                if (contentDisposition) {
-                    const match = contentDisposition.match(/filename="?([^";\n]+)"?/);
-                    if (match && match[1]) {
-                        filename = match[1];
-                    }
-                }
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-
-                // Restaurar botão
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                // Salvar Arquivo
+                const filename = `Tabela_Precos_${nomeFornecedor.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+                doc.save(filename);
 
             } catch (error) {
-                console.error('Erro ao exportar PDF:', error);
-                alert(error.message || 'Erro ao exportar PDF');
-                
-                // Restaurar botão em caso de erro
-                const btn = document.getElementById('btnExportarPDF');
-                btn.innerHTML = '<i class="fas fa-file-pdf"></i> <span class="btn-text">Exportar PDF</span>';
-                btn.disabled = false;
+                console.error('Erro ao gerar PDF:', error);
+                alert('Erro ao gerar o PDF. Verifique o console para mais detalhes.');
             }
         }
 
