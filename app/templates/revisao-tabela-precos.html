@@ -629,7 +629,22 @@
             }
 
             await carregarDados();
+            await carregarDados();
             await atualizarNotificacoes();
+
+            // Handle Read-Only Mode
+            if (urlParams.get('readonly') === 'true') {
+                document.querySelector('.actions-bar').style.display = 'none';
+                document.styleSheets[0].insertRule('.btn-edit { display: none !important; }', 0);
+                
+                // Optional: Add a readonly banner
+                const banner = document.createElement('div');
+                banner.className = 'info-box';
+                banner.style.marginBottom = '1.5rem';
+                banner.style.textAlign = 'center';
+                banner.innerHTML = '<p><i class="fas fa-eye"></i> <strong>Modo de Visualização</strong> - Esta tabela já foi processada.</p>';
+                document.querySelector('.page-header').after(banner);
+            }
         }
 
         async function carregarDados() {

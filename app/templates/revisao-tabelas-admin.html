@@ -436,7 +436,7 @@
                 const statusText = getStatusText(f.tabela_preco_status);
                 
                 const isClickable = statusClass === 'aprovada' || statusClass === 'pendente_reenvio';
-                const clickAttr = isClickable ? `onclick="window.location.href='/fornecedor-tabela-precos.html?id=${f.id}&tab=visualizar'"` : '';
+                const clickAttr = isClickable ? `onclick="window.location.href='/revisao-tabela-precos.html?fornecedor_id=${f.id}&readonly=true'"` : '';
                 const styleAttr = isClickable ? 'style="cursor: pointer"' : '';
                 
                 return `
