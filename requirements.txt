@@ -17,6 +17,8 @@ google-genai>=0.2.0
 google-generativeai
 openpyxl>=3.1.0
 pandas>=2.0.0
+reportlab>=4.0.0
+pytz>=2023.3
 xlrd>=2.0.1
 sqlalchemy
 requests
