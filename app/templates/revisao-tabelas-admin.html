@@ -435,8 +435,12 @@
                 const statusClass = f.tabela_preco_status || 'sem_tabela';
                 const statusText = getStatusText(f.tabela_preco_status);
                 
+                const isClickable = statusClass === 'aprovada' || statusClass === 'pendente_reenvio';
+                const clickAttr = isClickable ? `onclick="window.location.href='/fornecedor-tabela-precos.html?id=${f.id}&tab=visualizar'"` : '';
+                const styleAttr = isClickable ? 'style="cursor: pointer"' : '';
+                
                 return `
-                    <div class="fornecedor-card ${statusClass}">
+                    <div class="fornecedor-card ${statusClass}" ${clickAttr} ${styleAttr}>
                         <div class="fornecedor-info">
                             <div class="fornecedor-nome">${f.nome}</div>
                             <div class="fornecedor-detalhes">
@@ -458,7 +462,7 @@
                             </div>
                         </div>
                         ${f.total_pendentes > 0 || statusClass === 'pendente_aprovacao' || statusClass === 'pendente' ? `
-                            <button class="btn-revisar" onclick="abrirRevisao(${f.id})">
+                            <button class="btn-revisar" onclick="event.stopPropagation(); abrirRevisao(${f.id})">
                                 <i class="fas fa-search"></i> Revisar
                             </button>
                         ` : ''}

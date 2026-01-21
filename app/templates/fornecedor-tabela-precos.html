@@ -573,6 +573,16 @@
             setupTabs();
             setupDragDrop();
             setupBuscaMaterial();
+
+            // Auto-switch tab if param exists
+            const tabParam = params.get('tab');
+            if (tabParam) {
+                const tabButton = document.querySelector(`.tab[data-tab="${tabParam}"]`);
+                if (tabButton) {
+                    // Slight delay to ensure DOM is ready and listeners active (though sync here, good practice)
+                    setTimeout(() => tabButton.click(), 100);
+                }
+            }
         }
 
         async function carregarFornecedor() {
