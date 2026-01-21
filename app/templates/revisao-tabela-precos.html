@@ -634,7 +634,12 @@
 
             // Handle Read-Only Mode
             if (urlParams.get('readonly') === 'true') {
-                document.querySelector('.actions-bar').style.display = 'none';
+                // Hide specific action buttons but keep the back button
+                const btnAprovar = document.querySelector('.btn-aprovar');
+                const btnRejeitar = document.querySelector('.btn-rejeitar');
+                if (btnAprovar) btnAprovar.style.display = 'none';
+                if (btnRejeitar) btnRejeitar.style.display = 'none';
+                
                 document.styleSheets[0].insertRule('.btn-edit { display: none !important; }', 0);
                 
                 // Optional: Add a readonly banner
