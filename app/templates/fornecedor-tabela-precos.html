@@ -509,6 +509,9 @@
                         <button id="btnReenviar" class="btn btn-primary" style="display: none; white-space: nowrap;" onclick="reenviarParaAprovacao()">
                             <i class="fas fa-paper-plane"></i> <span class="btn-text">Reenviar</span>
                         </button>
+                        <button id="btnExportarPDF" class="btn btn-secondary" style="white-space: nowrap;" onclick="exportarPDF()">
+                            <i class="fas fa-file-pdf"></i> <span class="btn-text">Exportar PDF</span>
+                        </button>
                     </div>
                 </div>
 
@@ -714,6 +717,69 @@
             } catch (error) {
                 console.error('Erro:', error);
                 alert(error.message || 'Erro ao reenviar tabela');
+            }
+        }
+
+        async function exportarPDF() {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    alert('Sessão expirada. Por favor, faça login novamente.');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                // Mostrar loading
+                const btn = document.getElementById('btnExportarPDF');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando...';
+                btn.disabled = true;
+
+                const response = await fetch(`/api/fornecedor-tabela-precos/fornecedor/${fornecedorId}/exportar-pdf`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.erro || 'Erro ao exportar PDF');
+                }
+
+                // Baixar o arquivo
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Extrair nome do arquivo do header ou usar padrão
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = 'tabela_precos.pdf';
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="?([^";\n]+)"?/);
+                    if (match && match[1]) {
+                        filename = match[1];
+                    }
+                }
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                // Restaurar botão
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+
+            } catch (error) {
+                console.error('Erro ao exportar PDF:', error);
+                alert(error.message || 'Erro ao exportar PDF');
+                
+                // Restaurar botão em caso de erro
+                const btn = document.getElementById('btnExportarPDF');
+                btn.innerHTML = '<i class="fas fa-file-pdf"></i> <span class="btn-text">Exportar PDF</span>';
+                btn.disabled = false;
             }
         }
 

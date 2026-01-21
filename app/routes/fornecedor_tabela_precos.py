@@ -4,8 +4,14 @@ from app.models import db, FornecedorTabelaPrecos, AuditoriaFornecedorTabelaPrec
 from app.auth import admin_required
 import pandas as pd
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
+import pytz
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm
 
 logger = logging.getLogger(__name__)
 
@@ -1118,3 +1124,111 @@ def listar_itens_aprovados_fornecedor(fornecedor_id):
     except Exception as e:
         logger.error(f'Erro ao listar itens aprovados: {str(e)}')
         return jsonify({'erro': f'Erro ao listar itens: {str(e)}'}), 500
+
+@bp.route('/fornecedor/<int:fornecedor_id>/exportar-pdf', methods=['GET'])
+@jwt_required()
+def exportar_pdf_fornecedor(fornecedor_id):
+    """Gera PDF com a tabela de preços aprovada do fornecedor"""
+    try:
+        usuario_id = get_jwt_identity()
+        
+        # Verificar acesso (leitura)
+        if not verificar_acesso_fornecedor(fornecedor_id, usuario_id):
+            return jsonify({'erro': 'Acesso negado a este fornecedor'}), 403
+        
+        fornecedor = Fornecedor.query.get(fornecedor_id)
+        if not fornecedor:
+            return jsonify({'erro': 'Fornecedor não encontrado'}), 404
+            
+        # Buscar apenas preços ativos (aprovados) - Requisito: "somente os materiais já aprovados"
+        precos_ativos = FornecedorTabelaPrecos.query.filter_by(
+            fornecedor_id=fornecedor_id,
+            status='ativo'
+        ).all()
+        
+        # Filtrar para ter apenas a última versão de cada material
+        precos_map = {}
+        for p in precos_ativos:
+            if p.material_id not in precos_map:
+                precos_map[p.material_id] = p
+            elif p.versao > precos_map[p.material_id].versao:
+                precos_map[p.material_id] = p
+                
+        lista_precos = list(precos_map.values())
+        
+        # Ordenar por nome do material
+        lista_precos.sort(key=lambda x: x.material.nome if x.material else '')
+        
+        # Configuração do Buffer
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4,
+                                rightMargin=2*cm, leftMargin=2*cm,
+                                topMargin=2*cm, bottomMargin=2*cm)
+        
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Estilo do Título
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=30,
+            alignment=1 # Center
+        )
+        
+        # Data e Hora em Brasilia (UTC-3)
+        try:
+            tz_brasilia = pytz.timezone('America/Sao_Paulo')
+            agora = datetime.now(tz_brasilia)
+        except:
+            agora = datetime.utcnow() - timedelta(hours=3)
+
+        data_formatada = agora.strftime('%d/%m/%Y %H:%M:%S')
+        
+        elements.append(Paragraph(f"Tabela de Preços - {fornecedor.nome}", title_style))
+        elements.append(Paragraph(f"Exportado em: {data_formatada} (Horário de Brasília)", styles['Normal']))
+        elements.append(Spacer(1, 12))
+        
+        # Tabela
+        data = [['Material', 'Valor (R$/kg)']]
+        
+        if lista_precos:
+            for p in lista_precos:
+                material_nome = p.material.nome if p.material else 'N/A'
+                preco_formatado = f"R$ {p.preco_fornecedor:.2f}".replace('.', ',')
+                data.append([material_nome, preco_formatado])
+        else:
+             data.append(['Nenhum material aprovado', '-'])
+
+        # Estilo da Tabela
+        table = Table(data, colWidths=[12*cm, 4*cm])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ]))
+        
+        elements.append(table)
+        elements.append(Spacer(1, 24))
+        elements.append(Paragraph("Sistema MRX Gestão", styles['Italic']))
+        
+        doc.build(elements)
+        
+        buffer.seek(0)
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'tabela_precos_{fornecedor.nome.replace(" ", "_")}_{agora.strftime("%Y%m%d")}.pdf'
+        )
+
+    except Exception as e:
+        logger.error(f'Erro ao exportar PDF: {str(e)}', exc_info=True)
+        return jsonify({'erro': f'Erro ao exportar PDF: {str(e)}'}), 500
