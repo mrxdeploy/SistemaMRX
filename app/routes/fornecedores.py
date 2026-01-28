@@ -201,20 +201,21 @@ def buscar_cep(cep):
         if 'erro' in dados and dados['erro']:
             return jsonify({'erro': 'CEP não encontrado.'}), 404
         
-        # Verificar conflito de endereço após buscar CEP
-        conflito = verificar_conflito_endereco(
-            rua=dados.get('logradouro'),
-            numero='',  # Não temos número ainda
-            cidade=dados.get('localidade'),
-            estado=dados.get('uf'),
-            cep=dados.get('cep')
-        )
-        
-        if conflito:
-            return jsonify({
-                'erro': conflito['mensagem'],
-                'conflito_endereco': conflito
-            }), 409
+        # VERIFICAÇÃO DE CONFLITO DE ENDEREÇO DESABILITADA
+        # Permitir múltiplos fornecedores no mesmo endereço conforme solicitação do cliente
+        # conflito = verificar_conflito_endereco(
+        #     rua=dados.get('logradouro'),
+        #     numero='',  # Não temos número ainda
+        #     cidade=dados.get('localidade'),
+        #     estado=dados.get('uf'),
+        #     cep=dados.get('cep')
+        # )
+        # 
+        # if conflito:
+        #     return jsonify({
+        #         'erro': conflito['mensagem'],
+        #         'conflito_endereco': conflito
+        #     }), 409
         
         # Retorna dados formatados
         return jsonify({
@@ -361,20 +362,21 @@ def criar_fornecedor():
         if not data.get('cnpj') and not data.get('cpf'):
             return jsonify({'erro': 'CNPJ ou CPF é obrigatório'}), 400
         
-        # VERIFICAR CONFLITO DE ENDEREÇO PRIMEIRO (antes de validar CNPJ/CPF)
-        conflito = verificar_conflito_endereco(
-            rua=data.get('rua'),
-            numero=data.get('numero'),
-            cidade=data.get('cidade'),
-            estado=data.get('estado'),
-            cep=data.get('cep')
-        )
-        
-        if conflito:
-            return jsonify({
-                'erro': conflito['mensagem'],
-                'conflito_endereco': conflito
-            }), 409
+        # VERIFICAÇÃO DE CONFLITO DE ENDEREÇO DESABILITADA
+        # Permitir múltiplos fornecedores no mesmo endereço conforme solicitação do cliente
+        # conflito = verificar_conflito_endereco(
+        #     rua=data.get('rua'),
+        #     numero=data.get('numero'),
+        #     cidade=data.get('cidade'),
+        #     estado=data.get('estado'),
+        #     cep=data.get('cep')
+        # )
+        # 
+        # if conflito:
+        #     return jsonify({
+        #         'erro': conflito['mensagem'],
+        #         'conflito_endereco': conflito
+        #     }), 409
         
         cnpj_normalizado = None
         cpf_normalizado = None

@@ -31,8 +31,8 @@ def verificar_acesso_fornecedor(fornecedor_id, usuario_id):
     if not fornecedor:
         return False
     
-    # Qualquer comprador (usuário com perfil "Comprador (PJ)" ou "Producao") pode enviar tabela para aprovação
-    if usuario.perfil and usuario.perfil.nome in ['Comprador (PJ)', 'Producao', 'Produção']:
+    # Qualquer comprador (usuário com perfil "Comprador (PJ)", "Producao" ou "Gestor") pode enviar tabela para aprovação
+    if usuario.perfil and usuario.perfil.nome in ['Comprador (PJ)', 'Producao', 'Produção', 'Gestor']:
         return True
     
     # Caso não seja comprador, verificar se é o responsável ou criador
