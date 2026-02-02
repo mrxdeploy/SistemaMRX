@@ -1068,11 +1068,14 @@
                 return;
             }
             
+            // Armazenar o ID antes de fechar o modal
+            const idParaExcluir = itemExcluirId;
+            
             showLoading(true);
             fecharModalExcluir();
             
             try {
-                const response = await fetchAPI(`/fornecedor-tabela-precos/${itemExcluirId}/excluir-item`, {
+                const response = await fetchAPI(`/fornecedor-tabela-precos/${idParaExcluir}/excluir-item`, {
                     method: 'DELETE'
                 });
                 
