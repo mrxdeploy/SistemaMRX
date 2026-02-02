@@ -282,6 +282,26 @@
             color: white;
         }
         
+        .btn-delete {
+            background: #fee2e2;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #dc2626;
+            transition: all 0.2s;
+        }
+        
+        .btn-delete:hover {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .btn-delete:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
         .editable-price {
             display: flex;
             align-items: center;
@@ -575,6 +595,29 @@
         </div>
     </div>
 
+    <div class="modal" id="modalExcluir">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Excluir Item da Tabela</h2>
+                <button class="modal-close" onclick="fecharModalExcluir()">&times;</button>
+            </div>
+            <div class="info-box warning">
+                <p><i class="fas fa-exclamation-triangle"></i> Esta ação é irreversível e excluirá permanentemente o item da tabela de preços.</p>
+            </div>
+            <div class="form-group">
+                <label>Material</label>
+                <input type="text" id="excluirMaterialNome" readonly style="background: #f3f4f6;">
+            </div>
+            <div id="excluirStatusContainer"></div>
+            <div style="display: flex; gap: 0.75rem;" id="excluirActions">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalExcluir()" style="flex: 1;">Cancelar</button>
+                <button type="button" class="btn-rejeitar" onclick="confirmarExclusao()" id="btnConfirmarExclusao" style="flex: 1; justify-content: center;">
+                    <i class="fas fa-trash"></i> Confirmar Exclusão
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal" id="modalRejeitar">
         <div class="modal-content">
             <div class="modal-header">
@@ -641,6 +684,9 @@
                 if (btnRejeitar) btnRejeitar.style.display = 'none';
                 
                 document.styleSheets[0].insertRule('.btn-edit { display: none !important; }', 0);
+                
+                // Show delete buttons for readonly mode
+                document.styleSheets[0].insertRule('.btn-delete-item { display: inline-flex !important; }', 0);
                 
                 // Optional: Add a readonly banner
                 const banner = document.createElement('div');
@@ -793,9 +839,14 @@
                             </div>
                         </td>
                         <td>
-                            <button class="btn-edit" onclick="abrirModalEditar(${item.id}, '${materialNomeEscaped}', ${precoFornecedor})" title="Editar preco">
-                                <i class="fas fa-edit"></i>
-                            </button>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn-edit" onclick="abrirModalEditar(${item.id}, '${materialNomeEscaped}', ${precoFornecedor})" title="Editar preco">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-delete btn-delete-item" onclick="abrirModalExcluir(${item.id}, '${materialNomeEscaped}')" title="Excluir item" style="display: none;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -942,6 +993,105 @@
             } catch (error) {
                 console.error('Erro:', error);
                 showAlert(error.message || 'Erro ao rejeitar tabela');
+                showLoading(false);
+            }
+        }
+
+        let itemExcluirId = null;
+
+        async function abrirModalExcluir(id, nome) {
+            itemExcluirId = id;
+            document.getElementById('excluirMaterialNome').value = nome;
+            document.getElementById('excluirStatusContainer').innerHTML = '<p style="text-align: center; color: #6b7280;"><i class="fas fa-spinner fa-spin"></i> Verificando uso do item...</p>';
+            document.getElementById('btnConfirmarExclusao').disabled = true;
+            document.getElementById('modalExcluir').classList.add('active');
+            
+            // Verificar se o item está em uso
+            try {
+                const response = await fetchAPI(`/fornecedor-tabela-precos/${id}/verificar-uso`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao verificar uso');
+                }
+                
+                const data = await response.json();
+                
+                if (data.em_uso) {
+                    let refHtml = '<ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
+                    data.referencias.forEach(ref => {
+                        refHtml += `<li>${ref.tipo}: ${ref.quantidade} registro(s)</li>`;
+                    });
+                    refHtml += '</ul>';
+                    
+                    document.getElementById('excluirStatusContainer').innerHTML = `
+                        <div class="info-box warning" style="margin-bottom: 1rem;">
+                            <p><i class="fas fa-exclamation-circle"></i> <strong>Item não pode ser excluído!</strong></p>
+                            <p style="margin-top: 0.5rem;">Este item está sendo usado em:</p>
+                            ${refHtml}
+                            <p style="margin-top: 0.5rem; font-size: 0.875rem;">Para excluir este item, primeiro remova todas as referências acima.</p>
+                        </div>
+                    `;
+                    document.getElementById('btnConfirmarExclusao').style.display = 'none';
+                } else {
+                    document.getElementById('excluirStatusContainer').innerHTML = `
+                        <div class="info-box" style="margin-bottom: 1rem;">
+                            <p><i class="fas fa-check-circle"></i> Este item não está em uso e pode ser excluído com segurança.</p>
+                        </div>
+                    `;
+                    document.getElementById('btnConfirmarExclusao').disabled = false;
+                    document.getElementById('btnConfirmarExclusao').style.display = 'flex';
+                }
+                
+            } catch (error) {
+                console.error('Erro ao verificar uso:', error);
+                document.getElementById('excluirStatusContainer').innerHTML = `
+                    <div class="info-box warning" style="margin-bottom: 1rem;">
+                        <p><i class="fas fa-exclamation-triangle"></i> Erro ao verificar uso do item: ${error.message}</p>
+                    </div>
+                `;
+                document.getElementById('btnConfirmarExclusao').disabled = true;
+            }
+        }
+
+        function fecharModalExcluir() {
+            document.getElementById('modalExcluir').classList.remove('active');
+            itemExcluirId = null;
+        }
+
+        async function confirmarExclusao() {
+            if (!itemExcluirId) {
+                showAlert('Erro: ID do item não encontrado');
+                return;
+            }
+            
+            showLoading(true);
+            fecharModalExcluir();
+            
+            try {
+                const response = await fetchAPI(`/fornecedor-tabela-precos/${itemExcluirId}/excluir-item`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response) {
+                    return;
+                }
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.erro || 'Erro ao excluir item');
+                }
+                
+                const result = await response.json();
+                showAlert(result.mensagem);
+                
+                // Recarregar os dados da tabela
+                await carregarDados();
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert(error.message || 'Erro ao excluir item');
+            } finally {
                 showLoading(false);
             }
         }

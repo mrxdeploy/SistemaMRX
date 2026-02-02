@@ -479,6 +479,136 @@ def excluir_preco(preco_id):
         logger.error(f'Erro ao excluir preço: {str(e)}')
         return jsonify({'erro': f'Erro ao excluir preço: {str(e)}'}), 500
 
+@bp.route('/<int:preco_id>/verificar-uso', methods=['GET'])
+@jwt_required()
+@admin_required
+def verificar_uso_item(preco_id):
+    """Verifica se um item da tabela de preços foi utilizado em alguma operação do sistema"""
+    try:
+        from app.models import ItemSolicitacao, Lote, OrdemCompra
+        
+        preco = FornecedorTabelaPrecos.query.get(preco_id)
+        if not preco:
+            return jsonify({'erro': 'Item não encontrado'}), 404
+        
+        referencias = []
+        
+        # Verificar se o material deste fornecedor foi usado em ItemSolicitacao
+        itens_solicitacao = db.session.query(ItemSolicitacao).join(
+            ItemSolicitacao.solicitacao
+        ).filter(
+            ItemSolicitacao.material_id == preco.material_id,
+            ItemSolicitacao.solicitacao.has(fornecedor_id=preco.fornecedor_id)
+        ).count()
+        
+        if itens_solicitacao > 0:
+            referencias.append({
+                'tipo': 'Solicitações de Compra',
+                'quantidade': itens_solicitacao
+            })
+        
+        # Verificar se foi usado em Lotes
+        lotes = Lote.query.filter_by(
+            fornecedor_id=preco.fornecedor_id,
+            tipo_lote_id=preco.material_id
+        ).count()
+        
+        if lotes > 0:
+            referencias.append({
+                'tipo': 'Lotes',
+                'quantidade': lotes
+            })
+        
+        em_uso = len(referencias) > 0
+        
+        return jsonify({
+            'em_uso': em_uso,
+            'referencias': referencias,
+            'material_nome': preco.material.nome if preco.material else 'N/A',
+            'fornecedor_nome': preco.fornecedor.nome if preco.fornecedor else 'N/A'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f'Erro ao verificar uso do item: {str(e)}')
+        return jsonify({'erro': f'Erro ao verificar uso: {str(e)}'}), 500
+
+@bp.route('/<int:preco_id>/excluir-item', methods=['DELETE'])
+@jwt_required()
+@admin_required
+def excluir_item_aprovado(preco_id):
+    """Exclui um item de tabela de preços aprovada (apenas se não estiver em uso)"""
+    try:
+        from app.models import ItemSolicitacao, Lote
+        
+        usuario_id = get_jwt_identity()
+        usuario = Usuario.query.get(usuario_id)
+        
+        preco = FornecedorTabelaPrecos.query.get(preco_id)
+        if not preco:
+            return jsonify({'erro': 'Item não encontrado'}), 404
+        
+        # Verificar se é um item aprovado
+        if preco.status != 'ativo':
+            return jsonify({'erro': 'Apenas itens aprovados podem ser excluídos por este endpoint'}), 400
+        
+        # Verificar uso do item
+        itens_solicitacao = db.session.query(ItemSolicitacao).join(
+            ItemSolicitacao.solicitacao
+        ).filter(
+            ItemSolicitacao.material_id == preco.material_id,
+            ItemSolicitacao.solicitacao.has(fornecedor_id=preco.fornecedor_id)
+        ).count()
+        
+        lotes = Lote.query.filter_by(
+            fornecedor_id=preco.fornecedor_id,
+            tipo_lote_id=preco.material_id
+        ).count()
+        
+        total_referencias = itens_solicitacao + lotes
+        
+        if total_referencias > 0:
+            return jsonify({
+                'erro': f'Item não pode ser excluído pois está em uso em {total_referencias} operação(ões) do sistema',
+                'referencias': total_referencias
+            }), 400
+        
+        # Criar registro de auditoria antes de excluir
+        material_nome = preco.material.nome if preco.material else 'N/A'
+        fornecedor_nome = preco.fornecedor.nome if preco.fornecedor else 'N/A'
+        
+        auditoria = AuditoriaFornecedorTabelaPrecos(
+            preco_id=preco.id,
+            usuario_id=usuario_id,
+            acao='exclusao',
+            dados_anteriores={
+                'material_id': preco.material_id,
+                'material_nome': material_nome,
+                'fornecedor_id': preco.fornecedor_id,
+                'fornecedor_nome': fornecedor_nome,
+                'preco_fornecedor': float(preco.preco_fornecedor) if preco.preco_fornecedor else 0.00,
+                'status': preco.status,
+                'versao': preco.versao
+            },
+            dados_novos=None
+        )
+        db.session.add(auditoria)
+        
+        # Excluir o item
+        db.session.delete(preco)
+        db.session.commit()
+        
+        logger.info(f'Item de tabela de preços excluído: {material_nome} (ID: {preco_id}) por {usuario.nome}')
+        
+        return jsonify({
+            'mensagem': f'Item "{material_nome}" excluído com sucesso',
+            'material_nome': material_nome
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Erro ao excluir item aprovado: {str(e)}')
+        return jsonify({'erro': f'Erro ao excluir item: {str(e)}'}), 500
+
 @bp.route('/fornecedor/<int:fornecedor_id>/reenviar', methods=['PUT'])
 @jwt_required()
 def reenviar_tabela(fornecedor_id):
