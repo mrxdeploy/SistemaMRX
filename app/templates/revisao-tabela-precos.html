@@ -684,10 +684,9 @@
                 if (btnAprovar) btnAprovar.style.display = 'none';
                 if (btnRejeitar) btnRejeitar.style.display = 'none';
                 
-                // Hide edit buttons and show delete buttons
+                // Show delete buttons alongside edit buttons
                 const style = document.createElement('style');
                 style.textContent = `
-                    .btn-edit { display: none !important; }
                     .btn-delete-item { display: inline-flex !important; }
                 `;
                 document.head.appendChild(style);
