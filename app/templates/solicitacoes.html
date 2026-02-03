@@ -1372,8 +1372,8 @@
             }
         });
 
-        function exportarPDF() {
-            console.log("Iniciando exportação de PDF...");
+        function exportarPDF(forceSupplierMode = false) {
+            console.log("Iniciando exportação de PDF...", { forceSupplierMode });
             if (!solicitacaoAtual) {
                 console.error("Erro: solicitacaoAtual não definida");
                 return;
@@ -1465,11 +1465,13 @@
 
                 // --- LÓGICA CONDICIONAL DE COLUNAS (ADMIN/GESTOR) ---
                 const isAdminOrGestor = usuarioAtual && (usuarioAtual.tipo === 'admin' || usuarioAtual.tipo === 'gestor');
+                // Se forceSupplierMode for true, forçamos o modo simplificado (sem classificação)
+                const showFullDetails = isAdminOrGestor && !forceSupplierMode;
                 
                 let tableHead = [];
                 let tableBody = [];
                 
-                if (isAdminOrGestor) {
+                if (showFullDetails) {
                     tableHead = [['Material', 'Código', 'Classif.', 'Peso', 'Preço/kg', 'Total', 'Lote']];
                     tableBody = solicitacaoAtual.itens.map(item => [
                         item.material_nome || item.tipo_lote_nome || 'N/A',
@@ -1500,7 +1502,7 @@
                     theme: 'striped',
                     headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
                     styles: { fontSize: 9, cellPadding: 3 },
-                    columnStyles: isAdminOrGestor ? {
+                    columnStyles: showFullDetails ? {
                         5: { fontStyle: 'bold', halign: 'right' },
                         3: { halign: 'center' }
                     } : {
@@ -1562,6 +1564,14 @@
                     return;
                 }
                 solicitacaoAtual = await response.json();
+
+                // --- LÓGICA CONDICIONAL DE COLUNAS (ADMIN/GESTOR) ---
+                // Verifica se é Admin ou Gestor para exibir cores e classificações
+                const isAdminOrGestor = usuarioAtual && (
+                    usuarioAtual.tipo === 'admin' || 
+                    usuarioAtual.tipo === 'gestor' || 
+                    (usuarioAtual.perfil && usuarioAtual.perfil === 'Gestor')
+                );
 
                 // --- MAPEAMENTO DE CORES POR CATEGORIA ---
                 const categoriaCores = {
@@ -1639,8 +1649,18 @@
                         else if (classif.includes('LOW')) corKey = 'LOW_GRADE';
                         else if (classif.includes('RESIDUO')) corKey = 'RESIDUO';
                         
-                        const cor = categoriaCores[corKey] || '#6B7280';
-                        const label = categoriaLabels[corKey] || classif;
+                        // Define cor e label baseada no perfil
+                        let cor, label, mostrarBadge;
+                        
+                        if (isAdminOrGestor) {
+                            cor = categoriaCores[corKey] || '#6B7280';
+                            label = categoriaLabels[corKey] || classif;
+                            mostrarBadge = true;
+                        } else {
+                            cor = '#9CA3AF'; // Cinza para usuários comuns
+                            label = '';
+                            mostrarBadge = false;
+                        }
                         
                         const temPrecoCustomizado = item.preco_customizado && item.preco_oferecido;
 
@@ -1654,9 +1674,11 @@
                                             ${item.lote_numero ? `<span style="margin-left: 0.5rem;"><i class="fas fa-box"></i> Lote: ${item.lote_numero}</span>` : ''}
                                         </div>
                                     </div>
+                                    ${mostrarBadge ? `
                                     <span style="background: ${cor}20; color: ${cor}; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; border: 1px solid ${cor}40;">
                                         ${label}
                                     </span>
+                                    ` : ''}
                                 </div>
                                 
                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--gray-100);">
@@ -1694,7 +1716,7 @@
                     
                     html += `</div>`;
                     
-                    // Resumo Totalizador no Final
+                    // Resumo Totalizador
                     html += `
                         <div style="margin-top: 1.5rem; background: var(--gray-900); color: white; padding: 1.5rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                             <div>
@@ -1711,15 +1733,41 @@
 
                 document.getElementById('detalhesConteudo').innerHTML = html;
                 
-                // Configura o evento do botão de PDF que agora está fixo no rodapé do modal
-                const btnPdf = document.getElementById('btnExportarPDF');
-                if (btnPdf) {
-                    btnPdf.onclick = function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        exportarPDF();
-                    };
+                // Configuração dos Botões de PDF
+                const footerDetalhes = document.getElementById('footerDetalhes');
+                
+                // Limpa botões antigos
+                footerDetalhes.innerHTML = '';
+                
+                // Cria container responsivo
+                const btnContainer = document.createElement('div');
+                btnContainer.className = 'pdf-buttons-container';
+                btnContainer.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; width: 100%;';
+                
+                // Botão "Exportar para PDF" (Padrão)
+                const btnPadrao = document.createElement('button');
+                btnPadrao.id = 'btnExportarPDF';
+                btnPadrao.className = 'btn btn-secondary';
+                btnPadrao.style.cssText = 'width: 100%; cursor: pointer;';
+                btnPadrao.innerHTML = '<i class="fas fa-file-pdf"></i> Exportar para PDF';
+                btnPadrao.onclick = function(e) { e.preventDefault(); exportarPDF(false); };
+                btnContainer.appendChild(btnPadrao);
+                
+                // Botão "PDF para Fornecedor" (Extra para Fornecedor ou Gestor)
+                const isFornecedor = usuarioAtual.tipo === 'fornecedor';
+                const isGestor = usuarioAtual.perfil === 'Gestor' || usuarioAtual.tipo === 'gestor';
+                
+                if (isFornecedor || isGestor) {
+                    const btnFornecedor = document.createElement('button');
+                    btnFornecedor.id = 'btnExportarPDFFornecedor';
+                    btnFornecedor.className = 'btn btn-info'; // Use uma cor diferente se desejar
+                    btnFornecedor.style.cssText = 'width: 100%; cursor: pointer; background-color: #0ea5e9; border-color: #0ea5e9; color: white;';
+                    btnFornecedor.innerHTML = '<i class="fas fa-file-pdf"></i> PDF para Fornecedor';
+                    btnFornecedor.onclick = function(e) { e.preventDefault(); exportarPDF(true); };
+                    btnContainer.appendChild(btnFornecedor);
                 }
+                
+                footerDetalhes.appendChild(btnContainer);
 
                 const acoesDiv = document.getElementById('acoesAdmin');
                 if (usuarioAtual.tipo === 'admin' && solicitacaoAtual.status === 'pendente') {
