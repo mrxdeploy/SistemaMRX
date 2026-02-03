@@ -385,38 +385,43 @@
                                     (sublote.tipo_lote_nome || sublote.tipo_lote?.nome || '-');
 
                 return `
-                <div class="sublote-card" style="position: relative; background: var(--success-bg); border-left: 4px solid var(--success-color); padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
-                    <button type="button" class="btn btn-sm btn-light" onclick="event.stopPropagation(); abrirModalEdicao(${sublote.id})" title="Editar" style="position: absolute; top: 10px; right: 40px; z-index: 100; cursor: pointer;">
-                        <i class="fas fa-pencil-alt text-primary"></i>
-                    </button>
-                    <button type="button" class="btn btn-sm btn-light" onclick="event.stopPropagation(); excluirSublote(${sublote.id})" title="Excluir" style="position: absolute; top: 10px; right: 10px; z-index: 100; cursor: pointer;">
-                        <i class="fas fa-trash text-danger"></i>
-                    </button>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; padding-right: 80px;">
-                        <div>
-                            <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Número do Lote</p>
-                            <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sublote.numero_lote || '-'}</p>
+                <div class="sublote-card" style="display: flex; flex-direction: column; background: var(--success-bg); border-left: 4px solid var(--success-color); padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                        <div style="flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div>
+                                <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Número do Lote</p>
+                                <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sublote.numero_lote || '-'}</p>
+                            </div>
+                            <div>
+                                <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Tipo de Material</p>
+                                <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${nomeMaterial}</p>
+                            </div>
+                            <div>
+                                <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Peso</p>
+                                <p style="margin: 0.25rem 0 0 0; font-weight: bold; color: var(--success-color);">${sublote.peso_total_kg?.toFixed(2) || 0} kg</p>
+                            </div>
+                            <div>
+                                <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Qualidade</p>
+                                <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sublote.qualidade_recebida || '-'}</p>
+                            </div>
+                            <div>
+                                <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Status</p>
+                                <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sublote.status || '-'}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Tipo de Material</p>
-                            <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${nomeMaterial}</p>
-                        </div>
-                        <div>
-                            <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Peso</p>
-                            <p style="margin: 0.25rem 0 0 0; font-weight: bold; color: var(--success-color);">${sublote.peso_total_kg?.toFixed(2) || 0} kg</p>
-                        </div>
-                        <div>
-                            <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Qualidade</p>
-                            <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sublote.qualidade_recebida || '-'}</p>
-                        </div>
-                        <div>
-                            <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Status</p>
-                            <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sublote.status || '-'}</p>
+
+                        <div style="display: flex; gap: 0.5rem; flex-shrink: 0; margin-left: auto;">
+                            <button type="button" class="btn btn-sm btn-light" onclick="event.stopPropagation(); abrirModalEdicao(${sublote.id})" title="Editar" style="cursor: pointer; padding: 0.5rem; border: 1px solid var(--gray-300);">
+                                <i class="fas fa-pencil-alt text-primary"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light" onclick="event.stopPropagation(); excluirSublote(${sublote.id})" title="Excluir" style="cursor: pointer; padding: 0.5rem; border: 1px solid var(--gray-300);">
+                                <i class="fas fa-trash text-danger"></i>
+                            </button>
                         </div>
                     </div>
+                    
                     ${sublote.observacoes ? `
-                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--gray-200);">
+                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--gray-200); width: 100%;">
                             <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Observações</p>
                             <p style="margin: 0.25rem 0 0 0;">${sublote.observacoes}</p>
                         </div>
@@ -427,6 +432,7 @@
         }
 
         function renderizarResiduos() {
+            // ... (rest of the function is separate)
             console.log('🎨 Renderizando resíduos:', residuos.length);
             const container = document.getElementById('listaResiduos');
 
