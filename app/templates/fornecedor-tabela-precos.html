@@ -631,6 +631,20 @@
                     todosPrecos = data.precos; // Salvar para exportação
                     renderizarTabela(data.precos);
                     atualizarContadores(data.precos);
+
+                    // Se a tabela estiver vazia, preencher automaticamente a aba de cadastro com todos os materiais
+                    // Apenas se: retornou 0 preços, temos materiais base, não estamos filtrando (carga inicial) e a lista de adição está vazia
+                    if (data.precos.length === 0 && materiaisDisponiveis.length > 0 && !status && itensAdicionados.length === 0) {
+                        itensAdicionados = materiaisDisponiveis.map(m => ({
+                            material_id: m.id,
+                            material_nome: m.nome,
+                            material_codigo: m.codigo,
+                            material_classificacao: m.classificacao,
+                            preco_fornecedor: 0
+                        }));
+                        renderizarItensAdicionados();
+                        console.log('Tabela vazia: Auto-preenchimento realizado com', itensAdicionados.length, 'materiais.');
+                    }
                 }
             } catch (error) {
                 console.error('Erro ao carregar preços:', error);
