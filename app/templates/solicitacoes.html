@@ -1755,9 +1755,9 @@
                 
                 // Botão "PDF para Fornecedor" (Extra para Fornecedor ou Gestor)
                 const isFornecedor = usuarioAtual.tipo === 'fornecedor';
-                const isGestor = usuarioAtual.perfil === 'Gestor' || usuarioAtual.tipo === 'gestor';
+                const isGestorOrAdmin = usuarioAtual.perfil === 'Gestor' || usuarioAtual.tipo === 'gestor' || usuarioAtual.tipo === 'admin';
                 
-                if (isFornecedor || isGestor) {
+                if (isFornecedor || isGestorOrAdmin) {
                     const btnFornecedor = document.createElement('button');
                     btnFornecedor.id = 'btnExportarPDFFornecedor';
                     btnFornecedor.className = 'btn btn-info'; // Use uma cor diferente se desejar
@@ -1768,6 +1768,7 @@
                 }
                 
                 footerDetalhes.appendChild(btnContainer);
+                console.log('Botões PDF renderizados. Admin/Gestor/Fornecedor?', isFornecedor || isGestorOrAdmin);
 
                 const acoesDiv = document.getElementById('acoesAdmin');
                 if (usuarioAtual.tipo === 'admin' && solicitacaoAtual.status === 'pendente') {
