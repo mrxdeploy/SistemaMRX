@@ -1742,7 +1742,7 @@
                 // Cria container responsivo
                 const btnContainer = document.createElement('div');
                 btnContainer.className = 'pdf-buttons-container';
-                btnContainer.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; width: 100%;';
+                btnContainer.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; width: 100%; position: relative; z-index: 9999;';
                 
                 // Botão "Exportar para PDF" (Padrão)
                 const btnPadrao = document.createElement('button');
