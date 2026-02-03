@@ -642,3 +642,205 @@ def obter_estatisticas_separacao():
 
     except Exception as e:
         return jsonify({'erro': f'Erro ao obter estatísticas: {str(e)}'}), 500
+
+@bp.route('/<int:id>/sync-sublotes', methods=['POST'])
+@jwt_required()
+def sincronizar_sublotes(id):
+    """
+    Sincroniza os sublotes com os itens do lote original (Pedido de Compra).
+    Se não houver sublotes criados, cria automaticamente baseado nos itens do lote.
+    """
+    try:
+        usuario_id = get_jwt_identity()
+        separacao = LoteSeparacao.query.get(id)
+        
+        if not separacao:
+            return jsonify({'erro': 'Separação não encontrada'}), 404
+            
+        if separacao.status not in ['AGUARDANDO_SEPARACAO', 'EM_SEPARACAO']:
+             return jsonify({'erro': 'Status inválido para sincronização'}), 400
+
+        lote_pai = separacao.lote
+        if not lote_pai:
+             return jsonify({'erro': 'Lote pai não encontrado'}), 404
+
+        # Se já existem sublotes, não faz nada (para não duplicar ou sobrescrever trabalho manual)
+        # Verifica se existe algum sublote vinculado a este lote pai e criado nesta separação
+        # (A verificação pode ser refinada, mas por segurança, se tem sublotes filhos do pai, aborta auto-criação)
+        sublotes_existentes = Lote.query.filter_by(lote_pai_id=lote_pai.id).count()
+        if sublotes_existentes > 0:
+            return jsonify({'mensagem': 'Sublotes já existem. Sincronização ignorada.', 'sincronizado': False}), 200
+
+        # Buscar itens do lote (que vieram do Pedido de Compra ou Entrada Manual)
+        # Se o lote tem itens, usamos eles.
+        itens = lote_pai.itens
+        
+        if not itens:
+             return jsonify({'mensagem': 'Lote não possui itens para sincronizar.', 'sincronizado': False}), 200
+
+        novos_sublotes = []
+        peso_total_criado = 0.0
+
+        ano = datetime.now().year
+        
+        # Para sequencia do numero do lote, vamos pegar o count atual
+        count_lotes = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count()
+
+        for i, item in enumerate(itens):
+            count_lotes += 1
+            numero_lote = f"{ano}-{str(count_lotes).zfill(5)}"
+            
+            # Tenta determinar o tipo de lote
+            tipo_lote_id = item.tipo_lote_id
+            if not tipo_lote_id and item.material:
+                # Tenta achar TipoLote pelo material, como feito na criação manual
+                from app.models import TipoLote
+                tipo = TipoLote.query.filter_by(nome=item.material.nome).first()
+                if tipo:
+                    tipo_lote_id = tipo.id
+            
+            if not tipo_lote_id:
+                tipo_lote_id = lote_pai.tipo_lote_id # Fallback para o tipo do pai
+
+            # Calcular valor proporcional
+            peso_item = Decimal(str(item.peso_kg))
+            peso_pai = Decimal(str(lote_pai.peso_total_kg or 1))
+            valor_pai = Decimal(str(lote_pai.valor_total or 0))
+            valor_proporcional = (peso_item / peso_pai) * valor_pai if peso_pai > 0 else Decimal(0)
+            
+            sublote = Lote(
+                numero_lote=numero_lote,
+                fornecedor_id=lote_pai.fornecedor_id,
+                tipo_lote_id=tipo_lote_id,
+                peso_total_kg=float(peso_item),
+                valor_total=float(valor_proporcional),
+                qualidade_recebida=item.classificacao or 'B', # Default B se não tiver
+                status='CRIADO_SEPARACAO',
+                lote_pai_id=lote_pai.id,
+                quantidade_itens=1,
+                observacoes=f"MATERIAL:{item.material.nome}" if item.material else f"Item importado do lote {lote_pai.numero_lote}",
+                auditoria=[{
+                    'acao': 'SUBLOTE_AUTO_CRIADO',
+                    'usuario_id': usuario_id,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'origem': 'SYNC_PEDIDO_COMPRA'
+                }],
+                data_criacao=datetime.utcnow()
+            )
+            
+            db.session.add(sublote)
+            novos_sublotes.append(sublote)
+            peso_total_criado += float(peso_item)
+
+        separacao.peso_total_sublotes = (separacao.peso_total_sublotes or 0) + peso_total_criado
+        
+        db.session.commit()
+        
+        return jsonify({
+            'mensagem': f'{len(novos_sublotes)} sublotes criados automaticamente.',
+            'sincronizado': True,
+            'sublotes_criados': len(novos_sublotes)
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': f'Erro ao sincronizar sublotes: {str(e)}'}), 500
+
+@bp.route('/sublotes/<int:id>', methods=['PUT'])
+@jwt_required()
+def editar_sublote(id):
+    try:
+        usuario_id = get_jwt_identity()
+        data = request.get_json()
+        
+        sublote = Lote.query.get(id)
+        if not sublote:
+            return jsonify({'erro': 'Sublote não encontrado'}), 404
+            
+        # Verifica se é um sublote (tem pai)
+        if not sublote.lote_pai_id:
+             return jsonify({'erro': 'Este lote não é um sublote'}), 400
+
+        # Atualiza campos
+        peso_anterior = sublote.peso_total_kg
+        
+        if 'peso' in data:
+            sublote.peso_total_kg = float(data['peso'])
+            
+            # Recalcula valor proporcional se o peso mudou
+            if sublote.lote_pai:
+                peso_pai = Decimal(str(sublote.lote_pai.peso_total_kg or 1))
+                valor_pai = Decimal(str(sublote.lote_pai.valor_total or 0))
+                novo_peso = Decimal(str(sublote.peso_total_kg))
+                novo_valor = (novo_peso / peso_pai) * valor_pai if peso_pai > 0 else Decimal(0)
+                sublote.valor_total = float(novo_valor)
+
+        if 'qualidade' in data:
+            sublote.qualidade_recebida = data['qualidade']
+            
+        if 'observacoes' in data:
+             # Preserva prefixo de material se existir e não for sobrescrito intencionalmente
+             # Aqui vamos assumir que a edição manda o texto completo ou tratamos
+             sublote.observacoes = data['observacoes']
+
+        # Atualiza peso total na separação
+        separacao = LoteSeparacao.query.filter_by(lote_id=sublote.lote_pai_id).first()
+        if separacao:
+            # Recalcular peso total dos sublotes
+            # Esta query soma todos os sublotes do pai, garantindo consistência
+            total_sublotes = db.session.query(db.func.sum(Lote.peso_total_kg)).filter(Lote.lote_pai_id == sublote.lote_pai_id).scalar() or 0
+            separacao.peso_total_sublotes = float(total_sublotes)
+
+        # Auditoria
+        auditoria = sublote.auditoria or []
+        auditoria.append({
+            'acao': 'EDICAO_SUBLOTE',
+            'usuario_id': usuario_id,
+            'timestamp': datetime.utcnow().isoformat(),
+            'alteracoes': data
+        })
+        sublote.auditoria = auditoria
+
+        db.session.commit()
+        
+        return jsonify({'mensagem': 'Sublote atualizado com sucesso', 'sublote': sublote.to_dict()}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': f'Erro ao editar sublote: {str(e)}'}), 500
+
+@bp.route('/sublotes/<int:id>', methods=['DELETE'])
+@jwt_required()
+def excluir_sublote(id):
+    try:
+        usuario_id = get_jwt_identity()
+        
+        sublote = Lote.query.get(id)
+        if not sublote:
+            return jsonify({'erro': 'Sublote não encontrado'}), 404
+            
+        if not sublote.lote_pai_id:
+             return jsonify({'erro': 'Este lote não é um sublote'}), 400
+             
+        # Guarda ID do pai para atualizar separação
+        lote_pai_id = sublote.lote_pai_id
+        
+        # Remove do banco
+        db.session.delete(sublote)
+        
+        # Commit parcial para efetivar deleção antes de recalcular
+        db.session.flush()
+
+        # Atualiza peso total na separação
+        separacao = LoteSeparacao.query.filter_by(lote_id=lote_pai_id).first()
+        if separacao:
+            total_sublotes = db.session.query(db.func.sum(Lote.peso_total_kg)).filter(Lote.lote_pai_id == lote_pai_id).scalar() or 0
+            separacao.peso_total_sublotes = float(total_sublotes)
+            
+        db.session.commit()
+        
+        return jsonify({'mensagem': 'Sublote excluído com sucesso'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': f'Erro ao excluir sublote: {str(e)}'}), 500

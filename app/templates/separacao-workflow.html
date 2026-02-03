@@ -183,6 +183,32 @@
                     <i class="fas fa-check"></i> Finalizar Separação
                 </button>
             </div>
+            <!-- Modal de Edição de Sublote -->
+            <div id="modalEdicaoSublote" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+                <div class="modal-content" style="background: white; padding: 2rem; border-radius: 8px; width: 90%; max-width: 500px;">
+                    <h3>Editar Sublote</h3>
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label>Peso (kg)</label>
+                        <input type="number" id="editPeso" class="form-control" step="0.01">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label>Qualidade</label>
+                        <select id="editQualidade" class="form-control">
+                            <option value="A">A - Excelente</option>
+                            <option value="B">B - Boa</option>
+                            <option value="C">C - Regular</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label>Observações</label>
+                        <textarea id="editObservacoes" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                        <button class="btn btn-secondary" onclick="fecharModalEdicao()">Cancelar</button>
+                        <button class="btn btn-primary" onclick="salvarEdicaoSublote()">Salvar</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -232,6 +258,9 @@
                 document.getElementById('pesoTotal').textContent = `${lote.peso_total_kg?.toFixed(2) || 0} kg`;
                 document.getElementById('qualidade').textContent = lote.qualidade_recebida || '-';
 
+                // Tenta sincronizar sublotes automaticamente antes de carregar
+                await sincronizarSublotes();
+
                 await carregarSublotes();
                 await carregarResiduos();
 
@@ -243,6 +272,23 @@
                 console.error('Erro:', error);
                 alert('Erro ao carregar separação: ' + error.message);
                 voltarParaFila();
+            }
+        }
+
+        async function sincronizarSublotes() {
+            try {
+                const response = await fetch(`/api/separacao/${separacaoId}/sync-sublotes`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                const data = await response.json();
+                if (data.sincronizado) {
+                    console.log('🔄 Sincronização automática:', data.mensagem);
+                }
+            } catch (e) {
+                console.error('Erro ao sincronizar sublotes:', e);
             }
         }
 
@@ -325,16 +371,28 @@
             console.log('🎨 Renderizando', sublotes.length, 'sublote(s)');
             container.innerHTML = sublotes.map(sublote => {
                 console.log('📦 Renderizando sublote:', sublote);
+                const nomeMaterial = sublote.observacoes && (sublote.observacoes.startsWith('MATERIAL:') || sublote.observacoes.startsWith('MATERIAL_MANUAL:')) ? 
+                                    sublote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').replace('MATERIAL:', '').trim() : 
+                                    (sublote.tipo_lote_nome || sublote.tipo_lote?.nome || '-');
+
                 return `
-                <div class="sublote-card" style="background: var(--success-bg); border-left: 4px solid var(--success-color); padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div class="sublote-card" style="position: relative; background: var(--success-bg); border-left: 4px solid var(--success-color); padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
+                    <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 8px;">
+                        <button class="btn btn-sm btn-light" onclick="event.preventDefault(); abrirModalEdicao(${sublote.id})" title="Editar" style="z-index: 10; cursor: pointer;">
+                            <i class="fas fa-pencil-alt text-primary"></i>
+                        </button>
+                        <button class="btn btn-sm btn-light" onclick="event.preventDefault(); excluirSublote(${sublote.id})" title="Excluir" style="z-index: 10; cursor: pointer;">
+                            <i class="fas fa-trash text-danger"></i>
+                        </button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; padding-right: 80px;">
                         <div>
                             <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Número do Lote</p>
                             <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sublote.numero_lote || '-'}</p>
                         </div>
                         <div>
                             <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Tipo de Material</p>
-                            <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${sublote.observacoes && (sublote.observacoes.startsWith('MATERIAL:') || sublote.observacoes.startsWith('MATERIAL_MANUAL:')) ? sublote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').replace('MATERIAL:', '').trim() : (sublote.tipo_lote_nome || sublote.tipo_lote?.nome || '-')}</p>
+                            <p style="margin: 0.25rem 0 0 0; font-weight: bold;">${nomeMaterial}</p>
                         </div>
                         <div>
                             <p style="color: var(--gray-600); margin: 0; font-size: 0.875rem;">Peso</p>
