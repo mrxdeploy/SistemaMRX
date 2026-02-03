@@ -252,15 +252,22 @@ def listar_fornecedores():
         cidade = request.args.get('cidade', '')
         forma_pagamento = request.args.get('forma_pagamento', '')
         condicao_pagamento = request.args.get('condicao_pagamento', '')
+        filtro_tabela = request.args.get('filtro_tabela', 'all')  # all, com_tabela, sem_tabela
         
         query = Fornecedor.query
         
-        # Auditor tem acesso total aos fornecedores (somente leitura)
-        if usuario.tipo == 'funcionario' and usuario.perfil and usuario.perfil.nome != 'Auditoria / BI':
-            # Comprador vê apenas fornecedores onde ele é o comprador responsável
-            query = query.filter(
-                Fornecedor.comprador_responsavel_id == usuario_id
-            )
+        # RBAC: Admin e Gestor veem todos os fornecedores
+        # Outros usuários veem apenas os atribuídos a eles ou criados por eles
+        if usuario.tipo == 'funcionario':
+            perfil_nome = usuario.perfil.nome if usuario.perfil else None
+            if perfil_nome not in ['Auditoria / BI', 'Gestor', 'Administrador']:
+                # Comprador vê apenas fornecedores onde ele é o comprador responsável ou criador
+                query = query.filter(
+                    db.or_(
+                        Fornecedor.comprador_responsavel_id == usuario_id,
+                        Fornecedor.criado_por_id == usuario_id
+                    )
+                )
         
         if busca:
             query = query.filter(
@@ -284,6 +291,17 @@ def listar_fornecedores():
         
         if condicao_pagamento:
             query = query.filter_by(condicao_pagamento=condicao_pagamento)
+        
+        # Filtro por status de tabela de preços
+        if filtro_tabela == 'com_tabela':
+            # Fornecedores que possuem pelo menos um registro em fornecedor_tabela_precos
+            from app.models import FornecedorTabelaPrecos
+            query = query.join(FornecedorTabelaPrecos, Fornecedor.id == FornecedorTabelaPrecos.fornecedor_id).distinct()
+        elif filtro_tabela == 'sem_tabela':
+            # Fornecedores que NÃO possuem registros em fornecedor_tabela_precos
+            from app.models import FornecedorTabelaPrecos
+            subquery = db.session.query(FornecedorTabelaPrecos.fornecedor_id).distinct()
+            query = query.filter(~Fornecedor.id.in_(subquery))
         
         fornecedores = query.order_by(Fornecedor.nome).all()
         return jsonify([fornecedor.to_dict() for fornecedor in fornecedores]), 200

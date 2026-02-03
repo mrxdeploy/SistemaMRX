@@ -49,6 +49,57 @@
         </div>
 
         <div id="abaFornecedores" class="tab-content active">
+            <!-- Filtros de Pesquisa e Status -->
+            <div class="filtros-container" style="background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);">
+                <div style="display: grid; grid-template-columns: 1fr auto auto; gap: 1rem; align-items: end;">
+                    <!-- Campo de Pesquisa -->
+                    <div class="form-group" style="margin: 0;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">
+                            <i class="fas fa-search"></i> Pesquisar Fornecedor
+                        </label>
+                        <input 
+                            type="text" 
+                            id="campoPesquisa" 
+                            placeholder="Buscar por nome, CNPJ ou CPF..." 
+                            style="width: 100%; padding: 0.75rem; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem;"
+                            oninput="debounceAplicarFiltros()"
+                        >
+                    </div>
+                    
+                    <!-- Filtro por Tabela de Preços -->
+                    <div class="form-group" style="margin: 0; min-width: 220px;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">
+                            <i class="fas fa-filter"></i> Status da Tabela
+                        </label>
+                        <select 
+                            id="filtroTabela" 
+                            style="width: 100%; padding: 0.75rem; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; cursor: pointer;"
+                            onchange="aplicarFiltros()"
+                        >
+                            <option value="all">Todos os Fornecedores</option>
+                            <option value="com_tabela">Com Tabela de Preços</option>
+                            <option value="sem_tabela">Sem Tabela de Preços</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Botão Limpar Filtros -->
+                    <div>
+                        <button 
+                            class="btn btn-secondary" 
+                            onclick="limparFiltros()" 
+                            style="padding: 0.75rem 1.5rem; white-space: nowrap;"
+                        >
+                            <i class="fas fa-times"></i> Limpar
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Contador de Resultados -->
+                <div id="contadorResultados" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 0.9rem; display: none;">
+                    <i class="fas fa-info-circle"></i> <span id="textoContador"></span>
+                </div>
+            </div>
+            
             <div class="flex justify-end mb-3">
                 <button class="btn btn-primary" onclick="abrirModalNovoFornecedor()">+ Novo Fornecedor</button>
             </div>
@@ -523,11 +574,31 @@
                 main.container {
                     padding-top: 60px !important;
                 }
+                
+                /* Filtros responsivos para mobile */
+                .filtros-container > div:first-child {
+                    grid-template-columns: 1fr !important;
+                }
+                
+                .filtros-container .form-group {
+                    width: 100% !important;
+                }
             }
 
             @media (min-width: 768px) {
                 main.container {
                     padding-top: 50px !important;
+                }
+            }
+            
+            @media (max-width: 992px) {
+                /* Tablet - 2 colunas para filtros */
+                .filtros-container > div:first-child {
+                    grid-template-columns: 1fr 1fr !important;
+                }
+                
+                .filtros-container > div:first-child > div:first-child {
+                    grid-column: 1 / -1;
                 }
             }
         </style>
@@ -931,20 +1002,74 @@
             }
         }
 
-        async function carregarFornecedores() {
+        // Variáveis para debounce da pesquisa
+        let debounceTimer = null;
+        
+        function debounceAplicarFiltros() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                aplicarFiltros();
+            }, 500); // Aguarda 500ms após o usuário parar de digitar
+        }
+        
+        function aplicarFiltros() {
+            const busca = document.getElementById('campoPesquisa').value.trim();
+            const filtroTabela = document.getElementById('filtroTabela').value;
+            carregarFornecedores(busca, filtroTabela);
+        }
+        
+        function limparFiltros() {
+            document.getElementById('campoPesquisa').value = '';
+            document.getElementById('filtroTabela').value = 'all';
+            carregarFornecedores('', 'all');
+        }
+        
+        async function carregarFornecedores(busca = '', filtroTabela = 'all') {
             try {
-                const response = await fetchAPI('/fornecedores');
+                // Construir URL com parâmetros de filtro
+                let url = '/fornecedores?';
+                const params = [];
+                
+                if (busca) {
+                    params.push(`busca=${encodeURIComponent(busca)}`);
+                }
+                
+                if (filtroTabela && filtroTabela !== 'all') {
+                    params.push(`filtro_tabela=${filtroTabela}`);
+                }
+                
+                url += params.join('&');
+                
+                const response = await fetchAPI(url);
                 if (!response || !response.ok) return;
                 const fornecedores = await response.json();
 
                 const container = document.getElementById('listaFornecedores');
+                const contadorDiv = document.getElementById('contadorResultados');
+                const textoContador = document.getElementById('textoContador');
+
+                // Atualizar contador de resultados
+                if (busca || filtroTabela !== 'all') {
+                    contadorDiv.style.display = 'block';
+                    const totalStr = fornecedores.length === 1 ? '1 fornecedor encontrado' : `${fornecedores.length} fornecedores encontrados`;
+                    textoContador.textContent = totalStr;
+                } else {
+                    contadorDiv.style.display = 'none';
+                }
 
                 if (fornecedores.length === 0) {
+                    const mensagemVazia = (busca || filtroTabela !== 'all') 
+                        ? 'Nenhum fornecedor encontrado com os filtros aplicados'
+                        : 'Nenhum fornecedor cadastrado';
+                    const subtextoVazio = (busca || filtroTabela !== 'all')
+                        ? 'Tente ajustar os filtros para encontrar resultados'
+                        : 'Clique em "+ Novo Fornecedor" para começar';
+                    
                     container.innerHTML = `
                         <div class="empty-state">
                             <i class="fas fa-building"></i>
-                            <h3>Nenhum fornecedor cadastrado</h3>
-                            <p>Clique em "+ Novo Fornecedor" para começar</p>
+                            <h3>${mensagemVazia}</h3>
+                            <p>${subtextoVazio}</p>
                         </div>
                     `;
                     return;
