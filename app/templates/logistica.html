@@ -1042,7 +1042,7 @@
                 const select = document.getElementById('motorista-select');
                 select.innerHTML = '<option value="">Selecione...</option>';
                 motoristas.forEach(m => {
-                    select.innerHTML += `<option value="${m.id}">${m.usuario_nome} - CNH: ${m.cnh}</option>`;
+                    select.innerHTML += `<option value="${m.id}">${m.usuario_nome}</option>`;
                 });
 
                 const filtroSelect = document.getElementById('filtro-motorista');
