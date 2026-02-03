@@ -312,8 +312,17 @@
                     return;
                 }
 
+                
                 sublotes = await response.json();
                 console.log('✅ Total de sublotes encontrados:', sublotes.length);
+
+                // Recalcular peso total dos sublotes baseado na lista atualizada
+                if (sublotes && separacao) {
+                    const totalPeso = sublotes.reduce((acc, sub) => acc + (sub.peso_total_kg || 0), 0);
+                    separacao.peso_total_sublotes = totalPeso;
+                    atualizarProgresso();
+                }
+
                 if (sublotes.length > 0) {
                     console.log('📦 Números dos sublotes:', sublotes.map(s => s.numero_lote).join(', '));
                     console.log('📊 Dados completos dos sublotes:', sublotes);

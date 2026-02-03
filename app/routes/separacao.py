@@ -714,7 +714,7 @@ def sincronizar_sublotes(id):
                 tipo_lote_id=tipo_lote_id,
                 peso_total_kg=float(peso_item),
                 valor_total=float(valor_proporcional),
-                qualidade_recebida=item.classificacao or 'B', # Default B se não tiver
+                qualidade_recebida='A', # Default fixo 'A' conforme solicitado
                 status='CRIADO_SEPARACAO',
                 lote_pai_id=lote_pai.id,
                 quantidade_itens=1,
