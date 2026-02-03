@@ -39,7 +39,11 @@ def obter_fila_separacao():
 
         status_filtro = request.args.get('status', 'AGUARDANDO_SEPARACAO')
 
-        query = LoteSeparacao.query.filter_by(status=status_filtro)
+        if status_filtro == 'RESIDUOS_PENDENTES':
+             # Buscar separações que tenham pelo menos um resíduo aguardando aprovação
+             query = LoteSeparacao.query.join(Residuo).filter(Residuo.status == 'AGUARDANDO_APROVACAO').distinct()
+        else:
+             query = LoteSeparacao.query.filter_by(status=status_filtro)
 
         separacoes = query.order_by(LoteSeparacao.id).all()
 
