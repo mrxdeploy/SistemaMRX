@@ -109,7 +109,6 @@
                     <option value="AGUARDANDO_SEPARACAO">Aguardando Separação</option>
                     <option value="EM_SEPARACAO">Em Separação</option>
                     <option value="FINALIZADA">Finalizadas</option>
-                    <option value="RESIDUOS_PENDENTES">Com Resíduos Pendentes</option>
                 </select>
             </div>
         </div>
@@ -128,7 +127,7 @@
                 <div style="font-size: 2rem; font-weight: bold; color: var(--success-color);" id="statFinalizadas">0</div>
                 <div style="color: var(--gray-600); font-size: 0.875rem;">Finalizadas</div>
             </div>
-            <div class="card" style="text-align: center; cursor: pointer; transition: transform 0.2s;" onclick="setFiltro('RESIDUOS_PENDENTES')" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+            <div class="card" style="text-align: center;"> <!-- Card apenas informativo -->
                 <div style="font-size: 2rem; font-weight: bold; color: var(--danger-color);" id="statResiduosPendentes">0</div>
                 <div style="color: var(--gray-600); font-size: 0.875rem;">Resíduos Pendentes</div>
             </div>
