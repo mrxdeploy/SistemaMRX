@@ -37,15 +37,18 @@ def obter_fila_separacao():
         if perfil_nome not in ['Separação', 'Administrador', 'Producao', 'Produção'] and usuario.tipo != 'admin':
             return jsonify({'erro': 'Acesso negado. Apenas operadores de separação podem acessar a fila'}), 403
 
-        status_filtro = request.args.get('status', 'AGUARDANDO_SEPARACAO')
+        try:
+            status_filtro = request.args.get('status', 'AGUARDANDO_SEPARACAO')
 
-        if status_filtro == 'RESIDUOS_PENDENTES':
-             # Buscar separações que tenham pelo menos um resíduo aguardando aprovação
-             query = LoteSeparacao.query.join(Residuo).filter(Residuo.status == 'AGUARDANDO_APROVACAO').distinct()
-        else:
-             query = LoteSeparacao.query.filter_by(status=status_filtro)
+            if status_filtro == 'RESIDUOS_PENDENTES':
+                 # Buscar separações que tenham pelo menos um resíduo aguardando aprovação
+                 query = LoteSeparacao.query.join(Residuo).filter(Residuo.status == 'AGUARDANDO_APROVACAO').distinct()
+            else:
+                 query = LoteSeparacao.query.filter_by(status=status_filtro)
 
-        separacoes = query.order_by(LoteSeparacao.id).all()
+            separacoes = query.order_by(LoteSeparacao.id).all()
+        except Exception as e:
+            return jsonify({'erro': f'Erro ao carregar fila: {str(e)}'}), 500
 
         resultado = []
         for separacao in separacoes:
