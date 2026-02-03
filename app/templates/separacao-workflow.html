@@ -387,10 +387,10 @@
                 return `
                 <div class="sublote-card" style="position: relative; background: var(--success-bg); border-left: 4px solid var(--success-color); padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
                     <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 8px;">
-                        <button class="btn btn-sm btn-light" onclick="event.preventDefault(); abrirModalEdicao(${sublote.id})" title="Editar" style="z-index: 10; cursor: pointer;">
+                        <button class="btn btn-sm btn-light" onclick="event.stopPropagation(); abrirModalEdicao(${sublote.id})" title="Editar" style="z-index: 10; cursor: pointer;">
                             <i class="fas fa-pencil-alt text-primary"></i>
                         </button>
-                        <button class="btn btn-sm btn-light" onclick="event.preventDefault(); excluirSublote(${sublote.id})" title="Excluir" style="z-index: 10; cursor: pointer;">
+                        <button class="btn btn-sm btn-light" onclick="event.stopPropagation(); excluirSublote(${sublote.id})" title="Excluir" style="z-index: 10; cursor: pointer;">
                             <i class="fas fa-trash text-danger"></i>
                         </button>
                     </div>

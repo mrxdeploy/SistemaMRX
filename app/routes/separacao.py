@@ -664,12 +664,23 @@ def sincronizar_sublotes(id):
         if not lote_pai:
              return jsonify({'erro': 'Lote pai não encontrado'}), 404
 
-        # Se já existem sublotes, não faz nada (para não duplicar ou sobrescrever trabalho manual)
-        # Verifica se existe algum sublote vinculado a este lote pai e criado nesta separação
-        # (A verificação pode ser refinada, mas por segurança, se tem sublotes filhos do pai, aborta auto-criação)
-        sublotes_existentes = Lote.query.filter_by(lote_pai_id=lote_pai.id).count()
-        if sublotes_existentes > 0:
-            return jsonify({'mensagem': 'Sublotes já existem. Sincronização ignorada.', 'sincronizado': False}), 200
+        # Se já existem sublotes, verificar e corrigir qualidade se necessário (migração de dados em tempo real)
+        sublotes_existentes_query = Lote.query.filter_by(lote_pai_id=lote_pai.id)
+        sublotes_db = sublotes_existentes_query.all()
+        
+        if sublotes_db:
+            correcoes = 0
+            for sub in sublotes_db:
+                # Se qualidade for uma classificação legacy ou vazia, força 'A'
+                if sub.qualidade_recebida not in ['A', 'B', 'C']:
+                    sub.qualidade_recebida = 'A'
+                    correcoes += 1
+            
+            if correcoes > 0:
+                db.session.commit()
+                return jsonify({'mensagem': f'Qualidade corrigida em {correcoes} sublotes existentes.', 'sincronizado': True}), 200
+            
+            return jsonify({'mensagem': 'Sublotes já existem e estão corretos.', 'sincronizado': False}), 200
 
         # Buscar itens do lote (que vieram do Pedido de Compra ou Entrada Manual)
         # Se o lote tem itens, usamos eles.
