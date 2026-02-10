@@ -909,6 +909,9 @@
         }
 
         function renderizarResumoCompra(dados) {
+            // Verificar permissão
+            const isAdminOrGestor = verificarPerfil('Administrador', 'Gestor');
+
             // Cores para cada categoria
             const categoriaCores = {
                 'High Grade': '#10B981',
@@ -925,17 +928,40 @@
                 'Low Grade': 'SUCATA DE CIRCUITO IMPRESSO L'
             };
 
+            // Atualizar cabeçalho da tabela baseado na permissão
+            const thead = document.getElementById('tabelaCompraHead');
+            if (thead) {
+                let headerHtml = `
+                    <tr style="background: var(--gray-100); text-align: left;">
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Material</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Classificação</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right;">Peso Comprado</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #059669;">Valor Total</th>
+                `;
+                
+                if (isAdminOrGestor) {
+                    headerHtml += `
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #8b5cf6;">Média R$</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #059669;">Média Real R$/kg</th>
+                    `;
+                }
+                
+                headerHtml += `</tr>`;
+                thead.innerHTML = headerHtml;
+            }
+
             // Renderizar Cards
             const grid = document.getElementById('resumoCompraGrid');
             if(!dados || dados.length === 0) {
                 grid.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center;">Nenhuma OC aprovada encontrada</div>';
-                document.getElementById('tabelaCompraBody').innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 1rem;">Nenhum registro</td></tr>';
+                const colspan = isAdminOrGestor ? 6 : 4;
+                document.getElementById('tabelaCompraBody').innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; padding: 1rem;">Nenhum registro</td></tr>`;
                 return;
             }
 
             grid.innerHTML = dados.map(cat => {
                 const corCategoria = categoriaCores[cat.categoria_label] || 'var(--primary-color)';
-                return `
+                let cardContent = `
                     <div class="card stat-card" style="border-left: 4px solid ${corCategoria};">
                         <div class="stat-number" style="font-size: 1.5rem; color: ${corCategoria};">
                             ${cat.peso_total.toFixed(2)} kg
@@ -944,11 +970,18 @@
                         <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
                             ${cat.materiais.length} materiais
                         </div>
+                `;
+                
+                if (isAdminOrGestor) {
+                    cardContent += `
                         <div style="font-size: 0.85rem; color: #8b5cf6; margin-top: 0.5rem; font-weight: bold;">
                             <i class="fas fa-coins"></i> R$ ${cat.media_geral.toFixed(2)}/kg
                         </div>
-                    </div>
-                `;
+                    `;
+                }
+                
+                cardContent += `</div>`;
+                return cardContent;
             }).join('');
 
             // Renderizar Tabela
@@ -958,16 +991,17 @@
             dados.forEach((cat, index) => {
                 const corCategoria = categoriaCores[cat.categoria_label] || 'var(--primary-color)';
                 const sucataLabel = sucataLabels[cat.categoria_label] || `SUCATA DE CIRCUITO IMPRESSO ${cat.categoria_label.toUpperCase().charAt(0)}`;
+                const colspan = isAdminOrGestor ? 6 : 4;
                 
                 // Espaço entre seções
                 if (index > 0) {
-                    rows += `<tr><td colspan="4" style="padding: 1rem; background: transparent;"></td></tr>`;
+                    rows += `<tr><td colspan="${colspan}" style="padding: 1rem; background: transparent;"></td></tr>`;
                 }
                 
                 // Cabeçalho de categoria
                 rows += `
                     <tr style="background: linear-gradient(135deg, ${corCategoria}15, ${corCategoria}08); border-left: 4px solid ${corCategoria};">
-                        <td colspan="5" style="padding: 0.75rem 1rem; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
+                        <td colspan="${colspan}" style="padding: 0.75rem 1rem; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span><i class="fas fa-layer-group" style="margin-right: 0.5rem;"></i> ${cat.categoria_label}</span>
                                 <button class="btn btn-sm" onclick="exportarPDFCategoria('compra', ${index})" style="background: white; color: ${corCategoria}; border: 1px solid ${corCategoria}; padding: 0.25rem 0.75rem; font-size: 0.8rem;">
@@ -990,10 +1024,16 @@
                             <td style="padding: 0.75rem;">${cat.categoria_label}</td>
                             <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${mat.peso.toFixed(2)} kg</td>
                             <td style="padding: 0.75rem; text-align: right; color: #059669; font-weight: bold;">R$ ${(mat.valor || 0).toFixed(2)}</td>
+                    `;
+                    
+                    if (isAdminOrGestor) {
+                        rows += `
                             <td style="padding: 0.75rem; text-align: right; color: #8b5cf6; font-weight: bold;">R$ ${mat.media_preco.toFixed(2)}</td>
                             <td style="padding: 0.75rem; text-align: right; color: #059669; font-weight: bold;">R$ ${(mat.media_real || 0).toFixed(2)}</td>
-                        </tr>
-                    `;
+                        `;
+                    }
+                    
+                    rows += `</tr>`;
                 });
                 
                 // Subtotal da categoria
@@ -1004,23 +1044,23 @@
                     </div>
                 `;
 
-                const mediaGeralHtml = `
+                const mediaGeralHtml = isAdminOrGestor ? `
                     <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
                         <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Média/kg</div>
                         <div style="font-weight: bold; color: #8b5cf6; font-size: 1rem;">R$ ${(cat.media_geral || 0).toFixed(2)}</div>
                     </div>
-                `;
+                ` : '';
 
-                const mediaRealHtml = `
+                const mediaRealHtml = isAdminOrGestor ? `
                     <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
                         <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Média Real/kg</div>
                         <div style="font-weight: bold; color: #059669; font-size: 1rem;">R$ ${cat.peso_total > 0 ? (cat.total_valor / cat.peso_total).toFixed(2) : '0.00'}</div>
                     </div>
-                `;
+                ` : '';
 
                 rows += `
                     <tr style="background: ${corCategoria}15; border-left: 4px solid ${corCategoria}; border-top: 2px solid ${corCategoria}40;">
-                        <td colspan="6" style="padding: 0;">
+                        <td colspan="${colspan}" style="padding: 0;">
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem; padding: 0.75rem 1rem;">
                                 <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
                                     <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Tipo</div>
@@ -1094,13 +1134,14 @@
                 }
             } else {
                 // Compra sempre tem preços (pois só admin/gestor vê)
-                head = [['Material', 'Classificação', 'Peso Comprado', 'Valor Total', 'Média R$']];
+                head = [['Material', 'Classificação', 'Peso Comprado', 'Valor Total', 'Média R$', 'Média Real R$/kg']];
                 body = dados.materiais.map(item => [
                     item.nome,
                     dados.categoria_label,
                     `${item.peso.toFixed(2)} kg`,
                     `R$ ${(item.valor || 0).toFixed(2)}`,
-                    `R$ ${(item.media_preco || 0).toFixed(2)}`
+                    `R$ ${(item.media_preco || 0).toFixed(2)}`,
+                    `R$ ${(item.media_real || 0).toFixed(2)}`
                 ]);
             }
 
