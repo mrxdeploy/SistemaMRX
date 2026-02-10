@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import db, Lote, BagProducao, ItemSeparadoProducao, ClassificacaoGrade, ItemSolicitacao, MaterialBase, Usuario
+from app.models import db, Lote, BagProducao, ItemSeparadoProducao, ClassificacaoGrade, ItemSolicitacao, MaterialBase, Usuario, Fornecedor, Solicitacao, OrdemCompra
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func
 import logging
