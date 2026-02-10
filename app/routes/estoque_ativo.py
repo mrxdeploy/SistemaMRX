@@ -425,14 +425,25 @@ def obter_resumo_compra():
         # Dicionário: material_id -> soma_precos_fornecedores
         soma_precos_por_material = {}
         
+        # Filtrar apenas fornecedores que têm pelo menos uma OC aprovada para o material
         precos_fornecedores = db.session.query(
             FornecedorTabelaPrecos.material_id,
             func.sum(FornecedorTabelaPrecos.preco_fornecedor)
+        ).join(
+            Fornecedor, Fornecedor.id == FornecedorTabelaPrecos.fornecedor_id
+        ).join(
+            Solicitacao, Solicitacao.fornecedor_id == Fornecedor.id
+        ).join(
+            OrdemCompra, OrdemCompra.solicitacao_id == Solicitacao.id
+        ).join(
+            ItemSolicitacao, ItemSolicitacao.solicitacao_id == Solicitacao.id
         ).filter(
-            FornecedorTabelaPrecos.status == 'ativo'
+            FornecedorTabelaPrecos.status == 'ativo',
+            OrdemCompra.status.in_(oc_status_aprovados),
+            ItemSolicitacao.material_id == FornecedorTabelaPrecos.material_id
         ).group_by(
             FornecedorTabelaPrecos.material_id
-        ).all()
+        ).distinct().all()
         
         soma_precos_por_material = {pid: float(soma or 0) for pid, soma in precos_fornecedores}
 
@@ -481,6 +492,7 @@ def obter_resumo_compra():
                 'peso': round(p, 2),
                 'valor': round(v, 2),
                 'media_preco': media,
+                'media_real': round(v / p, 2) if p > 0 else 0.0,  # Média Real R$/kg (Valor / Peso)
                 'soma_tabelas_debug': soma_tabelas
             })
         

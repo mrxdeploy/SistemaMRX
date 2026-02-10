@@ -1,0 +1,76 @@
+====================================================================================================
+ANÁLISE COMPLETA: Por que a Média R$ está retornando valores baixos?
+====================================================================================================
+
+[PASSO 1] Soma dos Preços nas Tabelas de Fornecedores Ativos
+----------------------------------------------------------------------------------------------------
+Material ID 29: 13 fornecedor(es) | Soma = R$ 641.00
+Material ID 4: 2 fornecedor(es) | Soma = R$ 1200.00
+Material ID 34: 8 fornecedor(es) | Soma = R$ 610.00
+Material ID 41: 8 fornecedor(es) | Soma = R$ 58.00
+Material ID 40: 5 fornecedor(es) | Soma = R$ 195.00
+Material ID 43: 1 fornecedor(es) | Soma = R$ 10.00
+Material ID 32: 9 fornecedor(es) | Soma = R$ 613.00
+Material ID 9: 4 fornecedor(es) | Soma = R$ 535.00
+Material ID 7: 3 fornecedor(es) | Soma = R$ 1280.00
+Material ID 10: 7 fornecedor(es) | Soma = R$ 3050.00
+Material ID 35: 3 fornecedor(es) | Soma = R$ 230.00
+Material ID 38: 10 fornecedor(es) | Soma = R$ 248.00
+Material ID 15: 10 fornecedor(es) | Soma = R$ 1455.00
+Material ID 6: 2 fornecedor(es) | Soma = R$ 2000.00
+Material ID 12: 4 fornecedor(es) | Soma = R$ 910.00
+Material ID 39: 9 fornecedor(es) | Soma = R$ 162.50
+Material ID 24: 1 fornecedor(es) | Soma = R$ 120.00
+Material ID 19: 1 fornecedor(es) | Soma = R$ 60.00
+Material ID 25: 1 fornecedor(es) | Soma = R$ 115.00
+Material ID 36: 6 fornecedor(es) | Soma = R$ 355.00
+Material ID 31: 9 fornecedor(es) | Soma = R$ 705.00
+Material ID 30: 9 fornecedor(es) | Soma = R$ 964.00
+Material ID 50: 3 fornecedor(es) | Soma = R$ 80.00
+Material ID 21: 7 fornecedor(es) | Soma = R$ 1490.00
+Material ID 49: 7 fornecedor(es) | Soma = R$ 945.00
+Material ID 47: 3 fornecedor(es) | Soma = R$ 45.50
+Material ID 14: 3 fornecedor(es) | Soma = R$ 470.00
+Material ID 3: 4 fornecedor(es) | Soma = R$ 4200.00
+Material ID 17: 2 fornecedor(es) | Soma = R$ 420.00
+Material ID 28: 7 fornecedor(es) | Soma = R$ 430.00
+Material ID 20: 7 fornecedor(es) | Soma = R$ 1560.00
+Material ID 37: 9 fornecedor(es) | Soma = R$ 216.00
+Material ID 22: 6 fornecedor(es) | Soma = R$ 665.00
+Material ID 33: 9 fornecedor(es) | Soma = R$ 427.00
+Material ID 13: 4 fornecedor(es) | Soma = R$ 790.00
+Material ID 1: 3 fornecedor(es) | Soma = R$ 7800.00
+Material ID 5: 2 fornecedor(es) | Soma = R$ 450.00
+Material ID 18: 2 fornecedor(es) | Soma = R$ 350.00
+Material ID 16: 3 fornecedor(es) | Soma = R$ 930.00
+Material ID 27: 3 fornecedor(es) | Soma = R$ 350.00
+Material ID 23: 7 fornecedor(es) | Soma = R$ 1195.00
+Material ID 11: 2 fornecedor(es) | Soma = R$ 410.00
+Material ID 8: 6 fornecedor(es) | Soma = R$ 945.00
+
+[PASSO 2] Dados das Ordens de Compra Aprovadas
+----------------------------------------------------------------------------------------------------
+✓ JOIN bem-sucedido: encontrados 4 materiais em OCs aprovadas
+
+[PASSO 3] ANÁLISE COMPARATIVA
+====================================================================================================
+MATERIAL                                 CLASSIF    V.PAGO       PESO         SOMA_TAB     MED_ERRADA   MED_CERTA   
+----------------------------------------------------------------------------------------------------
+SUCATA PLACA CENTRAL B                   high       R$ 3060.00   20.40     kg R$ 1455.00   R$ 2.10       R$ 150.00    
+SUCATA PLACA PESADA                      low        R$ 131.25    7.50      kg R$ 162.50    R$ 0.81       R$ 17.50     
+SUCATA PLACA LEVE B                      mg1        R$ 850.00    8.50      kg R$ 964.00    R$ 0.88       R$ 100.00    
+SUCATA PLACA TAPETE B                    high       R$ 2700.00   15.00     kg R$ 350.00    R$ 7.71       R$ 180.00    
+
+====================================================================================================
+CONCLUSÃO
+====================================================================================================
+
+FÓRMULA ATUAL (ERRADA):
+  Média = Valor Total ÷ Soma dos Preços das Tabelas de Fornecedores
+
+FÓRMULA CORRETA:
+  Média = Valor Total ÷ Peso Total
+
+PROBLEMA: A fórmula atual não faz sentido matematicamente.
+Divide dinheiro por dinheiro, resultando em valor sem unidade lógica.
+====================================================================================================
