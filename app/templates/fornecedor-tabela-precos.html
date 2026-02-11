@@ -388,6 +388,11 @@
                 margin-bottom: 8px;
             }
         }
+        
+        /* Ocultar coluna de Classificação para usuários não autorizados */
+        .hide-classificacao .classificacao-col {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -522,7 +527,7 @@
                         <thead>
                             <tr>
                                 <th>Material</th>
-                                <th>Classificação</th>
+                                <th class="classificacao-col">Classificação</th>
                                 <th>Preço (R$/kg)</th>
                                 <th>Status</th>
                                 <th>Versão</th>
@@ -573,6 +578,9 @@
             setupTabs();
             setupDragDrop();
             setupBuscaMaterial();
+            
+            // Controlar visibilidade da coluna Classificação
+            aplicarVisibilidadeClassificacao(user);
 
             // Auto-switch tab if param exists
             const tabParam = params.get('tab');
@@ -582,6 +590,18 @@
                     // Slight delay to ensure DOM is ready and listeners active (though sync here, good practice)
                     setTimeout(() => tabButton.click(), 100);
                 }
+            }
+        }
+        
+        function aplicarVisibilidadeClassificacao(user) {
+            // Apenas Administrador e Gestor podem ver a coluna Classificação
+            const perfilAutorizado = user.tipo === 'admin' || 
+                                    user.perfil_nome === 'Administrador' || 
+                                    user.perfil_nome === 'Gestor';
+            
+            const tabela = document.querySelector('.preco-table');
+            if (tabela && !perfilAutorizado) {
+                tabela.classList.add('hide-classificacao');
             }
         }
 
@@ -677,7 +697,7 @@
                         <strong>${p.material_nome}</strong>
                         <br><small style="color: #6b7280;">${p.material_codigo}</small>
                     </td>
-                    <td><span class="badge">${p.material_classificacao}</span></td>
+                    <td class="classificacao-col"><span class="badge">${p.material_classificacao}</span></td>
                     <td><strong>R$ ${parseFloat(p.preco_fornecedor).toFixed(2)}</strong></td>
                     <td><span class="status-badge status-${p.status === 'pendente_aprovacao' || p.status === 'pendente_reenvio' ? 'pendente' : p.status}">${formatarStatus(p.status)}</span></td>
                     <td>v${p.versao}</td>
