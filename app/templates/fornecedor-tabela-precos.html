@@ -578,6 +578,7 @@
             setupTabs();
             setupDragDrop();
             setupBuscaMaterial();
+            setupNavegacaoInputs();
             
             // Controlar visibilidade da coluna Classificação
             aplicarVisibilidadeClassificacao(user);
@@ -994,6 +995,34 @@
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.search-select-container')) {
                     dropdown.classList.remove('show');
+                }
+            });
+        }
+
+        function setupNavegacaoInputs() {
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const activeElement = document.activeElement;
+                    if (activeElement && activeElement.tagName === 'INPUT' && activeElement.type === 'number' && activeElement.closest('.item-row')) {
+                        e.preventDefault();
+                        
+                        const inputs = Array.from(document.querySelectorAll('.item-row input[type="number"]'));
+                        const currentIndex = inputs.indexOf(activeElement);
+                        
+                        if (currentIndex > -1) {
+                            if (e.shiftKey) {
+                                if (currentIndex > 0) {
+                                    inputs[currentIndex - 1].focus();
+                                    inputs[currentIndex - 1].select();
+                                }
+                            } else {
+                                if (currentIndex < inputs.length - 1) {
+                                    inputs[currentIndex + 1].focus();
+                                    inputs[currentIndex + 1].select();
+                                }
+                            }
+                        }
+                    }
                 }
             });
         }
