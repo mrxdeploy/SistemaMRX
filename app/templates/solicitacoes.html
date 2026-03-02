@@ -441,6 +441,56 @@
                 color: #374151;
                 margin-bottom: 8px;
             }
+
+            /* Searchable Select Styles */
+            .searchable-select-wrapper {
+                position: relative;
+                width: 100%;
+            }
+
+            .searchable-select-dropdown {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: white;
+                border: 1px solid var(--gray-300);
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 1000;
+                max-height: 250px;
+                overflow-y: auto;
+                display: none;
+                margin-top: 4px;
+            }
+
+            .searchable-select-dropdown.active {
+                display: block;
+            }
+
+            .searchable-select-option {
+                padding: 10px 14px;
+                cursor: pointer;
+                border-bottom: 1px solid var(--gray-100);
+                font-size: 0.9rem;
+                transition: background 0.2s;
+            }
+
+            .searchable-select-option:last-child {
+                border-bottom: none;
+            }
+
+            .searchable-select-option:hover {
+                background: var(--gray-100);
+                color: var(--primary-color);
+            }
+
+            .searchable-select-option.no-results {
+                color: var(--gray-500);
+                text-align: center;
+                pointer-events: none;
+                padding: 15px;
+            }
         </style>
     </main>
 
@@ -1015,18 +1065,21 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label>Material *</label>
-                            <select onchange="atualizarItemCampo(${item.id}, 'material_id', parseInt(this.value))" required>
-                                <option value="">Selecione...</option>
-                                ${todosTiposLote.map(m => {
-                                    const precoInfo = precosFornecedorSelecionado[m.id];
-                                    const preco = precoInfo ? precoInfo.preco_por_kg : 0;
-                                    return `
-                                        <option value="${m.id}" ${item.material_id == m.id ? 'selected' : ''}>
-                                            ${m.codigo} - ${m.nome} (R$ ${preco.toFixed(2)}/kg)
-                                        </option>
-                                    `;
-                                }).join('')}
-                            </select>
+                            <div class="searchable-select-wrapper" id="wrapper_material_${item.id}">
+                                <input type="text" 
+                                    class="searchable-select-input" 
+                                    placeholder="Comece a escrever para filtrar..." 
+                                    id="search_material_${item.id}"
+                                    value="${item.material_id ? (todosTiposLote.find(m => m.id === item.material_id)?.codigo + ' - ' + todosTiposLote.find(m => m.id === item.material_id)?.nome) : ''}"
+                                    onfocus="toggleDropdown(${item.id}, true)"
+                                    oninput="filtrarMateriais(${item.id}, this.value)"
+                                    autocomplete="off"
+                                    required>
+                                <input type="hidden" id="val_material_${item.id}" value="${item.material_id || ''}">
+                                <div class="searchable-select-dropdown" id="dropdown_material_${item.id}">
+                                    <!-- Opções serão renderizadas aqui -->
+                                </div>
+                            </div>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label>Peso (kg) *</label>
@@ -1107,6 +1160,78 @@
                 calcularValorItem(item);
             }
 
+            // Apenas renderizar se não for material_id para não perder o foco/dropdown
+            if (campo !== 'material_id') {
+                renderizarItens();
+            }
+            atualizarResumo();
+        }
+
+        // Funções para o Searchable Select
+        function toggleDropdown(itemId, show) {
+            const dropdown = document.getElementById(`dropdown_material_${itemId}`);
+            if (show) {
+                filtrarMateriais(itemId, document.getElementById(`search_material_${itemId}`).value);
+                dropdown.classList.add('active');
+                
+                // Fechar dropdown ao clicar fora
+                const closeHandler = (e) => {
+                    const wrapper = document.getElementById(`wrapper_material_${itemId}`);
+                    if (!wrapper.contains(e.target)) {
+                        dropdown.classList.remove('active');
+                        document.removeEventListener('click', closeHandler);
+                    }
+                };
+                
+                // Pequeno delay para não fechar no clique que abriu
+                setTimeout(() => {
+                    document.addEventListener('click', closeHandler);
+                }, 100);
+            } else {
+                dropdown.classList.remove('active');
+            }
+        }
+
+        function filtrarMateriais(itemId, busca) {
+            const dropdown = document.getElementById(`dropdown_material_${itemId}`);
+            const query = busca.toLowerCase().trim();
+            
+            const filtrados = todosTiposLote.filter(m => 
+                m.nome.toLowerCase().includes(query) || 
+                m.codigo.toLowerCase().includes(query)
+            );
+            
+            if (filtrados.length === 0) {
+                dropdown.innerHTML = '<div class="searchable-select-option no-results">Nenhum material encontrado</div>';
+            } else {
+                dropdown.innerHTML = filtrados.map(m => {
+                    const precoInfo = precosFornecedorSelecionado[m.id];
+                    const preco = precoInfo ? precoInfo.preco_por_kg : 0;
+                    return `
+                        <div class="searchable-select-option" onclick="selecionarMaterial(${itemId}, ${m.id}, '${m.codigo} - ${m.nome}', ${preco})">
+                            <strong>${m.codigo}</strong> - ${m.nome} 
+                            <span style="color: var(--primary-color); float: right;">R$ ${preco.toFixed(2)}/kg</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+            dropdown.classList.add('active');
+        }
+
+        function selecionarMaterial(itemId, materialId, texto, preco) {
+            const item = itensSolicitacao.find(i => i.id === itemId);
+            if (!item) return;
+            
+            // Atualizar UI
+            document.getElementById(`search_material_${itemId}`).value = texto;
+            document.getElementById(`val_material_${itemId}`).value = materialId;
+            document.getElementById(`dropdown_material_${itemId}`).classList.remove('active');
+            
+            // Atualizar estado e calcular
+            item.material_id = materialId;
+            calcularValorItem(item);
+            
+            // Forçar re-renderização para mostrar o preço da tabela e o cálculo final
             renderizarItens();
             atualizarResumo();
         }
