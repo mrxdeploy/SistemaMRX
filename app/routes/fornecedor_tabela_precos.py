@@ -1057,6 +1057,91 @@ def admin_editar_preco(preco_id):
         logger.error(f'Erro ao editar preço: {str(e)}')
         return jsonify({'erro': f'Erro ao editar preço: {str(e)}'}), 500
 
+@bp.route('/<int:preco_id>/editar-item', methods=['PUT'])
+@jwt_required()
+def editar_item_individual(preco_id):
+    """
+    Edita o preço de um item individualmente. 
+    Se Comprador: cria versão pendente e notifica admins.
+    Se Admin/Gestor: cria versão aprovada (ativa) direto.
+    """
+    try:
+        usuario_id = get_jwt_identity()
+        usuario = Usuario.query.get(usuario_id)
+        
+        preco_atual = FornecedorTabelaPrecos.query.get(preco_id)
+        if not preco_atual:
+            return jsonify({'erro': 'Item não encontrado'}), 404
+            
+        if not verificar_acesso_fornecedor(preco_atual.fornecedor_id, usuario_id):
+            return jsonify({'erro': 'Acesso negado a este fornecedor'}), 403
+            
+        dados = request.get_json()
+        novo_valor = dados.get('preco_fornecedor')
+        
+        if novo_valor is None:
+            return jsonify({'erro': 'Novo preço é obrigatório'}), 400
+            
+        # Determinar status baseado no perfil
+        is_admin_ou_gestor = usuario.tipo == 'admin' or (usuario.perfil and usuario.perfil.nome in ['Administrador', 'Gestor'])
+        novo_status = 'ativo' if is_admin_ou_gestor else 'pendente_aprovacao'
+        
+        # Buscar a última versão deste material para este fornecedor
+        ultima_versao = db.session.query(db.func.max(FornecedorTabelaPrecos.versao)).filter_by(
+            fornecedor_id=preco_atual.fornecedor_id,
+            material_id=preco_atual.material_id
+        ).scalar() or 0
+        
+        nova_versao = ultima_versao + 1
+        
+        # Inativar a versão ativa atual deste material (se houver)
+        db.session.query(FornecedorTabelaPrecos).filter_by(
+            fornecedor_id=preco_atual.fornecedor_id,
+            material_id=preco_atual.material_id,
+            status='ativo'
+        ).update({"status": "inativo", "updated_by": usuario_id})
+        
+        novo_preco = FornecedorTabelaPrecos(
+            fornecedor_id=preco_atual.fornecedor_id,
+            material_id=preco_atual.material_id,
+            preco_fornecedor=float(novo_valor),
+            status=novo_status,
+            versao=nova_versao,
+            created_by=usuario_id,
+            arquivo_origem_id=preco_atual.arquivo_origem_id
+        )
+        
+        db.session.add(novo_preco)
+        
+        # Auditoria e Notificações
+        if not is_admin_ou_gestor:
+            # Notificar admins que o comprador editou
+            fornecedor = Fornecedor.query.get(preco_atual.fornecedor_id)
+            notificar_admins_nova_tabela(fornecedor, usuario)
+            
+        auditoria = AuditoriaFornecedorTabelaPrecos(
+            preco_id=preco_atual.id, # Referência ao item original que gerou a edição
+            usuario_id=usuario_id,
+            acao='edicao_individual',
+            dados_anteriores={'preco_fornecedor': float(preco_atual.preco_fornecedor) if preco_atual.preco_fornecedor else 0, 'status': preco_atual.status, 'versao': preco_atual.versao},
+            dados_novos={'preco_fornecedor': float(novo_valor), 'status': novo_status, 'versao': nova_versao}
+        )
+        db.session.add(auditoria)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'mensagem': 'Preço alterado com sucesso',
+            'preco': novo_preco.to_dict(),
+            'aprovado_direto': is_admin_ou_gestor
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Erro ao editar item individual: {str(e)}')
+        return jsonify({'erro': f'Erro ao editar item: {str(e)}'}), 500
+
+
 @bp.route('/admin/fornecedor/<int:fornecedor_id>/aprovar-tabela', methods=['PUT'])
 @jwt_required()
 @admin_required
