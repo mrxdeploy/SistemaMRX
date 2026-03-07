@@ -1122,7 +1122,7 @@ def editar_item_individual(preco_id):
         auditoria = AuditoriaFornecedorTabelaPrecos(
             preco_id=preco_atual.id, # Referência ao item original que gerou a edição
             usuario_id=usuario_id,
-            acao='edicao_individual',
+            acao='nova_versao',
             dados_anteriores={'preco_fornecedor': float(preco_atual.preco_fornecedor) if preco_atual.preco_fornecedor else 0, 'status': preco_atual.status, 'versao': preco_atual.versao},
             dados_novos={'preco_fornecedor': float(novo_valor), 'status': novo_status, 'versao': nova_versao}
         )
