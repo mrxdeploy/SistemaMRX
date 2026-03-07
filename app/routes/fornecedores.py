@@ -439,8 +439,10 @@ def criar_fornecedor():
         
         # Definir comprador responsável
         comprador_responsavel_id = None
-        if usuario.tipo == 'admin':
-            # Admin pode escolher qualquer comprador
+        is_admin_ou_gestor = usuario.tipo == 'admin' or (usuario.perfil and usuario.perfil.nome in ['Administrador', 'Gestor'])
+        
+        if is_admin_ou_gestor:
+            # Admin ou Gestor pode escolher qualquer comprador
             if 'comprador_responsavel_id' in data and data['comprador_responsavel_id']:
                 comprador_responsavel_id = data['comprador_responsavel_id']
         else:
@@ -701,8 +703,9 @@ def atualizar_fornecedor(id):
             if tabela_id_req in [1, 2, 3]:
                 fornecedor.tabela_preco_id = tabela_id_req
         
-        # Atualizar comprador responsável
-        if 'comprador_responsavel_id' in data:
+        # Atualizar comprador responsável (Apenas admin e gestor)
+        is_admin_ou_gestor = usuario.tipo == 'admin' or (usuario.perfil and usuario.perfil.nome in ['Administrador', 'Gestor'])
+        if is_admin_ou_gestor and 'comprador_responsavel_id' in data:
             comprador_id = data['comprador_responsavel_id']
             if comprador_id is None:
                 fornecedor.comprador_responsavel_id = None

@@ -1,12 +1,13 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from app.models import db, Usuario
-from app.auth import admin_required, hash_senha
+from app.auth import admin_required, hash_senha, perfil_required
 
 bp = Blueprint('usuarios', __name__, url_prefix='/api/usuarios')
 
 @bp.route('', methods=['GET'])
-@admin_required
+@jwt_required()
+@perfil_required('Administrador', 'Gestor')
 def listar_usuarios():
     usuarios = Usuario.query.all()
     return jsonify([usuario.to_dict() for usuario in usuarios]), 200

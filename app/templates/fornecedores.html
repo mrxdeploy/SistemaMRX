@@ -1430,9 +1430,9 @@
                 chave_pix: document.getElementById('chavePix').value || null
             };
 
-            // Apenas admin pode definir/alterar comprador responsável
-            const isAdmin = currentUserData && (currentUserData.tipo === 'admin' || currentUserData.perfil === 'Administrador');
-            if (isAdmin) {
+            // Apenas admin ou gestor pode definir/alterar comprador responsável
+            const isGestorOuAdmin = currentUserData && (currentUserData.tipo === 'admin' || currentUserData.perfil === 'Administrador' || currentUserData.perfil === 'Gestor');
+            if (isGestorOuAdmin) {
                 const compradorSelect = document.getElementById('compradorResponsavelId');
                 if (compradorSelect && compradorSelect.value) {
                     data.comprador_responsavel_id = parseInt(compradorSelect.value);
