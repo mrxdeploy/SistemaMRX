@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
+
 <body>
     <header>
         <div class="header-content" style="justify-content: space-between;">
@@ -22,7 +24,8 @@
                     <i class="fas fa-bell"></i>
                     <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
                 </div>
-                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+                <button class="btn btn-secondary" onclick="logout()"
+                    style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
             </div>
         </div>
     </header>
@@ -75,7 +78,8 @@
             <div class="card mb-3">
                 <div class="flex gap-2" style="flex-wrap: wrap;">
                     <button class="btn btn-primary btn-small" onclick="filtrarOCStatus('')">Todos</button>
-                    <button class="btn btn-warning btn-small" onclick="filtrarOCStatus('em_analise')">Em Análise</button>
+                    <button class="btn btn-warning btn-small" onclick="filtrarOCStatus('em_analise')">Em
+                        Análise</button>
                     <button class="btn btn-success btn-small" onclick="filtrarOCStatus('aprovada')">Aprovadas</button>
                     <button class="btn btn-danger btn-small" onclick="filtrarOCStatus('rejeitada')">Rejeitadas</button>
                 </div>
@@ -419,8 +423,13 @@
             }
 
             @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
+                0% {
+                    transform: rotate(0deg);
+                }
+
+                100% {
+                    transform: rotate(360deg);
+                }
             }
 
             .empty-state {
@@ -456,7 +465,7 @@
                 background: white;
                 border: 1px solid var(--gray-300);
                 border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
                 z-index: 1000;
                 max-height: 250px;
                 overflow-y: auto;
@@ -523,7 +532,8 @@
                         <option value="FOB">FOB (Free On Board - Comprador paga o frete)</option>
                         <option value="CIF">CIF (Cost, Insurance and Freight - Vendedor paga o frete)</option>
                     </select>
-                    <small style="color: #666; display: block; margin-top: 0.25rem;">FOB: cliente busca | CIF: fornecedor entrega</small>
+                    <small style="color: #666; display: block; margin-top: 0.25rem;">FOB: cliente busca | CIF:
+                        fornecedor entrega</small>
                 </div>
 
                 <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
@@ -543,18 +553,22 @@
                     <div class="form-group" style="margin-bottom: 0.75rem;">
                         <label>CEP</label>
                         <div style="display: flex; gap: 0.5rem;">
-                            <input type="text" id="cep" placeholder="00000-000" style="flex: 1;" maxlength="9" oninput="formatarCEPSolicitacao(this)">
+                            <input type="text" id="cep" placeholder="00000-000" style="flex: 1;" maxlength="9"
+                                oninput="formatarCEPSolicitacao(this)">
                             <button type="button" class="btn btn-secondary" onclick="buscarCEPSolicitacao()">
                                 <i class="fas fa-search"></i> Buscar
                             </button>
                         </div>
-                        <small style="color: #666; margin-top: 0.25rem; display: block;">Os campos são preenchidos automaticamente ao selecionar o fornecedor, mas podem ser editados</small>
+                        <small style="color: #666; margin-top: 0.25rem; display: block;">Os campos são preenchidos
+                            automaticamente ao selecionar o fornecedor, mas podem ser editados</small>
                     </div>
 
                     <button type="button" class="btn btn-secondary w-full" onclick="capturarLocalizacao()">
                         <i class="fas fa-map-marker-alt"></i> Capturar GPS
                     </button>
-                    <div id="gpsInfo" style="margin-top: 0.5rem; padding: 0.75rem; background: #e8f5e9; border-radius: 5px; display: none; font-size: 0.9rem; color: #2e7d32;"></div>
+                    <div id="gpsInfo"
+                        style="margin-top: 0.5rem; padding: 0.75rem; background: #e8f5e9; border-radius: 5px; display: none; font-size: 0.9rem; color: #2e7d32;">
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -588,7 +602,8 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-full mt-3" id="btnEnviarSolicitacao"> Enviar Pedido</button>
+                <button type="submit" class="btn btn-primary w-full mt-3" id="btnEnviarSolicitacao"> Enviar
+                    Pedido</button>
             </form>
         </div>
     </div>
@@ -602,7 +617,8 @@
             </div>
             <div id="detalhesConteudo" style="flex: 1; overflow-y: auto; padding-right: 5px;"></div>
             <div id="footerDetalhes" style="padding: 1.5rem 0 0 0; border-top: 1px solid #e5e7eb; margin-top: 1rem;">
-                <button id="btnExportarPDF" class="btn btn-secondary w-full" style="cursor: pointer !important; z-index: 10000; position: relative;">
+                <button id="btnExportarPDF" class="btn btn-secondary w-full"
+                    style="cursor: pointer !important; z-index: 10000; position: relative;">
                     <i class="fas fa-file-pdf"></i> Exportar para PDF
                 </button>
             </div>
@@ -712,7 +728,7 @@
             if (usuarioAtual.tipo !== 'admin') {
                 const btnOrdens = document.querySelector('[data-tab="ordens-compra"]');
                 if (btnOrdens) btnOrdens.style.display = 'none';
-                
+
                 // Se a URL tentar forçar a aba, volta para solicitações
                 if (getUrlParam('tab') === 'ordens-compra') {
                     changeTab('solicitacoes');
@@ -724,12 +740,12 @@
             await carregarSolicitacoes();
             await carregarOCs();
             await atualizarNotificacoes();
-            
+
             const tabParam = getUrlParam('tab');
             if (tabParam) {
                 changeTab(tabParam);
             }
-            
+
             const statusParam = getUrlParam('status');
             if (statusParam) {
                 if (tabParam === 'ordens-compra') {
@@ -803,30 +819,30 @@
             // Busca na lista de fornecedores já carregados (não precisa de nova requisição)
             try {
                 console.log('📍 Buscando dados de localização para fornecedor ID:', fornecedorId);
-                
+
                 // Buscar fornecedor na lista já carregada
                 const fornecedor = todosFornecedores.find(f => f.id === parseInt(fornecedorId));
-                
+
                 if (!fornecedor) {
                     console.warn('⚠️ Fornecedor não encontrado na lista carregada');
                 } else {
                     console.log('📍 Dados do fornecedor para localização:', fornecedor);
-                    
+
                     // Preencher campos de localização se existirem
                     const ruaEl = document.getElementById('rua');
                     const numeroEl = document.getElementById('numero');
                     const cepEl = document.getElementById('cep');
-                    
+
                     if (ruaEl && numeroEl && cepEl) {
                         // Priorizar outro_endereco se existir, senão usar endereço principal
                         const rua = fornecedor.outro_rua || fornecedor.rua || '';
                         const numero = fornecedor.outro_numero || fornecedor.numero || '';
                         const cep = fornecedor.outro_cep || fornecedor.cep || '';
-                        
+
                         ruaEl.value = rua;
                         numeroEl.value = numero;
                         cepEl.value = cep;
-                        
+
                         console.log('✅ Campos de localização preenchidos:', { rua, numero, cep });
                     } else {
                         console.warn('⚠️ Campos de localização não encontrados no DOM');
@@ -936,9 +952,9 @@
                 }
 
                 container.innerHTML = solicitacoes.map(s => {
-                    const statusClass = s.status === 'aprovada' ? 'badge-aprovada' : 
-                                       s.status === 'rejeitada' ? 'badge-rejeitada' : 
-                                       'badge-pendente';
+                    const statusClass = s.status === 'aprovada' ? 'badge-aprovada' :
+                        s.status === 'rejeitada' ? 'badge-rejeitada' :
+                            'badge-pendente';
                     const statusLabel = s.status.toUpperCase();
 
                     return `
@@ -981,6 +997,11 @@
                                 <button class="btn btn-primary" onclick="verDetalhes(${s.id})">
                                     <i class="fas fa-eye"></i> Ver Detalhes
                                 </button>
+                                ${(usuarioAtual && (usuarioAtual.tipo === 'admin' || usuarioAtual.perfil_nome === 'Gestor')) ? `
+                                    <button class="btn btn-danger" onclick="deletarSolicitacao(${s.id})">
+                                        <i class="fas fa-trash"></i> Excluir
+                                    </button>
+                                ` : ''}
                             </div>
                         </div>
                     `;
@@ -1000,6 +1021,35 @@
 
         function filtrarStatus(status) {
             carregarSolicitacoes(status);
+        }
+
+        async function deletarSolicitacao(id) {
+            const confirmacao = await showConfirm(
+                'Confirmação de Exclusão',
+                `Tem certeza que deseja excluir o Pedido de Compra #${id}? <br><br> <span style="color: #ef4444; font-weight: bold;">AVISO: Esta ação é irreversível e excluirá em cascata todas as Ordens de Compra, Lotes e Conferências vinculados a este pedido!</span>`,
+                'info'
+            );
+
+            if (!confirmacao) return;
+
+            try {
+                showAlert('Excluindo pedido...', 'info');
+
+                const response = await fetchAPI(`/solicitacoes/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response && response.ok) {
+                    showAlert('Pedido de Compra e todos os vínculos foram excluídos com sucesso!', 'success');
+                    await carregarSolicitacoes();
+                } else {
+                    const error = await response.json();
+                    showAlert(error.erro || 'Erro ao excluir pedido', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao excluir pedido:', error);
+                showAlert('Erro ao excluir pedido', 'error');
+            }
         }
 
         function abrirModalNovaSolicitacao() {
@@ -1173,7 +1223,7 @@
             if (show) {
                 filtrarMateriais(itemId, document.getElementById(`search_material_${itemId}`).value);
                 dropdown.classList.add('active');
-                
+
                 // Fechar dropdown ao clicar fora
                 const closeHandler = (e) => {
                     const wrapper = document.getElementById(`wrapper_material_${itemId}`);
@@ -1182,7 +1232,7 @@
                         document.removeEventListener('click', closeHandler);
                     }
                 };
-                
+
                 // Pequeno delay para não fechar no clique que abriu
                 setTimeout(() => {
                     document.addEventListener('click', closeHandler);
@@ -1195,12 +1245,12 @@
         function filtrarMateriais(itemId, busca) {
             const dropdown = document.getElementById(`dropdown_material_${itemId}`);
             const query = busca.toLowerCase().trim();
-            
-            const filtrados = todosTiposLote.filter(m => 
-                m.nome.toLowerCase().includes(query) || 
+
+            const filtrados = todosTiposLote.filter(m =>
+                m.nome.toLowerCase().includes(query) ||
                 m.codigo.toLowerCase().includes(query)
             );
-            
+
             if (filtrados.length === 0) {
                 dropdown.innerHTML = '<div class="searchable-select-option no-results">Nenhum material encontrado</div>';
             } else {
@@ -1221,16 +1271,16 @@
         function selecionarMaterial(itemId, materialId, texto, preco) {
             const item = itensSolicitacao.find(i => i.id === itemId);
             if (!item) return;
-            
+
             // Atualizar UI
             document.getElementById(`search_material_${itemId}`).value = texto;
             document.getElementById(`val_material_${itemId}`).value = materialId;
             document.getElementById(`dropdown_material_${itemId}`).classList.remove('active');
-            
+
             // Atualizar estado e calcular
             item.material_id = materialId;
             calcularValorItem(item);
-            
+
             // Forçar re-renderização para mostrar o preço da tabela e o cálculo final
             renderizarItens();
             atualizarResumo();
@@ -1289,27 +1339,27 @@
                 console.error('Campo CEP não encontrado');
                 return;
             }
-            
+
             const cep = cepInput.value.replace(/\D/g, '');
-            
+
             if (!cep || cep.length !== 8) {
                 showAlert('Digite um CEP válido com 8 dígitos', 'error');
                 return;
             }
-            
+
             try {
                 const response = await fetchAPI(`/fornecedores/buscar-cep/${cep}`);
-                
+
                 if (response && response.ok) {
                     const data = await response.json();
-                    
+
                     // Preencher campos de endereço disponíveis (verificando existência)
                     const ruaEl = document.getElementById('rua');
                     const cepEl = document.getElementById('cep');
-                    
+
                     if (ruaEl) ruaEl.value = data.rua || '';
                     if (cepEl) cepEl.value = data.cep || '';
-                    
+
                     showAlert('✅ Endereço preenchido com sucesso!', 'success');
                 } else {
                     const error = await response.json();
@@ -1348,7 +1398,7 @@
                     // Tentar buscar endereço usando OpenStreetMap Nominatim (sem autenticação)
                     try {
                         const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
-                        
+
                         const response = await fetch(nominatimUrl, {
                             headers: {
                                 'User-Agent': 'MRX-System/1.0'
@@ -1357,7 +1407,7 @@
 
                         if (response.ok) {
                             const data = await response.json();
-                            
+
                             if (data && data.address) {
                                 const addr = data.address;
                                 const rua = addr.road || addr.street || addr.pedestrian || '';
@@ -1392,7 +1442,7 @@
                         }
                     } catch (error) {
                         console.error('Erro ao buscar endereço:', error);
-                        
+
                         // Mesmo com erro no geocoding, mantemos o GPS
                         document.getElementById('gpsInfo').innerHTML = `
                             <i class="fas fa-check-circle"></i> GPS capturado!<br>
@@ -1405,7 +1455,7 @@
                 (error) => {
                     console.error('Erro ao capturar GPS:', error);
                     let errorMsg = 'Erro ao capturar localização';
-                    
+
                     if (error.code === 1) {
                         errorMsg = 'Permissão de localização negada. Ative a permissão no navegador.';
                     } else if (error.code === 2) {
@@ -1413,7 +1463,7 @@
                     } else if (error.code === 3) {
                         errorMsg = 'Timeout ao obter localização. Tente novamente.';
                     }
-                    
+
                     showAlert(errorMsg, 'error');
                 },
                 {
@@ -1503,33 +1553,33 @@
                 console.error("Erro: solicitacaoAtual não definida");
                 return;
             }
-            
+
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
-                
+
                 // Configurações de Cores do Sistema
                 const primaryColor = [5, 150, 105]; // Emerald-600 (Padrão MRX)
-                
+
                 // Cabeçalho Estilizado
                 doc.setFillColor(243, 244, 246);
                 doc.rect(0, 0, 210, 40, 'F');
-                
+
                 doc.setFont("helvetica", "bold");
                 doc.setFontSize(22);
                 doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
                 doc.text("MRX SYSTEMS", 14, 25);
-                
+
                 doc.setFontSize(10);
                 doc.setTextColor(107, 114, 128);
                 doc.text("Relatório de Pedido de Compra", 14, 32);
-                
+
                 // Selo de Status
                 const status = solicitacaoAtual.status.toUpperCase();
                 let statusColor = [146, 64, 14]; // Pendente (Amber-800)
                 if (status === 'APROVADA') statusColor = [6, 95, 70]; // Aprovada (Emerald-800)
                 if (status === 'REJEITADA') statusColor = [153, 27, 27]; // Rejeitada (Red-800)
-                
+
                 doc.setFillColor(255, 255, 255);
                 doc.roundedRect(140, 15, 55, 15, 2, 2, 'FD');
                 doc.setFontSize(9);
@@ -1573,7 +1623,7 @@
                     doc.setTextColor(31, 41, 55);
                     doc.text("Observações", 14, currentY);
                     doc.line(14, currentY + 2, 196, currentY + 2);
-                    
+
                     doc.setFontSize(10);
                     doc.setFont("helvetica", "normal");
                     doc.setTextColor(55, 65, 81);
@@ -1592,10 +1642,10 @@
                 const isAdminOrGestor = usuarioAtual && (usuarioAtual.tipo === 'admin' || usuarioAtual.tipo === 'gestor');
                 // Se forceSupplierMode for true, forçamos o modo simplificado (sem classificação)
                 const showFullDetails = isAdminOrGestor && !forceSupplierMode;
-                
+
                 let tableHead = [];
                 let tableBody = [];
-                
+
                 if (showFullDetails) {
                     tableHead = [['Material', 'Código', 'Classif.', 'Peso', 'Preço/kg', 'Total', 'Lote']];
                     tableBody = solicitacaoAtual.itens.map(item => [
@@ -1693,8 +1743,8 @@
                 // --- LÓGICA CONDICIONAL DE COLUNAS (ADMIN/GESTOR) ---
                 // Verifica se é Admin ou Gestor para exibir cores e classificações
                 const isAdminOrGestor = usuarioAtual && (
-                    usuarioAtual.tipo === 'admin' || 
-                    usuarioAtual.tipo === 'gestor' || 
+                    usuarioAtual.tipo === 'admin' ||
+                    usuarioAtual.tipo === 'gestor' ||
                     (usuarioAtual.perfil && usuarioAtual.perfil === 'Gestor')
                 );
 
@@ -1705,7 +1755,7 @@
                     'LOW_GRADE': '#EF4444', 'LOW': '#EF4444', 'Low Grade': '#EF4444',
                     'RESIDUO': '#6B7280', 'Resíduo': '#6B7280'
                 };
-                
+
                 const categoriaLabels = {
                     'HIGH_GRADE': 'High Grade', 'HIGH': 'High Grade',
                     'MID_GRADE': 'MG', 'MG1': 'MG1', 'MG2': 'MG2',
@@ -1761,9 +1811,9 @@
                 // Lista de Itens Estilizada
                 if (solicitacaoAtual.itens && solicitacaoAtual.itens.length > 0) {
                     html += `<h3 style="margin: 0 0 1rem 0; color: var(--gray-800); border-bottom: 2px solid var(--gray-200); padding-bottom: 0.5rem;">Itens do Pedido (${solicitacaoAtual.itens.length})</h3>`;
-                    
+
                     html += `<div style="display: grid; gap: 1rem;">`;
-                    
+
                     solicitacaoAtual.itens.forEach(item => {
                         const classif = item.classificacao ? item.classificacao.toUpperCase() : 'OUTROS';
                         // Normalizar chave de cor
@@ -1773,10 +1823,10 @@
                         else if (classif.includes('MG2')) corKey = 'MG2';
                         else if (classif.includes('LOW')) corKey = 'LOW_GRADE';
                         else if (classif.includes('RESIDUO')) corKey = 'RESIDUO';
-                        
+
                         // Define cor e label baseada no perfil
                         let cor, label, mostrarBadge;
-                        
+
                         if (isAdminOrGestor) {
                             cor = categoriaCores[corKey] || '#6B7280';
                             label = categoriaLabels[corKey] || classif;
@@ -1786,7 +1836,7 @@
                             label = '';
                             mostrarBadge = false;
                         }
-                        
+
                         const temPrecoCustomizado = item.preco_customizado && item.preco_oferecido;
 
                         html += `
@@ -1838,9 +1888,9 @@
                             </div>
                         `;
                     });
-                    
+
                     html += `</div>`;
-                    
+
                     // Resumo Totalizador
                     html += `
                         <div style="margin-top: 1.5rem; background: var(--gray-900); color: white; padding: 1.5rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
@@ -1857,41 +1907,41 @@
                 }
 
                 document.getElementById('detalhesConteudo').innerHTML = html;
-                
+
                 // Configuração dos Botões de PDF
                 const footerDetalhes = document.getElementById('footerDetalhes');
-                
+
                 // Limpa botões antigos
                 footerDetalhes.innerHTML = '';
-                
+
                 // Cria container responsivo
                 const btnContainer = document.createElement('div');
                 btnContainer.className = 'pdf-buttons-container';
                 btnContainer.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; width: 100%; position: relative; z-index: 100000;';
-                
+
                 // Botão "Exportar para PDF" (Padrão)
                 const btnPadrao = document.createElement('button');
                 btnPadrao.id = 'btnExportarPDF';
                 btnPadrao.className = 'btn btn-secondary';
                 btnPadrao.style.cssText = 'width: 100%; cursor: pointer;';
                 btnPadrao.innerHTML = '<i class="fas fa-file-pdf"></i> Exportar para PDF';
-                btnPadrao.onclick = function(e) { e.preventDefault(); exportarPDF(false); };
+                btnPadrao.onclick = function (e) { e.preventDefault(); exportarPDF(false); };
                 btnContainer.appendChild(btnPadrao);
-                
+
                 // Botão "PDF para Fornecedor" (Extra para Fornecedor ou Gestor)
                 const isFornecedor = usuarioAtual.tipo === 'fornecedor';
                 const isGestorOrAdmin = usuarioAtual.perfil === 'Gestor' || usuarioAtual.tipo === 'gestor' || usuarioAtual.tipo === 'admin';
-                
+
                 if (isFornecedor || isGestorOrAdmin) {
                     const btnFornecedor = document.createElement('button');
                     btnFornecedor.id = 'btnExportarPDFFornecedor';
                     btnFornecedor.className = 'btn btn-info'; // Use uma cor diferente se desejar
                     btnFornecedor.style.cssText = 'width: 100%; cursor: pointer; background-color: #0ea5e9; border-color: #0ea5e9; color: white;';
                     btnFornecedor.innerHTML = '<i class="fas fa-file-pdf"></i> PDF para Fornecedor';
-                    btnFornecedor.onclick = function(e) { e.preventDefault(); exportarPDF(true); };
+                    btnFornecedor.onclick = function (e) { e.preventDefault(); exportarPDF(true); };
                     btnContainer.appendChild(btnFornecedor);
                 }
-                
+
                 footerDetalhes.appendChild(btnContainer);
                 console.log('Botões PDF renderizados. Admin/Gestor/Fornecedor?', isFornecedor || isGestorOrAdmin);
 
@@ -2023,15 +2073,15 @@
                 }
 
                 container.innerHTML = ocs.map(oc => {
-                    const statusClass = oc.status === 'aprovada' ? 'badge-aprovada' : 
-                                       oc.status === 'rejeitada' ? 'badge-rejeitada' : 
-                                       oc.status === 'em_analise' ? 'badge-pendente' : 'badge-pendente';
+                    const statusClass = oc.status === 'aprovada' ? 'badge-aprovada' :
+                        oc.status === 'rejeitada' ? 'badge-rejeitada' :
+                            oc.status === 'em_analise' ? 'badge-pendente' : 'badge-pendente';
 
                     const statusLabel = oc.status === 'aprovada' ? 'APROVADA' :
-                                       oc.status === 'rejeitada' ? 'REJEITADA' :
-                                       oc.status === 'em_analise' ? 'EM ANÁLISE' : oc.status.toUpperCase();
+                        oc.status === 'rejeitada' ? 'REJEITADA' :
+                            oc.status === 'em_analise' ? 'EM ANÁLISE' : oc.status.toUpperCase();
 
-                    const podeAprovar = usuarioAtual && (usuarioAtual.tipo === 'admin' || 
+                    const podeAprovar = usuarioAtual && (usuarioAtual.tipo === 'admin' ||
                         (usuarioAtual.perfil && (usuarioAtual.perfil.nome === 'Administrador' || usuarioAtual.perfil.nome === 'Financeiro')));
 
                     return `
@@ -2065,14 +2115,14 @@
                             </div>
 
                             <div class="card-actions">
-                                ${podeAprovar && oc.status === 'em_analise' ? 
-                                    `<button class="btn btn-success" onclick="abrirModalAprovarOC(${oc.id})">
+                                ${podeAprovar && oc.status === 'em_analise' ?
+                            `<button class="btn btn-success" onclick="abrirModalAprovarOC(${oc.id})">
                                         <i class="fas fa-check-circle"></i> Aprovar/Reprovar
                                     </button>` :
-                                    `<button class="btn btn-secondary" onclick="verDetalhesOC(${oc.id})">
+                            `<button class="btn btn-secondary" onclick="verDetalhesOC(${oc.id})">
                                         <i class="fas fa-eye"></i> Ver Detalhes
                                     </button>`
-                                }
+                        }
                             </div>
                         </div>
                     `;
@@ -2185,15 +2235,15 @@
                 return;
             }
 
-            const confirmMsg = acao === 'aprovar' ? 
-                'Confirma a aprovação desta Ordem de Compra?' : 
+            const confirmMsg = acao === 'aprovar' ?
+                'Confirma a aprovação desta Ordem de Compra?' :
                 'Confirma a reprovação desta Ordem de Compra?';
 
             if (!confirm(confirmMsg)) return;
 
             try {
-                const endpoint = acao === 'aprovar' ? 
-                    `/ordens-compra/${ocAtual.id}/aprovar` : 
+                const endpoint = acao === 'aprovar' ?
+                    `/ordens-compra/${ocAtual.id}/aprovar` :
                     `/ordens-compra/${ocAtual.id}/reprovar`;
 
                 const response = await fetchAPI(endpoint, {
@@ -2239,7 +2289,7 @@
                 }
 
                 ocAtual = await response.json();
-                
+
                 // Se a OC não tem itens ou data, vamos buscar do pedido original
                 if ((!ocAtual.itens || ocAtual.itens.length === 0) && ocAtual.solicitacao_id) {
                     const respPed = await fetchAPI(`/solicitacoes/${ocAtual.solicitacao_id}`);
@@ -2265,7 +2315,7 @@
                     'LOW_GRADE': 'Low Grade', 'LOW': 'Low Grade',
                     'RESIDUO': 'Resíduo'
                 };
-                
+
                 let html = `
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
                         <div class="card" style="border-left: 4px solid var(--primary-color);">
@@ -2289,9 +2339,9 @@
 
                 if (ocAtual.itens && ocAtual.itens.length > 0) {
                     html += `<h3 style="margin: 0 0 1rem 0; color: var(--gray-800); border-bottom: 2px solid var(--gray-200); padding-bottom: 0.5rem;">Itens da OC (${ocAtual.itens.length})</h3>`;
-                    
+
                     html += `<div style="display: grid; gap: 1rem;">`;
-                    
+
                     ocAtual.itens.forEach(item => {
                         const classif = item.classificacao ? item.classificacao.toUpperCase() : 'OUTROS';
                         let corKey = classif;
@@ -2300,10 +2350,10 @@
                         else if (classif.includes('MG2')) corKey = 'MG2';
                         else if (classif.includes('LOW')) corKey = 'LOW_GRADE';
                         else if (classif.includes('RESIDUO')) corKey = 'RESIDUO';
-                        
+
                         const cor = categoriaCores[corKey] || '#6B7280';
                         const label = categoriaLabels[corKey] || classif;
-                        
+
                         // Fallback para propriedades que podem vir com nomes diferentes dependendo da origem (OC ou Solicitacao)
                         const preco = item.preco_unitario || item.preco_por_kg_snapshot || 0;
                         const total = item.valor_total || item.valor_calculado || 0;
@@ -2354,11 +2404,11 @@
                 `;
 
                 document.getElementById('detalhesConteudo').innerHTML = html;
-                
+
                 // Configura o evento do botão de PDF que agora está fixo no rodapé do modal
                 const btnPdf = document.getElementById('btnExportarPDF');
                 if (btnPdf) {
-                    btnPdf.onclick = function(e) {
+                    btnPdf.onclick = function (e) {
                         e.preventDefault();
                         e.stopPropagation();
                         exportarPDF_OC();
@@ -2375,7 +2425,7 @@
 
         function exportarPDF_OC() {
             if (!ocAtual) return;
-            
+
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
@@ -2469,4 +2519,5 @@
         carregarPagina();
     </script>
 </body>
+
 </html>

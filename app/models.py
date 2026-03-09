@@ -763,7 +763,7 @@ class Lote(db.Model):  # type: ignore
     lote_pai_id = db.Column(db.Integer, db.ForeignKey('lotes.id'), nullable=True)
 
     itens = db.relationship('ItemSolicitacao', backref='lote', lazy=True)
-    solicitacao_origem = db.relationship('Solicitacao', backref='lotes_gerados', foreign_keys=[solicitacao_origem_id])
+    solicitacao_origem = db.relationship('Solicitacao', backref=db.backref('lotes_gerados', cascade='all, delete-orphan'), foreign_keys=[solicitacao_origem_id])
     ordem_compra = db.relationship('OrdemCompra', backref='lotes', foreign_keys=[oc_id])
     ordem_servico = db.relationship('OrdemServico', backref='lotes', foreign_keys=[os_id])
     conferencia = db.relationship('ConferenciaRecebimento', backref='lotes', foreign_keys=[conferencia_id])
@@ -1169,7 +1169,7 @@ class OrdemServico(db.Model):  # type: ignore
     criado_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    ordem_compra = db.relationship('OrdemCompra', backref='ordens_servico', foreign_keys=[oc_id])
+    ordem_compra = db.relationship('OrdemCompra', backref=db.backref('ordens_servico', cascade='all, delete-orphan'), foreign_keys=[oc_id])
     motorista = db.relationship('Motorista', backref='ordens_servico', foreign_keys=[motorista_id])
     veiculo = db.relationship('Veiculo', backref='ordens_servico', foreign_keys=[veiculo_id])
     criador = db.relationship('Usuario', foreign_keys=[created_by], backref='os_criadas')
@@ -1302,7 +1302,7 @@ class ConferenciaRecebimento(db.Model):  # type: ignore
     gps_conferencia = db.Column(db.JSON, nullable=True)
     device_id_conferencia = db.Column(db.String(255), nullable=True)
 
-    ordem_compra = db.relationship('OrdemCompra', backref='conferencias', foreign_keys=[oc_id])
+    ordem_compra = db.relationship('OrdemCompra', backref=db.backref('conferencias', cascade='all, delete-orphan'), foreign_keys=[oc_id])
     conferente = db.relationship('Usuario', foreign_keys=[conferente_id], backref='conferencias_realizadas')
     decisor_adm = db.relationship('Usuario', foreign_keys=[decisao_adm_por], backref='decisoes_conferencia')
 
