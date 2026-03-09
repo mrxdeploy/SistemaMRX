@@ -528,12 +528,13 @@ def deletar_solicitacao(id):
             return jsonify({'erro': 'Solicitação não encontrada'}), 404
         
         # Permissão especial para Admin ou Gestor
-        is_admin = usuario.tipo == 'admin'
+        # Verifica tanto o tipo quanto o nome do perfil para garantir cobertura
+        is_admin = usuario.tipo == 'admin' or (usuario.perfil and usuario.perfil.nome == 'Administrador')
         is_gestor = usuario.perfil and usuario.perfil.nome == 'Gestor'
         
         if is_admin or is_gestor:
             # Admins e Gestores podem deletar qualquer uma em qualquer status
-            print(f"DEBUG: Exclusão administrativa por {usuario.nome} (ID: {usuario_id}, Tipo: {usuario.tipo})")
+            print(f"DEBUG: Exclusão administrativa permitida para {usuario.nome} (Status: {solicitacao.status})")
         else:
             # Funcionários comuns só deletam as suas e se estiverem pendentes
             if solicitacao.funcionario_id != usuario_id:

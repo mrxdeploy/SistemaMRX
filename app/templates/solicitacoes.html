@@ -997,7 +997,7 @@
                                 <button class="btn btn-primary" onclick="verDetalhes(${s.id})">
                                     <i class="fas fa-eye"></i> Ver Detalhes
                                 </button>
-                                ${(usuarioAtual && (usuarioAtual.tipo === 'admin' || usuarioAtual.perfil_nome === 'Gestor')) ? `
+                                ${(usuarioAtual && (usuarioAtual.tipo === 'admin' || usuarioAtual.perfil_nome === 'Gestor' || usuarioAtual.perfil_nome === 'Administrador')) ? `
                                     <button class="btn btn-danger" onclick="deletarSolicitacao(${s.id})">
                                         <i class="fas fa-trash"></i> Excluir
                                     </button>
