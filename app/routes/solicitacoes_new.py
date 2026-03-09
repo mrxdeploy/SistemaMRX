@@ -993,11 +993,21 @@ def deletar_solicitacao(id):
         if not solicitacao:
             return jsonify({'erro': 'Solicitação não encontrada'}), 404
 
-        if usuario.tipo != 'admin' and solicitacao.funcionario_id != usuario.id:
-            return jsonify({'erro': 'Sem permissão para deletar esta solicitação'}), 403
-
-        if solicitacao.status != 'pendente':
-            return jsonify({'erro': 'Apenas solicitações pendentes podem ser deletadas'}), 400
+        # Permissão especial para Admin ou Gestor
+        # Verifica tanto o tipo quanto o nome do perfil para garantir cobertura
+        is_admin = usuario.tipo == 'admin' or (usuario.perfil and usuario.perfil.nome == 'Administrador')
+        is_gestor = usuario.perfil and usuario.perfil.nome == 'Gestor'
+        
+        if is_admin or is_gestor:
+            # Admins e Gestores podem deletar qualquer uma em qualquer status
+            print(f"DEBUG: Exclusão administrativa permitida para {usuario.nome} (Status: {solicitacao.status})")
+        else:
+            # Funcionários comuns só deletam as suas e se estiverem pendentes
+            if solicitacao.funcionario_id != usuario_id:
+                return jsonify({'erro': 'Acesso negado'}), 403
+            
+            if solicitacao.status != 'pendente':
+                return jsonify({'erro': 'Apenas solicitações pendentes podem ser deletadas'}), 400
 
         db.session.delete(solicitacao)
         db.session.commit()
