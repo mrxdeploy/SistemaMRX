@@ -23,6 +23,7 @@ def cleanup():
         lote_ids = [row['id'] for row in cursor.fetchall()]
         
         # Buscar sublotes também (caso haja)
+        sublote_ids = []
         if lote_ids:
             cursor.execute("SELECT id FROM lotes WHERE lote_pai_id = ANY(%s)", (lote_ids,))
             sublote_ids = [row['id'] for row in cursor.fetchall()]
