@@ -636,8 +636,8 @@
                         data: {
                             labels: ['Low', 'MG1', 'MG2', 'High'],
                             datasets: [{
-                                label: 'Quantidade',
-                                data: [dashboardData.estoque_ativo_qtd.low, dashboardData.estoque_ativo_qtd.mg1, dashboardData.estoque_ativo_qtd.mg2, dashboardData.estoque_ativo_qtd.high],
+                                label: 'Peso (kg)',
+                                data: [dashboardData.quilos_por_tipo.low, dashboardData.quilos_por_tipo.mg1, dashboardData.quilos_por_tipo.mg2, dashboardData.quilos_por_tipo.high],
                                 backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444']
                             }]
                         },
@@ -943,6 +943,11 @@
                 if (chart) chart.destroy();
             });
             activeCharts = {};
+            
+            // Garantir que nenhum chart permaneça
+            for (let id in Chart.instances) {
+                Chart.instances[id].destroy();
+            }
             
             // Templates de gráficos para cada módulo
             const chartTemplates = {
@@ -1386,8 +1391,8 @@
                 if (select) {
                     empresas.forEach(empresa => {
                         const option = document.createElement('option');
-                        option.value = fornecedor.id;
-                        option.textContent = fornecedor.nome;
+                        option.value = empresa.id;
+                        option.textContent = empresa.nome;
                         select.appendChild(option);
                     });
                 }
@@ -1411,6 +1416,10 @@
                 if (chart) chart.destroy();
             });
             activeCharts = {};
+
+            for (let id in Chart.instances) {
+                Chart.instances[id].destroy();
+            }
 
             // Reload module data with filters (irá recriar os gráficos)
             loadModuleData(currentModule);
