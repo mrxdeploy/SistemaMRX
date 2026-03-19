@@ -63,6 +63,15 @@ def init_database(drop_existing=False):
                         IF NOT EXISTS (
                             SELECT 1 FROM information_schema.columns 
                             WHERE table_name = 'bags_producao' 
+                            AND column_name = 'ordem_exportacao'
+                        ) THEN
+                            ALTER TABLE bags_producao ADD COLUMN ordem_exportacao VARCHAR(100);
+                            RAISE NOTICE 'Adicionada coluna bags_producao.ordem_exportacao';
+                        END IF;
+
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name = 'bags_producao' 
                             AND column_name = 'categorias_mistas'
                         ) THEN
                             ALTER TABLE bags_producao ADD COLUMN categorias_mistas BOOLEAN DEFAULT FALSE NOT NULL;

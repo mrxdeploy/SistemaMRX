@@ -1284,7 +1284,8 @@ def listar_fornecedores_aprovados():
             tabela_preco_status='aprovada'
         )
         
-        if usuario.tipo != 'admin':
+        is_gestor = usuario.perfil and usuario.perfil.nome == 'Gestor'
+        if usuario.tipo != 'admin' and not is_gestor:
             query = query.filter(Fornecedor.comprador_responsavel_id == usuario_id)
         
         fornecedores = query.all()

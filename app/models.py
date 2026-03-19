@@ -2195,7 +2195,7 @@ class ItemSeparadoProducao(db.Model):  # type: ignore
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    ordem_producao_id = db.Column(db.Integer, db.ForeignKey('ordens_producao.id'), nullable=False)
+    ordem_producao_id = db.Column(db.Integer, db.ForeignKey('ordens_producao.id'), nullable=True)  # Nullable - new flow doesn't use OrdemProducao
     classificacao_grade_id = db.Column(db.Integer, db.ForeignKey('classificacoes_grade.id'), nullable=False)
     
     # Dados do item
@@ -2232,7 +2232,7 @@ class ItemSeparadoProducao(db.Model):  # type: ignore
         return {
             'id': self.id,
             'ordem_producao_id': self.ordem_producao_id,
-            'ordem_producao_numero': self.ordem_producao.numero_op if self.ordem_producao else None,
+            'ordem_producao_numero': (self.ordem_producao.numero_op if hasattr(self, 'ordem_producao') and self.ordem_producao else None),
             'classificacao_grade_id': self.classificacao_grade_id,
             'classificacao_nome': self.classificacao_grade.nome if self.classificacao_grade else None,
             'classificacao_categoria': self.classificacao_grade.categoria if self.classificacao_grade else None,
@@ -2278,6 +2278,8 @@ class BagProducao(db.Model):  # type: ignore
     data_envio_refinaria = db.Column(db.DateTime, nullable=True)
     enviado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
     numero_remessa = db.Column(db.String(100), nullable=True)
+    ordem_exportacao = db.Column(db.String(100), nullable=True)
+    
     
     # Controle
     criado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
@@ -2350,6 +2352,7 @@ class BagProducao(db.Model):  # type: ignore
             'enviado_por_id': self.enviado_por_id,
             'enviado_por_nome': self.enviado_por.nome if self.enviado_por else None,
             'numero_remessa': self.numero_remessa,
+            'ordem_exportacao': self.ordem_exportacao,
             'responsavel_id': self.responsavel_id,
             'responsavel_nome': self.responsavel.nome if self.responsavel else None,
             'criado_por_id': self.criado_por_id,

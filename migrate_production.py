@@ -114,6 +114,7 @@ def executar_migracao():
             add_column_if_not_exists(cursor, 'bags_producao', 'categoria_manual', 'VARCHAR(100)')
             add_column_if_not_exists(cursor, 'bags_producao', 'categorias_mistas', 'BOOLEAN DEFAULT FALSE NOT NULL')
             add_column_if_not_exists(cursor, 'bags_producao', 'observacoes', 'TEXT')
+            add_column_if_not_exists(cursor, 'bags_producao', 'ordem_exportacao', 'VARCHAR(100)')
         else:
             print("   ⚠️ Tabela bags_producao não encontrada")
         
@@ -233,6 +234,7 @@ def verificar_status():
             ('bags_producao', 'categoria_manual'),
             ('bags_producao', 'categorias_mistas'),
             ('bags_producao', 'observacoes'),
+            ('bags_producao', 'ordem_exportacao'),
             ('usuarios', 'foto_path'),
             ('itens_producao', 'custo_proporcional'),
             ('itens_producao', 'valor_estimado'),

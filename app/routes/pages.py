@@ -94,4 +94,5 @@ def estoque_ativo():
 
 @bp.route('/producao.html')
 def producao():
-    return render_template('producao.html')
+    from flask import redirect
+    return redirect('/solicitacoes.html')

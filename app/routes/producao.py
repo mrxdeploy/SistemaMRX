@@ -997,23 +997,7 @@ def listar_estoque_agregado():
 
 
 # ============================
-# PÁGINAS HTML
-# ============================
-
-@bp.route('/', methods=['GET'])
-def pagina_producao():
-    """Página principal do módulo de produção"""
-    return render_template('producao.html')
-
-
-@bp.route('/ordem/<int:id>', methods=['GET'])
-def pagina_ordem(id):
-    """Página de detalhes/separação de uma OP"""
-    return render_template('producao-ordem.html')
-
-
-# ============================
-# EXPORTAÇÕES
+# EXPORTAÇÕES (mantidas para compatibilidade)
 # ============================
 
 @bp.route('/ordens/<int:id>/exportar-html', methods=['GET'])
@@ -1156,24 +1140,42 @@ def listar_bags_producao():
                 reverse=True
             )
             
-            # Determinar categoria exibição
-            if bag.classificacao_grade:
-                cat = bag.classificacao_grade.categoria
-                cat_lower = cat.lower() if cat else ''
+            # Determinar categoria exibição baseada nos itens
+            categorias_presentes = set()
+            for item in bag.itens:
+                if item.classificacao_grade and item.classificacao_grade.categoria:
+                    categorias_presentes.add(item.classificacao_grade.categoria)
+                else:
+                    categorias_presentes.add('OUTROS')
+
+            categoria_nomes_map = {
+                'high_grade': 'High',
+                'high': 'High',
+                'mid_grade': 'MG1',
+                'mid_grade_1': 'MG1',
+                'mg1': 'MG1',
+                'mid_grade_2': 'MG2',
+                'mg2': 'MG2',
+                'low_grade': 'Low',
+                'low': 'Low',
+                'residuo': 'Residuo',
+                'diversos': 'Diversos'
+            }
+
+            if len(categorias_presentes) == 1:
+                cat = list(categorias_presentes)[0]
                 bag_dict['categoria_exibicao'] = cat
-                categoria_nomes = {
-                    'high_grade': 'High',
-                    'high': 'High',
-                    'mid_grade': 'MG1',
-                    'mid_grade_1': 'MG1',
-                    'mg1': 'MG1',
-                    'mid_grade_2': 'MG2',
-                    'mg2': 'MG2',
-                    'low_grade': 'Low',
-                    'low': 'Low',
-                    'residuo': 'Residuo'
-                }
-                bag_dict['categoria_nome'] = categoria_nomes.get(cat_lower, cat.replace('_', ' ').title())
+                bag_dict['categoria_nome'] = categoria_nomes_map.get(cat.lower(), cat.replace('_', ' ').title())
+            elif len(categorias_presentes) > 1:
+                bag_dict['categoria_exibicao'] = 'DIVERSOS'
+                bag_dict['categoria_nome'] = 'Diversos'
+            else:
+                # Se não houver itens, mantém a lógica original do bag
+                if bag.classificacao_grade:
+                    cat = bag.classificacao_grade.categoria
+                    cat_lower = cat.lower() if cat else ''
+                    bag_dict['categoria_exibicao'] = cat
+                    bag_dict['categoria_nome'] = categoria_nomes_map.get(cat_lower, cat.replace('_', ' ').title())
             
             resultado.append(bag_dict)
         

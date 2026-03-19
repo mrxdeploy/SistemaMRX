@@ -234,6 +234,61 @@ def create_app():
                 print(f"Producao migration check: {e}")
         
         run_producao_migration()
+        
+        def run_producao_refactor_migration():
+            """Migration for production refactoring - make ordem_producao_id nullable"""
+            try:
+                from sqlalchemy import text
+                with db.engine.connect() as conn:
+                    # Check if itens_separados_producao table exists
+                    result = conn.execute(text("""
+                        SELECT table_name FROM information_schema.tables 
+                        WHERE table_name = 'itens_separados_producao'
+                    """))
+                    
+                    if result.fetchone() is not None:
+                        # Make ordem_producao_id nullable (new flow doesn't use OrdemProducao)
+                        try:
+                            conn.execute(text("""
+                                ALTER TABLE itens_separados_producao 
+                                ALTER COLUMN ordem_producao_id DROP NOT NULL
+                            """))
+                            conn.commit()
+                            print("✓ Made itens_separados_producao.ordem_producao_id nullable")
+                        except Exception:
+                            pass  # Already nullable or column doesn't exist
+                        
+                        # Ensure entrada_estoque_id column exists
+                        result2 = conn.execute(text("""
+                            SELECT column_name FROM information_schema.columns 
+                            WHERE table_name = 'itens_separados_producao' AND column_name = 'entrada_estoque_id'
+                        """))
+                        if result2.fetchone() is None:
+                            conn.execute(text("ALTER TABLE itens_separados_producao ADD COLUMN entrada_estoque_id INTEGER"))
+                            conn.commit()
+                            print("✓ Added itens_separados_producao.entrada_estoque_id")
+                    
+                    # Ensure lotes.reservado columns exist
+                    lote_columns = [
+                        ("reservado", "BOOLEAN DEFAULT FALSE"),
+                        ("reservado_para", "VARCHAR(100)"),
+                        ("reservado_por_id", "INTEGER"),
+                        ("reservado_em", "TIMESTAMP")
+                    ]
+                    for col_name, col_type in lote_columns:
+                        result3 = conn.execute(text(f"""
+                            SELECT column_name FROM information_schema.columns 
+                            WHERE table_name = 'lotes' AND column_name = '{col_name}'
+                        """))
+                        if result3.fetchone() is None:
+                            conn.execute(text(f"ALTER TABLE lotes ADD COLUMN {col_name} {col_type}"))
+                            conn.commit()
+                            print(f"✓ Added lotes.{col_name}")
+                            
+            except Exception as e:
+                print(f"Producao refactor migration: {e}")
+        
+        run_producao_refactor_migration()
         db.create_all()
 
         # Inicializar tabelas de preço

@@ -499,21 +499,6 @@
             <button class="period-btn" onclick="changeModule('compras')" data-module="compras">
                 <i class="fas fa-shopping-cart"></i> Compras
             </button>
-            <button class="period-btn" onclick="changeModule('financeiro')" data-module="financeiro">
-                <i class="fas fa-dollar-sign"></i> Financeiro
-            </button>
-            <button class="period-btn" onclick="changeModule('logistica')" data-module="logistica">
-                <i class="fas fa-truck"></i> Logística
-            </button>
-            <button class="period-btn" onclick="changeModule('analise-fornecedores')" data-module="analise-fornecedores">
-                <i class="fas fa-star"></i> Análise Fornecedores
-            </button>
-            <button class="period-btn" onclick="changeModule('operacional')" data-module="operacional">
-                <i class="fas fa-cogs"></i> Operacional
-            </button>
-            <button class="period-btn" onclick="changeModule('indicadores')" data-module="indicadores">
-                <i class="fas fa-chart-line"></i> Indicadores
-            </button>
         </div>
 
         <!-- Filters Section -->
@@ -647,13 +632,13 @@
                         activeCharts['chart1'].destroy();
                     }
                     activeCharts['chart1'] = new Chart(ctx1, {
-                        type: 'bar',
+                        type: 'doughnut',
                         data: {
-                            labels: ['Leve', 'Média', 'Pesada'],
+                            labels: ['Low', 'MG1', 'MG2', 'High'],
                             datasets: [{
-                                label: 'Peso (kg)',
-                                data: [dashboardData.quilos_por_tipo.leve, dashboardData.quilos_por_tipo.media, dashboardData.quilos_por_tipo.pesada],
-                                backgroundColor: ['#10b981', '#3b82f6', '#f59e0b']
+                                label: 'Quantidade',
+                                data: [dashboardData.estoque_ativo_qtd.low, dashboardData.estoque_ativo_qtd.mg1, dashboardData.estoque_ativo_qtd.mg2, dashboardData.estoque_ativo_qtd.high],
+                                backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444']
                             }]
                         },
                         options: { responsive: true, maintainAspectRatio: false }
@@ -716,23 +701,26 @@
             }
 
             const data = {
-                labels: ['Leve', 'Média', 'Pesada'],
+                labels: ['Low', 'MG1', 'MG2', 'High'],
                 datasets: [{
                     label: 'Peso (kg)',
                     data: [
-                        dashboardData.quilos_por_tipo.leve || 0,
-                        dashboardData.quilos_por_tipo.media || 0,
-                        dashboardData.quilos_por_tipo.pesada || 0
+                        dashboardData.quilos_por_tipo.low || 0,
+                        dashboardData.quilos_por_tipo.mg1 || 0,
+                        dashboardData.quilos_por_tipo.mg2 || 0,
+                        dashboardData.quilos_por_tipo.high || 0
                     ],
                     backgroundColor: [
                         'rgba(16, 185, 129, 0.8)',
                         'rgba(59, 130, 246, 0.8)',
-                        'rgba(245, 158, 11, 0.8)'
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(239, 68, 68, 0.8)'
                     ],
                     borderColor: [
                         'rgb(16, 185, 129)',
                         'rgb(59, 130, 246)',
-                        'rgb(245, 158, 11)'
+                        'rgb(245, 158, 11)',
+                        'rgb(239, 68, 68)'
                     ],
                     borderWidth: 2
                 }]
@@ -1621,11 +1609,11 @@
                     activeCharts['chart1'] = new Chart(ctx1, {
                         type: 'bar',
                         data: {
-                            labels: ['Leve', 'Média', 'Pesada'],
+                            labels: ['Low', 'MG1', 'MG2', 'High'],
                             datasets: [{
                                 label: 'Quantidade',
-                                data: [data.relatorios.aprovados, data.relatorios.pendentes, data.relatorios.reprovados],
-                                backgroundColor: ['#10b981', '#3b82f6', '#f59e0b']
+                                data: [data.estoque_ativo_qtd.low, data.estoque_ativo_qtd.mg1, data.estoque_ativo_qtd.mg2, data.estoque_ativo_qtd.high],
+                                backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444']
                             }]
                         },
                         options: { responsive: true, maintainAspectRatio: false }
@@ -1638,10 +1626,10 @@
                     activeCharts['chart2'] = new Chart(ctx2, {
                         type: 'bar',
                         data: {
-                            labels: ['Leve', 'Média', 'Pesada'],
+                            labels: ['Low', 'MG1', 'MG2', 'High'],
                             datasets: [{
                                 label: 'Peso (kg)',
-                                data: [data.quilos_por_tipo.leve, data.quilos_por_tipo.media, data.quilos_por_tipo.pesada],
+                                data: [data.quilos_por_tipo.low, data.quilos_por_tipo.mg1, data.quilos_por_tipo.mg2, data.quilos_por_tipo.high],
                                 backgroundColor: '#059669'
                             }]
                         },

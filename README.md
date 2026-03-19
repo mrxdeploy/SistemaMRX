@@ -1521,3 +1521,5 @@ Este projeto foi desenvolvido para gestão interna de compras e processamento de
 ---
 
 **Desenvolvido com ❤️ para otimizar a gestão de materiais metálicos e eletrônicos**
+#   S i s t e m a M R X  
+ 

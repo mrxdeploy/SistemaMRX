@@ -105,6 +105,114 @@
         .search-box input {
             flex: 1;
         }
+
+        /* === PRODUÇÃO MODAL === */
+        .modal-producao {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+        .modal-producao.active { display: flex; }
+        .modal-producao-content {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(40px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .modal-producao-header {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #059669, #047857);
+            color: white;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-producao-header h2 { margin: 0; font-size: 1.3rem; }
+        .modal-producao-body { padding: 1.5rem; }
+        .producao-stat { 
+            display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
+            padding: 1rem; background: var(--gray-50); border-radius: 12px;
+        }
+        .producao-stat-item { flex: 1; min-width: 120px; text-align: center; }
+        .producao-stat-item .value { font-size: 1.5rem; font-weight: bold; }
+        .producao-stat-item .label { font-size: 0.75rem; color: var(--gray-500); }
+        .separado-card {
+            background: var(--gray-50); border-radius: 8px;
+            padding: 0.75rem; margin-bottom: 0.5rem;
+            display: flex; justify-content: space-between; align-items: center;
+            border-left: 3px solid var(--success-color);
+        }
+
+        /* === BAG SELECTION === */
+        .btn-selecionar-bag {
+            width: 100%; height: 70px;
+            font-size: 1.2rem; font-weight: 700;
+            border: 3px dashed var(--primary-color);
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+            color: var(--primary-color);
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 1rem;
+            display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+        }
+        .btn-selecionar-bag:hover { background: linear-gradient(135deg, #d1fae5, #a7f3d0); transform: scale(1.02); }
+        .btn-selecionar-bag.selecionando {
+            background: linear-gradient(135deg, #059669, #047857);
+            color: white; border: 3px solid #059669;
+        }
+        .sublote-item.selecao-mode { position: relative; cursor: pointer; }
+        .sublote-item.selecao-mode.selecionado {
+            background: #d1fae5 !important;
+            border-color: #059669 !important;
+            box-shadow: 0 0 0 2px #059669;
+        }
+        .sublote-item.selecao-mode.em-producao-bloqueado {
+            opacity: 0.5; cursor: not-allowed;
+        }
+        .check-selecao {
+            position: absolute; top: 8px; right: 8px;
+            width: 28px; height: 28px; border-radius: 50%;
+            border: 2px solid var(--gray-300); background: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem; color: transparent; transition: all 0.2s;
+        }
+        .sublote-item.selecionado .check-selecao {
+            background: #059669; border-color: #059669; color: white;
+        }
+        .barra-selecao-fixa {
+            display: none;
+            position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(135deg, #059669, #047857);
+            color: white; padding: 0.75rem 2rem;
+            border-radius: 50px; box-shadow: 0 4px 20px rgba(5,150,105,0.4);
+            z-index: 999;
+            align-items: center; gap: 1rem;
+            font-weight: 600; font-size: 1rem;
+            animation: slideUp 0.3s ease;
+        }
+        .barra-selecao-fixa.active { display: flex; }
+        .barra-selecao-fixa .btn-enviar-bag {
+            background: white; color: #059669;
+            border: none; padding: 0.5rem 1.5rem;
+            border-radius: 25px; font-weight: 700;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .barra-selecao-fixa .btn-enviar-bag:hover { transform: scale(1.05); }
     </style>
 </head>
 <body>
@@ -162,6 +270,9 @@
             <button class="tab-btn" onclick="abrirTab('bags')">
                 <i class="fas fa-box"></i> Bags
             </button>
+            <button class="tab-btn" onclick="abrirTab('separacao')">
+                <i class="fas fa-cogs"></i> Em Separação
+            </button>
             <button class="tab-btn" onclick="abrirTab('total')">
                 <i class="fas fa-calculator"></i> Total Bags
             </button>
@@ -171,18 +282,12 @@
         </div>
 
         <div id="tabLotes" class="tab-content active">
+            <!-- Botão Selecionar para Bag -->
+            <button class="btn-selecionar-bag" id="btnSelecionarBag" onclick="toggleModoSelecao()">
+                <i class="fas fa-hand-pointer"></i> Selecionar para Bag
+            </button>
             <div class="card" style="margin-bottom: 1rem;">
                 <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                    <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
-                        <label>Status</label>
-                        <select id="filtroStatusLote" onchange="carregarLotesAtivos()">
-                            <option value="">Todos Ativos</option>
-                            <option value="em_estoque">Em Estoque</option>
-                            <option value="disponivel">Disponível</option>
-                            <option value="aprovado">Aprovado</option>
-                            <option value="em_producao">Em Produção</option>
-                        </select>
-                    </div>
                     <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
                         <label>Buscar</label>
                         <input type="text" id="buscaLote" placeholder="Número do lote, fornecedor..." onkeyup="filtrarLotes()">
@@ -192,6 +297,11 @@
             <div id="listaLotes"></div>
         </div>
 
+        <!-- Tab Em Separação -->
+        <div id="tabSeparacao" class="tab-content">
+            <div id="listaSeparacao"><div class="card" style="text-align: center; color: var(--gray-500);">Carregando...</div></div>
+        </div>
+
         <div id="tabBags" class="tab-content">
             <div class="card" style="margin-bottom: 1rem;">
                 <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
@@ -199,9 +309,8 @@
                         <label>Status</label>
                         <select id="filtroStatusBag" onchange="carregarBagsEstoque()">
                             <option value="">Todos</option>
-                            <option value="devolvido_estoque">Devolvidos ao Estoque</option>
+                            <option value="aberto">Abertos</option>
                             <option value="cheio">Cheios</option>
-                            <option value="enviado_refinaria">Enviados</option>
                         </select>
                     </div>
                     <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
@@ -212,7 +321,6 @@
                             <option value="MG1">MG1</option>
                             <option value="MG2">MG2</option>
                             <option value="LOW_GRADE">Low Grade</option>
-                            <option value="RESIDUO">Resíduo</option>
                         </select>
                     </div>
                     <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
@@ -273,6 +381,46 @@
         </div>
     </main>
 
+    <!-- Barra fixa de seleção -->
+    <div class="barra-selecao-fixa" id="barraSelecao">
+        <i class="fas fa-box"></i>
+        <span id="contagemSelecao">0 selecionados</span>
+        <button class="btn-enviar-bag" onclick="abrirModalBag()"><i class="fas fa-paper-plane"></i> Enviar</button>
+    </div>
+
+    <!-- Modal Produção -->
+    <div class="modal-producao" id="modalProducao">
+        <div class="modal-producao-content">
+            <div class="modal-producao-header">
+                <h2><i class="fas fa-industry"></i> Produção</h2>
+                <button onclick="fecharModalProducao()" style="background:none;border:none;color:white;font-size:1.5rem;cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-producao-body" id="producaoBody">Carregando...</div>
+        </div>
+    </div>
+
+    <!-- Modal Bag -->
+    <div class="modal-producao" id="modalBag">
+        <div class="modal-producao-content">
+            <div class="modal-producao-header" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                <h2><i class="fas fa-box"></i> Enviar para Bag</h2>
+                <button onclick="fecharModalBag()" style="background:none;border:none;color:white;font-size:1.5rem;cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-producao-body" id="bagBody">Carregando...</div>
+        </div>
+    </div>
+
+    <!-- Modal Ver Bag -->
+    <div class="modal-producao" id="modalVerBag">
+        <div class="modal-producao-content">
+            <div class="modal-producao-header" style="background: linear-gradient(135deg, #0891b2, #0e7490);">
+                <h2><i class="fas fa-eye"></i> Detalhes do Bag</h2>
+                <button onclick="document.getElementById('modalVerBag').classList.remove('active')" style="background:none;border:none;color:white;font-size:1.5rem;cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-producao-body" id="verBagBody">Carregando...</div>
+        </div>
+    </div>
+
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/rbac.js"></script>
@@ -283,6 +431,19 @@
         let bagsEstoque = [];
         let dadosResumo = [];
         let dadosCompra = [];
+        let modoSelecao = false;
+        let materiaisSelecionados = new Set();
+
+        // Bridge function: showNotification -> showAlert/showSuccess from utils.js
+        function showNotification(msg, type) {
+            if (type === 'error') showAlert(msg);
+            else showSuccess(msg);
+        }
+
+        // Guard against duplicate button clicks
+        let _actionInProgress = {};
+        function isActionBusy(key) { return !!_actionInProgress[key]; }
+        function setActionBusy(key, busy) { _actionInProgress[key] = busy; }
 
         let isAdminOrGestor = false;
 
@@ -296,6 +457,18 @@
             isAdminOrGestor = tipoOk || perfilOk;
             if (isAdminOrGestor) {
                 document.getElementById('tabBtnCompra').style.display = 'inline-flex';
+            }
+            
+            // Detectar perfil Producao - ocultar Total Bags e Total Compra
+            const isProducao = user.perfil_nome && 
+                (user.perfil_nome === 'Producao' || user.perfil_nome === 'Produção');
+            if (isProducao) {
+                document.querySelectorAll('.tabs .tab-btn').forEach(btn => {
+                    const text = btn.textContent.trim();
+                    if (text.includes('Total Bags') || text.includes('Total Compra')) {
+                        btn.style.display = 'none';
+                    }
+                });
             }
             
             await Promise.all([
@@ -324,12 +497,11 @@
 
         async function carregarLotesAtivos() {
             try {
-                const status = document.getElementById('filtroStatusLote').value;
-                const url = status ? `/estoque-ativo/lotes?status=${status}` : '/estoque-ativo/lotes';
+                const url = '/estoque-ativo/lotes';
                 const response = await fetchAPI(url);
                 if (response.ok) {
                     lotesAtivos = await response.json();
-                    renderizarLotes(lotesAtivos);
+                    filtrarLotes(); // Em vez de apenas renderizarLotes(lotesAtivos), chame o filtro para que não ignore o texto
                 }
             } catch (error) {
                 console.error('Erro ao carregar lotes:', error);
@@ -343,7 +515,9 @@
                 const numero = (lote.numero_lote || '').toLowerCase();
                 const fornecedor = (lote.fornecedor_nome || '').toLowerCase();
                 const tipo = (lote.tipo_lote_nome || '').toLowerCase();
-                return numero.includes(busca) || fornecedor.includes(busca) || tipo.includes(busca);
+                const observacao = (lote.observacoes || '').toLowerCase();
+                
+                return numero.includes(busca) || fornecedor.includes(busca) || tipo.includes(busca) || observacao.includes(busca);
             });
             renderizarLotes(lotesFiltrados);
         }
@@ -391,8 +565,17 @@
                             <div style="background: var(--success-bg); padding: 0.5rem; border-radius: 0.375rem; margin-bottom: 0.5rem;">
                                 <strong style="color: var(--success-color);"><i class="fas fa-info-circle"></i> Materiais separados deste lote:</strong>
                             </div>
-                            ${lote.sublotes.map((sublote, idx) => `
-                                <div class="sublote-item">
+                            ${lote.sublotes.map((sublote, idx) => {
+                                const pesoSub = parseFloat(sublote.peso_liquido || sublote.peso_total_kg || 0);
+                                const isEmProducao = (sublote.status || '').toLowerCase() === 'em_producao';
+                                const isProcessado = (sublote.status || '').toLowerCase() === 'processado';
+                                const isEmEstoque = !isEmProducao && !isProcessado && pesoSub > 0;
+                                const nomeMat = sublote.observacoes && (sublote.observacoes.startsWith('MATERIAL:') || sublote.observacoes.startsWith('MATERIAL_MANUAL:')) ? sublote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').replace('MATERIAL:', '').trim() : (sublote.tipo_lote_nome || 'N/A');
+                                return `
+                                <div class="sublote-item ${modoSelecao ? 'selecao-mode' : ''} ${modoSelecao && isEmProducao ? 'em-producao-bloqueado' : ''} ${materiaisSelecionados.has(sublote.id) ? 'selecionado' : ''}" 
+                                     data-sublote-id="${sublote.id}" data-peso="${pesoSub}" data-nome="${nomeMat}"
+                                     ${modoSelecao && !isEmProducao && isEmEstoque ? `onclick="toggleSelecaoSublote(${sublote.id})"` : ''}>
+                                    ${modoSelecao && isEmEstoque ? `<div class="check-selecao"><i class="fas fa-check"></i></div>` : ''}
                                     <div style="display: flex; justify-content: space-between; align-items: start; gap: 0.5rem;">
                                         <div style="flex: 1;">
                                             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
@@ -400,26 +583,33 @@
                                                 <strong style="color: var(--primary-color);">${sublote.numero_lote}</strong>
                                             </div>
                                             <div style="font-size: 0.8rem; color: var(--gray-700); margin-left: 2rem;">
-                                                <i class="fas fa-tag"></i> <strong>Material:</strong> ${sublote.observacoes && (sublote.observacoes.startsWith('MATERIAL:') || sublote.observacoes.startsWith('MATERIAL_MANUAL:')) ? sublote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').replace('MATERIAL:', '').trim() : (sublote.tipo_lote_nome || 'N/A')}
+                                                <i class="fas fa-tag"></i> <strong>Material:</strong> ${nomeMat}
                                             </div>
                                             <div style="font-size: 0.8rem; color: var(--gray-700); margin-left: 2rem;">
-                                                <i class="fas fa-weight"></i> <strong>Peso:</strong> <span style="color: var(--success-color); font-weight: bold;">${parseFloat(sublote.peso_liquido || sublote.peso_total_kg || 0).toFixed(2)} kg</span>
+                                                <i class="fas fa-weight"></i> <strong>Peso:</strong> <span style="color: var(--success-color); font-weight: bold;">${pesoSub.toFixed(2)} kg</span>
                                             </div>
                                             ${sublote.qualidade_recebida ? `
                                                 <div style="font-size: 0.8rem; color: var(--gray-700); margin-left: 2rem;">
                                                     <i class="fas fa-star"></i> <strong>Qualidade:</strong> ${sublote.qualidade_recebida}
                                                 </div>
                                             ` : ''}
-                                            ${sublote.localizacao_atual ? `
-                                                <div style="font-size: 0.8rem; color: var(--gray-700); margin-left: 2rem;">
-                                                    <i class="fas fa-map-marker-alt"></i> <strong>Localização:</strong> ${sublote.localizacao_atual}
-                                                </div>
+                                        </div>
+                                        <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: flex-end;">
+                                            <span class="badge ${getBadgeClassLote(sublote.status)}" style="font-size: 0.65rem;">${getStatusLabelLote(sublote.status)}</span>
+                                            ${!modoSelecao && isEmEstoque ? `
+                                                <button onclick="enviarParaProducao(${sublote.id}); event.stopPropagation();" class="btn btn-sm" style="background: #f59e0b; color: white; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.7rem; white-space: nowrap; margin-top: 0.25rem;">
+                                                    <i class="fas fa-industry"></i> Enviar para Produção
+                                                </button>
+                                            ` : ''}
+                                            ${isEmProducao ? `
+                                                <button onclick="abrirModalProducaoItem(${sublote.id}); event.stopPropagation();" class="btn btn-sm" style="background: #059669; color: white; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.7rem; white-space: nowrap; margin-top: 0.25rem;">
+                                                    <i class="fas fa-cogs"></i> Abrir Produção
+                                                </button>
                                             ` : ''}
                                         </div>
-                                        <span class="badge ${getBadgeClassLote(sublote.status)}" style="font-size: 0.65rem;">${getStatusLabelLote(sublote.status)}</span>
                                     </div>
                                 </div>
-                            `).join('')}
+                            `}).join('')}
                             <div style="background: var(--gray-100); padding: 0.5rem; border-radius: 0.375rem; margin-top: 0.5rem; text-align: center; font-size: 0.8rem; color: var(--gray-700);">
                                 <i class="fas fa-calculator"></i> <strong>Total separado:</strong> ${pesoSublotes.toFixed(2)} kg de ${lote.sublotes.length} tipo(s) de material
                             </div>
@@ -456,7 +646,7 @@
                 const response = await fetchAPI(url);
                 if (response.ok) {
                     bagsEstoque = await response.json();
-                    renderizarBags(bagsEstoque);
+                    filtrarBags(); // Em vez de apenas renderizarBags(bagsEstoque), chame o filtro embutido
                 }
             } catch (error) {
                 console.error('Erro ao carregar bags:', error);
@@ -469,7 +659,8 @@
             const bagsFiltrados = bagsEstoque.filter(bag => {
                 const codigo = (bag.codigo || '').toLowerCase();
                 const classificacao = (bag.classificacao_nome || '').toLowerCase();
-                return codigo.includes(busca) || classificacao.includes(busca);
+                const catNome = (bag.categoria_nome || '').toLowerCase();
+                return codigo.includes(busca) || classificacao.includes(busca) || catNome.includes(busca);
             });
             renderizarBags(bagsFiltrados);
         }
@@ -512,19 +703,21 @@
             if (showPrices) {
                 thead.innerHTML = `
                     <tr style="background: var(--gray-100); text-align: left;">
-                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Classificação</th>
-                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Categoria</th>
-                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right;">Peso Total</th>
-                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #059669;">Valor Total</th>
-                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #8b5cf6;">Média R$</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Material</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: center;">Classificação</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: center;">Fornecedor</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right;">Quantidade</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #8b5cf6;">Valor R$/kg</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #059669;">Total</th>
                     </tr>
                 `;
             } else {
                 thead.innerHTML = `
                     <tr style="background: var(--gray-100); text-align: left;">
-                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Classificação</th>
-                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Categoria</th>
-                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right;">Peso Total</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Material</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: center;">Classificação</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: center;">Fornecedor</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right;">Quantidade</th>
                     </tr>
                 `;
             }
@@ -533,7 +726,7 @@
             const grid = document.getElementById('resumoGrid');
             if(!dados || dados.length === 0) {
                 grid.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center;">Nenhum dado encontrado</div>';
-                document.getElementById('tabelaResumoBody').innerHTML = `<tr><td colspan="${showPrices ? 5 : 3}" style="text-align:center; padding: 1rem;">Nenhum registro</td></tr>`;
+                document.getElementById('tabelaResumoBody').innerHTML = `<tr><td colspan="${showPrices ? 6 : 4}" style="text-align:center; padding: 1rem;">Nenhum registro</td></tr>`;
                 return;
             }
 
@@ -546,7 +739,7 @@
                         </div>
                         <div class="stat-label" style="font-weight: bold; color: var(--gray-700);">${cat.categoria_label}</div>
                         <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
-                            ${cat.classificacoes.length} classificações
+                            ${cat.itens.length} materiais separados
                         </div>
                         ${showPrices && cat.media_geral > 0 ? `
                             <div style="font-size: 0.85rem; color: #8b5cf6; margin-top: 0.5rem; font-weight: bold;">
@@ -560,7 +753,7 @@
             // Renderizar Seções separadas por categoria
             const tbody = document.getElementById('tabelaResumoBody');
             let rows = '';
-            const colSpan = showPrices ? 5 : 3;
+            const colSpan = showPrices ? 6 : 4;
             
             dados.forEach((cat, index) => {
                 const corCategoria = categoriaCores[cat.categoria_label] || 'var(--primary-color)';
@@ -585,27 +778,26 @@
                     </tr>
                 `;
                 
-                // Calcular soma das medias
                 // Itens da categoria
-                
-                // Itens da categoria
-                cat.classificacoes.forEach(cls => {
+                cat.itens.forEach(item => {
                     if (showPrices) {
                         rows += `
                             <tr style="border-bottom: 1px solid var(--gray-200); border-left: 4px solid ${corCategoria}20;">
-                                <td style="padding: 0.75rem 0.75rem 0.75rem 2rem;">${cls.nome}</td>
-                                <td style="padding: 0.75rem;">${cat.categoria_label}</td>
-                                <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${cls.peso.toFixed(2)} kg</td>
-                                <td style="padding: 0.75rem; text-align: right; color: #059669;">R$ ${(cls.total_valor || 0).toFixed(2)}</td>
-                                <td style="padding: 0.75rem; text-align: right; color: #8b5cf6;">R$ ${(cls.media_preco || 0).toFixed(2)}</td>
+                                <td style="padding: 0.75rem 0.75rem 0.75rem 2rem; font-weight: bold;">${item.nome}</td>
+                                <td style="padding: 0.75rem; text-align: center;"><span style="font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:999px;background:${corCategoria}20;color:${corCategoria};border:1px solid ${corCategoria}40;">${cat.categoria_label}</span></td>
+                                <td style="padding: 0.75rem; text-align: center;">${item.fornecedor || 'N/A'}</td>
+                                <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${item.peso_kg.toFixed(3)} kg</td>
+                                <td style="padding: 0.75rem; text-align: right; color: #8b5cf6;">R$ ${(item.media_preco || 0).toFixed(2)}</td>
+                                <td style="padding: 0.75rem; text-align: right; color: #059669; font-weight: bold;">R$ ${(item.total_valor || 0).toFixed(2)}</td>
                             </tr>
                         `;
                     } else {
                         rows += `
                             <tr style="border-bottom: 1px solid var(--gray-200); border-left: 4px solid ${corCategoria}20;">
-                                <td style="padding: 0.75rem 0.75rem 0.75rem 2rem;">${cls.nome}</td>
-                                <td style="padding: 0.75rem;">${cat.categoria_label}</td>
-                                <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${cls.peso.toFixed(2)} kg</td>
+                                <td style="padding: 0.75rem 0.75rem 0.75rem 2rem; font-weight: bold;">${item.nome}</td>
+                                <td style="padding: 0.75rem; text-align: center;"><span style="font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:999px;background:${corCategoria}20;color:${corCategoria};border:1px solid ${corCategoria}40;">${cat.categoria_label}</span></td>
+                                <td style="padding: 0.75rem; text-align: center;">${item.fornecedor || 'N/A'}</td>
+                                <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${item.peso_kg.toFixed(3)} kg</td>
                             </tr>
                         `;
                     }
@@ -643,17 +835,27 @@
                 } else {
                     rows += `
                         <tr style="background: ${corCategoria}15; border-left: 4px solid ${corCategoria}; border-top: 2px solid ${corCategoria}40;">
-                            <td colspan="2" style="padding: 0.75rem 1rem; font-weight: bold; color: ${corCategoria};">
+                            <td colspan="3" style="padding: 0.75rem 1rem; font-weight: bold; color: ${corCategoria};">
                                 <i class="fas fa-calculator" style="margin-right: 0.5rem;"></i> Total ${cat.categoria_label}
                             </td>
                             <td style="padding: 0.75rem 1rem; text-align: right; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
-                                ${cat.peso_total.toFixed(2)} kg
+                                ${cat.peso_total.toFixed(3)} kg
                             </td>
                         </tr>
                     `;
                 }
             });
             tbody.innerHTML = rows;
+        }
+
+        function formatarOrdemExportacao(ordem) {
+            if (!ordem) return '';
+            // Remove the Day-of-Week part (e.g. 2026-03-16-Mo-0001 -> 2026-03-16-0001)
+            const parts = ordem.split('-');
+            if (parts.length === 5) {
+                return `${parts[0]}-${parts[1]}-${parts[2]}-${parts[4]}`;
+            }
+            return ordem;
         }
 
         function renderizarBags(bags) {
@@ -663,7 +865,6 @@
                 return;
             }
             
-            // Cores para categorias
             // Cores para categorias
             const categoriaCores = {
                 'HIGH_GRADE': '#10B981',  // Verde
@@ -679,7 +880,8 @@
                 'LOW_GRADE': '#EF4444',   // Vermelho
                 'low': '#EF4444',
                 'RESIDUO': '#6B7280',     // Cinza
-                'OUTRO': '#6B7280'
+                'OUTRO': '#6B7280',
+                'DIVERSOS': '#8B5CF6'     // Roxo
             };
             
             const categoriaNomes = {
@@ -694,7 +896,8 @@
                 'MG2': 'MG2',
                 'LOW_GRADE': 'Low',
                 'low': 'Low',
-                'RESIDUO': 'Resíduo'
+                'RESIDUO': 'Resíduo',
+                'DIVERSOS': 'Diversos'
             };
 
             container.innerHTML = bags.map(bag => {
@@ -723,14 +926,14 @@
                 <div class="card bag-card ${bag.status}" id="bag-${bag.id}" style="border-left-color: ${corCategoria};">
                     <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 0.5rem;">
                         <div>
+                            <h3 style="margin: 0 0 0.25rem 0; font-size: 1.15rem; font-weight: 700; color: var(--gray-800); letter-spacing: 0.02em;">
+                                <i class="fas fa-box" style="margin-right: 0.4rem; color: ${corCategoria};"></i>${bag.codigo}
+                                ${bag.categorias_mistas ? '<span class="badge badge-warning" style="margin-left: 0.5rem; font-size: 0.6rem; vertical-align: middle;">Misto</span>' : ''}
+                            </h3>
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${corCategoria};"></span>
-                                <h4 style="margin: 0; color: ${corCategoria};">${nomeCategoria}</h4>
+                                <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${corCategoria};"></span>
+                                <span style="font-size: 0.85rem; font-weight: 600; color: ${corCategoria};">${nomeCategoria}</span>
                             </div>
-                            <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; color: var(--gray-500);">
-                                ${bag.codigo}
-                                ${bag.categorias_mistas ? '<span class="badge badge-warning" style="margin-left: 0.5rem; font-size: 0.6rem;">Misto</span>' : ''}
-                            </p>
                         </div>
                         <span class="badge ${getBagBadgeClass(bag.status)}">${getBagStatusLabel(bag.status)}</span>
                     </div>
@@ -738,6 +941,12 @@
                         <div><strong>Peso Total:</strong> ${parseFloat(bag.peso_acumulado || 0).toFixed(2)} kg</div>
                         <div><strong>Itens:</strong> ${bag.quantidade_itens || 0}</div>
                     </div>
+                    ${bag.status === 'cheio' && bag.ordem_exportacao ? `
+                    <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--gray-50); border: 1px dashed var(--gray-300); border-radius: 8px; text-align: center;">
+                        <span style="font-size: 0.75rem; color: var(--gray-500); text-transform: uppercase;">Ordem de Exportação</span>
+                        <div style="font-weight: bold; font-size: 1.1rem; color: var(--gray-800); font-family: monospace;">${formatarOrdemExportacao(bag.ordem_exportacao)}</div>
+                    </div>
+                    ` : ''}
                     ${itensBreakdownHtml}
                     <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.5rem;">
                         <i class="fas fa-info-circle"></i> ${origemTexto}
@@ -750,24 +959,42 @@
                             </span>
                         </div>
                         <div class="itens-bag-container" id="itens-bag-${bag.id}">
-                            ${bag.itens.map(item => `
+                            ${bag.itens.map(item => {
+                                const itemCatKey = item.classificacao_categoria || '';
+                                const itemCatCor = categoriaCores[itemCatKey] || 'var(--gray-400)';
+                                const itemCatNome = categoriaNomes[itemCatKey] || getCategoriaLabel(itemCatKey) || item.classificacao_nome || 'N/A';
+                                return `
                                 <div class="item-bag">
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <div>
+                                        <div style="flex: 1;">
                                             <strong style="color: var(--primary-color);">${item.nome_item || item.classificacao_nome || 'Item'}</strong>
                                         </div>
-                                        <span style="font-size: 0.75rem; color: var(--gray-600);">${parseFloat(item.peso_kg || 0).toFixed(2)} kg</span>
+                                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                            <span style="font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 999px; background: ${itemCatCor}20; color: ${itemCatCor}; border: 1px solid ${itemCatCor}40;">${itemCatNome}</span>
+                                            <span style="font-size: 0.75rem; font-weight: bold; color: var(--gray-700);">${parseFloat(item.peso_kg || 0).toFixed(2)} kg</span>
+                                        </div>
                                     </div>
-                                    <div style="font-size: 0.75rem; margin-top: 0.25rem; color: var(--gray-500);">
-                                        ${item.classificacao_nome ? `Classificação: ${item.classificacao_nome}` : ''}
-                                        ${item.ordem_producao_numero ? ` | OP: ${item.ordem_producao_numero}` : ''}
+                                    <div style="font-size: 0.7rem; margin-top: 0.2rem; color: var(--gray-400);">
+                                        ${item.ordem_producao_numero ? `OP: ${item.ordem_producao_numero}` : ''}
                                     </div>
-                                </div>
-                            `).join('')}
+                                </div>`;
+                            }).join('')}
                         </div>
                     ` : ''}
-                    <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.5rem;">
-                        Criado em ${formatarData(bag.data_criacao)}
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--gray-200);">
+                        <span style="font-size: 0.75rem; color: var(--gray-500);">
+                            Criado em ${formatarData(bag.data_criacao)}
+                        </span>
+                        <div style="display: flex; gap: 0.5rem;">
+                            ${bag.status === 'aberto' ? `
+                                <button onclick="fecharBagAction(${bag.id})" class="btn btn-sm" style="background: #f59e0b; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;">
+                                    <i class="fas fa-lock"></i> Fechar Bag
+                                </button>
+                            ` : ''}
+                            <button onclick="abrirVerBag(${bag.id})" class="btn btn-sm" style="background: #0891b2; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;">
+                                <i class="fas fa-eye"></i> Ver Bag
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -802,6 +1029,8 @@
                 carregarTotalCompra();
             } else if (tabName === 'total') {
                 carregarTotalBags();
+            } else if (tabName === 'separacao') {
+                carregarEmSeparacao();
             } else {
                 carregarLotesAtivos();
             }
@@ -941,8 +1170,7 @@
                 
                 if (isAdminOrGestor) {
                     headerHtml += `
-                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #8b5cf6;">Média R$</th>
-                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #059669;">Média Real R$/kg</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #8b5cf6;">Média/kg</th>
                     `;
                 }
                 
@@ -954,7 +1182,7 @@
             const grid = document.getElementById('resumoCompraGrid');
             if(!dados || dados.length === 0) {
                 grid.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center;">Nenhuma OC aprovada encontrada</div>';
-                const colspan = isAdminOrGestor ? 6 : 4;
+                const colspan = isAdminOrGestor ? 5 : 4;
                 document.getElementById('tabelaCompraBody').innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; padding: 1rem;">Nenhum registro</td></tr>`;
                 return;
             }
@@ -991,7 +1219,7 @@
             dados.forEach((cat, index) => {
                 const corCategoria = categoriaCores[cat.categoria_label] || 'var(--primary-color)';
                 const sucataLabel = sucataLabels[cat.categoria_label] || `SUCATA DE CIRCUITO IMPRESSO ${cat.categoria_label.toUpperCase().charAt(0)}`;
-                const colspan = isAdminOrGestor ? 6 : 4;
+                const colspan = isAdminOrGestor ? 5 : 4;
                 
                 // Espaço entre seções
                 if (index > 0) {
@@ -1028,8 +1256,7 @@
                     
                     if (isAdminOrGestor) {
                         rows += `
-                            <td style="padding: 0.75rem; text-align: right; color: #8b5cf6; font-weight: bold;">R$ ${mat.media_preco.toFixed(2)}</td>
-                            <td style="padding: 0.75rem; text-align: right; color: #059669; font-weight: bold;">R$ ${(mat.media_real || 0).toFixed(2)}</td>
+                            <td style="padding: 0.75rem; text-align: right; color: #8b5cf6; font-weight: bold;">R$ ${(mat.media_real || 0).toFixed(2)}</td>
                         `;
                     }
                     
@@ -1051,13 +1278,6 @@
                     </div>
                 ` : '';
 
-                const mediaRealHtml = isAdminOrGestor ? `
-                    <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
-                        <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Média Real/kg</div>
-                        <div style="font-weight: bold; color: #059669; font-size: 1rem;">R$ ${cat.peso_total > 0 ? (cat.total_valor / cat.peso_total).toFixed(2) : '0.00'}</div>
-                    </div>
-                ` : '';
-
                 rows += `
                     <tr style="background: ${corCategoria}15; border-left: 4px solid ${corCategoria}; border-top: 2px solid ${corCategoria}40;">
                         <td colspan="${colspan}" style="padding: 0;">
@@ -1072,7 +1292,6 @@
                                 </div>
                                 ${valorPagoHtml}
                                 ${mediaGeralHtml}
-                                ${mediaRealHtml}
                             </div>
                         </td>
                     </tr>
@@ -1116,31 +1335,32 @@
             
             if (tipo === 'resumo') {
                 if (showPrices) {
-                    head = [['Classificação', 'Categoria', 'Peso Total', 'Valor Total', 'Média R$']];
-                    body = dados.classificacoes.map(item => [
+                    head = [['Material', 'Classificação', 'Fornecedor', 'Quantidade', 'Valor R$/kg', 'Total']];
+                    body = dados.itens.map(item => [
                         item.nome,
-                        dados.categoria_label,
-                        `${item.peso.toFixed(2)} kg`,
-                        `R$ ${(item.total_valor || 0).toFixed(2)}`,
-                        `R$ ${(item.media_preco || 0).toFixed(2)}`
+                        item.classificacao || dados.categoria_label,
+                        item.fornecedor || 'N/A',
+                        `${item.peso_kg.toFixed(3)} kg`,
+                        `R$ ${(item.media_preco || 0).toFixed(2)}`,
+                        `R$ ${(item.total_valor || 0).toFixed(2)}`
                     ]);
                 } else {
-                    head = [['Classificação', 'Categoria', 'Peso Total']];
-                    body = dados.classificacoes.map(item => [
+                    head = [['Material', 'Classificação', 'Fornecedor', 'Quantidade']];
+                    body = dados.itens.map(item => [
                         item.nome,
-                        dados.categoria_label,
-                        `${item.peso.toFixed(2)} kg`
+                        item.classificacao || dados.categoria_label,
+                        item.fornecedor || 'N/A',
+                        `${item.peso_kg.toFixed(3)} kg`
                     ]);
                 }
             } else {
                 // Compra sempre tem preços (pois só admin/gestor vê)
-                head = [['Material', 'Classificação', 'Peso Comprado', 'Valor Total', 'Média R$', 'Média Real R$/kg']];
+                head = [['Material', 'Classificação', 'Peso Comprado', 'Valor Total', 'Média/kg']];
                 body = dados.materiais.map(item => [
                     item.nome,
                     dados.categoria_label,
                     `${item.peso.toFixed(2)} kg`,
                     `R$ ${(item.valor || 0).toFixed(2)}`,
-                    `R$ ${(item.media_preco || 0).toFixed(2)}`,
                     `R$ ${(item.media_real || 0).toFixed(2)}`
                 ]);
             }
@@ -1217,6 +1437,505 @@
             // Salvar PDF
             const nomeArquivo = `Relatorio_${dados.categoria_label.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`;
             doc.save(nomeArquivo);
+        }
+
+        // ============================
+        // BAGS - Funções Auxiliares
+        // ============================
+        function getBagBadgeClass(status) {
+            switch(status) {
+                case 'aberto': return 'badge-info';
+                case 'cheio': return 'badge-success';
+                case 'enviado_refinaria': return 'badge-warning';
+                case 'devolvido_estoque': return 'badge-secondary';
+                default: return 'badge-secondary';
+            }
+        }
+
+        function getBagStatusLabel(status) {
+            switch(status) {
+                case 'aberto': return 'Aberto';
+                case 'cheio': return 'Cheio';
+                case 'enviado_refinaria': return 'Enviado';
+                case 'devolvido_estoque': return 'Devolvido';
+                default: return status;
+            }
+        }
+
+        // ============================
+        // PRODUÇÃO - Funções
+        // ============================
+        let dadosSublotesCache = {};
+
+        async function enviarParaProducao(subloteId) {
+            if (isActionBusy('enviarProducao_' + subloteId)) return;
+            if (!confirm('Enviar este material para produção? Ele ficará reservado.')) return;
+            setActionBusy('enviarProducao_' + subloteId, true);
+            const btn = event && event.target ? event.target.closest('button') : null;
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...'; }
+            try {
+                const resp = await fetchAPI('/estoque-ativo/producao/enviar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({sublote_ids: [subloteId]})
+                });
+                const data = await resp.json();
+                if (data.sucesso) {
+                    showNotification('Material enviado para produção!', 'success');
+                    await carregarLotesAtivos();
+                    await carregarDashboardEstoque();
+                    abrirModalProducaoItem(subloteId);
+                } else {
+                    showNotification(data.erro || 'Erro ao enviar', 'error');
+                }
+            } catch(e) { showNotification('Erro de conexão', 'error'); }
+            finally { setActionBusy('enviarProducao_' + subloteId, false); if (btn) { btn.disabled = false; } }
+        }
+
+        async function abrirModalProducaoItem(subloteId) {
+            document.getElementById('modalProducao').classList.add('active');
+            document.getElementById('producaoBody').innerHTML = '<div style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--primary-color);"></i></div>';
+            try {
+                const [detResp, classResp] = await Promise.all([
+                    fetchAPI(`/estoque-ativo/producao/sublote/${subloteId}`),
+                    fetchAPI('/estoque-ativo/classificacoes/autocomplete')
+                ]);
+                const det = await detResp.json();
+                const classificacoes = await classResp.json();
+                renderizarModalProducao(det, classificacoes);
+            } catch(e) {
+                document.getElementById('producaoBody').innerHTML = '<div style="color:red;text-align:center;">Erro ao carregar dados</div>';
+            }
+        }
+
+        function renderizarModalProducao(det, classificacoes) {
+            // Fixed 4 categories: show only one per main category (HIGH, LOW, MG1, MG2)
+            const categoriasFixas = ['HIGH_GRADE', 'LOW_GRADE', 'MG1', 'MG2'];
+            const categoriasLabels = {'HIGH_GRADE': 'High Grade', 'LOW_GRADE': 'Low Grade', 'MG1': 'MG1', 'MG2': 'MG2'};
+            const classifFiltradas = [];
+            const categoriasVistas = new Set();
+            for (const c of classificacoes) {
+                const cat = (c.categoria || '').toUpperCase();
+                // Normalizar variações
+                let catNorm = cat;
+                if (cat === 'HIGH' || cat === 'HIGH_GRADE') catNorm = 'HIGH_GRADE';
+                else if (cat === 'LOW' || cat === 'LOW_GRADE') catNorm = 'LOW_GRADE';
+                else if (cat === 'MG1' || cat === 'MID_GRADE' || cat === 'MID_GRADE_1') catNorm = 'MG1';
+                else if (cat === 'MG2' || cat === 'MID_GRADE_2') catNorm = 'MG2';
+                if (categoriasFixas.includes(catNorm) && !categoriasVistas.has(catNorm)) {
+                    categoriasVistas.add(catNorm);
+                    classifFiltradas.push({id: c.id, label: categoriasLabels[catNorm] || c.nome});
+                }
+            }
+            const classifOptions = classifFiltradas.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+            const itensHtml = det.itens_separados.map(item => `
+                <div class="separado-card">
+                    <div>
+                        <strong>${item.nome_item}</strong>
+                        <div style="font-size:0.75rem;color:var(--gray-500);">${item.classificacao_nome} - R$ ${item.valor_estimado.toFixed(2)}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.75rem;">
+                        <span style="font-weight:bold;color:var(--success-color);">${item.peso_kg.toFixed(3)} kg</span>
+                        <button onclick="removerItemSeparado(${det.sublote_id}, ${item.id})" style="background:#ef4444;color:white;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:0.75rem;"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join('') || '<p style="color:var(--gray-400);text-align:center;padding:1rem;">Nenhum material separado ainda</p>';
+
+            document.getElementById('producaoBody').innerHTML = `
+                <div class="producao-stat">
+                    <div class="producao-stat-item"><div class="value" style="color:var(--primary-color);">${det.peso_original.toFixed(3)}</div><div class="label">kg Total Original</div></div>
+                    <div class="producao-stat-item"><div class="value" style="color:#f59e0b;">${det.peso_separado.toFixed(3)}</div><div class="label">kg Separados</div></div>
+                    <div class="producao-stat-item"><div class="value" style="color:var(--success-color);">${det.peso_restante.toFixed(3)}</div><div class="label">kg Restante</div></div>
+                </div>
+                <div style="background:var(--gray-50);border-radius:12px;padding:1rem;margin-bottom:1.5rem;">
+                    <h4 style="margin:0 0 0.5rem 0;"><i class="fas fa-tag"></i> ${det.nome_material}</h4>
+                    <p style="margin:0;font-size:0.85rem;color:var(--gray-600);">Fornecedor: ${det.fornecedor_nome} | Lote: ${det.numero_lote}</p>
+                    ${det.valor_por_kg > 0 ? `<p style="margin:0.25rem 0 0;font-size:0.85rem;color:#8b5cf6;">Valor OC: R$ ${det.valor_por_kg.toFixed(2)}/kg</p>` : ''}
+                </div>
+                <h4 style="margin:0 0 0.5rem;"><i class="fas fa-list"></i> Itens Separados (${det.total_itens})</h4>
+                <div id="itensSeparadosList">${itensHtml}</div>
+                ${det.peso_restante > 0.01 ? `
+                <div style="margin-top:1.5rem;padding:1rem;background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-radius:12px;border:2px solid #059669;">
+                    <h4 style="margin:0 0 1rem;color:#059669;"><i class="fas fa-plus-circle"></i> Adicionar Material Separado</h4>
+                    <div style="display:grid;gap:0.75rem;">
+                        <div style="display:flex;gap:0.5rem;">
+                            <input type="text" id="prodNomeItem" placeholder="Nome do material (ex: Bateria)" style="flex:2;padding:0.6rem;border:1px solid var(--gray-300);border-radius:8px;font-size:0.9rem;">
+                            <input type="number" id="prodPesoItem" placeholder="Peso kg" step="0.001" max="${det.peso_restante}" style="flex:1;padding:0.6rem;border:1px solid var(--gray-300);border-radius:8px;font-size:0.9rem;">
+                        </div>
+                        <div style="display:flex;gap:0.5rem;">
+                            <select id="prodClassifItem" style="flex:1;padding:0.6rem;border:1px solid var(--gray-300);border-radius:8px;font-size:0.9rem;">
+                                <option value="">Classificação...</option>${classifOptions}
+                            </select>
+                            <input type="number" id="prodPrecoItem" placeholder="Preço R$/kg" step="0.01" style="flex:1;padding:0.6rem;border:1px solid var(--gray-300);border-radius:8px;font-size:0.9rem;">
+                        </div>
+                        <button id="btnAdicionarItem" onclick="adicionarItemSeparado(${det.sublote_id})" class="btn" style="background:#059669;color:white;padding:0.75rem;border-radius:8px;font-size:1rem;font-weight:bold;">
+                            <i class="fas fa-plus"></i> +Adicionar Material
+                        </button>
+                    </div>
+                </div>` : ''}
+                <div style="display:flex;gap:0.75rem;margin-top:1.5rem;">
+                    <button id="btnDevolverEstoque" onclick="devolverEstoque(${det.sublote_id})" class="btn" style="flex:1;background:#0891b2;color:white;padding:0.75rem;border-radius:10px;font-size:1rem;font-weight:bold;">
+                        <i class="fas fa-undo"></i> Devolver ao Estoque / Finalizar
+                    </button>
+                </div>
+            `;
+        }
+
+        async function adicionarItemSeparado(subloteId) {
+            if (isActionBusy('adicionar_' + subloteId)) return;
+            const nome = document.getElementById('prodNomeItem').value.trim();
+            const peso = parseFloat(document.getElementById('prodPesoItem').value);
+            const classifId = document.getElementById('prodClassifItem').value;
+            const preco = parseFloat(document.getElementById('prodPrecoItem').value) || 0;
+            if (!nome || !peso || !classifId) { showNotification('Preencha nome, peso e classificação', 'error'); return; }
+            setActionBusy('adicionar_' + subloteId, true);
+            const btn = document.getElementById('btnAdicionarItem');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adicionando...'; }
+            try {
+                const resp = await fetchAPI(`/estoque-ativo/producao/sublote/${subloteId}/adicionar-item`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({nome_item: nome, peso_kg: peso, classificacao_id: parseInt(classifId), preco_kg: preco})
+                });
+                const data = await resp.json();
+                if (data.sucesso) {
+                    showNotification('Material adicionado!', 'success');
+                    abrirModalProducaoItem(subloteId);
+                } else { showNotification(data.erro || 'Erro', 'error'); }
+            } catch(e) { showNotification('Erro de conexão', 'error'); }
+            finally { setActionBusy('adicionar_' + subloteId, false); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> +Adicionar Material'; } }
+        }
+
+        async function removerItemSeparado(subloteId, itemId) {
+            if (isActionBusy('remover_' + itemId)) return;
+            if (!confirm('Remover este item separado?')) return;
+            setActionBusy('remover_' + itemId, true);
+            try {
+                const resp = await fetchAPI(`/estoque-ativo/producao/sublote/${subloteId}/remover-item/${itemId}`, {method: 'DELETE'});
+                const data = await resp.json();
+                if (data.sucesso) {
+                    showNotification('Item removido', 'success');
+                    abrirModalProducaoItem(subloteId);
+                } else { showNotification(data.erro || 'Erro', 'error'); }
+            } catch(e) { showNotification('Erro', 'error'); }
+            finally { setActionBusy('remover_' + itemId, false); }
+        }
+
+        async function devolverEstoque(subloteId) {
+            if (isActionBusy('devolver_' + subloteId)) return;
+            if (!confirm('Finalizar produção e devolver material restante ao estoque?')) return;
+            setActionBusy('devolver_' + subloteId, true);
+            const btn = document.getElementById('btnDevolverEstoque');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...'; }
+            try {
+                const resp = await fetchAPI(`/estoque-ativo/producao/sublote/${subloteId}/devolver-estoque`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'
+                });
+                const data = await resp.json();
+                if (data.sucesso) {
+                    showNotification(data.mensagem, 'success');
+                    fecharModalProducao();
+                    await carregarLotesAtivos();
+                    await carregarDashboardEstoque();
+                } else { showNotification(data.erro || 'Erro', 'error'); }
+            } catch(e) { showNotification('Erro', 'error'); }
+            finally { setActionBusy('devolver_' + subloteId, false); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-undo"></i> Devolver ao Estoque / Finalizar'; } }
+        }
+
+        function fecharModalProducao() {
+            document.getElementById('modalProducao').classList.remove('active');
+        }
+
+        // ============================
+        // BAG SELECTION - Funções
+        // ============================
+        function toggleModoSelecao() {
+            modoSelecao = !modoSelecao;
+            materiaisSelecionados.clear();
+            const btn = document.getElementById('btnSelecionarBag');
+            const barra = document.getElementById('barraSelecao');
+            if (modoSelecao) {
+                btn.innerHTML = '<i class="fas fa-times"></i> Cancelar Seleção (0)';
+                btn.classList.add('selecionando');
+            } else {
+                btn.innerHTML = '<i class="fas fa-hand-pointer"></i> Selecionar para Bag';
+                btn.classList.remove('selecionando');
+                barra.classList.remove('active');
+            }
+            renderizarLotes(lotesAtivos);
+        }
+
+        function toggleSelecaoSublote(subloteId) {
+            if (materiaisSelecionados.has(subloteId)) {
+                materiaisSelecionados.delete(subloteId);
+            } else {
+                materiaisSelecionados.add(subloteId);
+            }
+            atualizarContagemSelecao();
+            // Toggle visual
+            const el = document.querySelector(`[data-sublote-id="${subloteId}"]`);
+            if (el) el.classList.toggle('selecionado');
+        }
+
+        function atualizarContagemSelecao() {
+            const count = materiaisSelecionados.size;
+            document.getElementById('contagemSelecao').textContent = `${count} selecionado(s)`;
+            document.getElementById('btnSelecionarBag').innerHTML = `<i class="fas fa-times"></i> Cancelar Seleção (${count})`;
+            const barra = document.getElementById('barraSelecao');
+            if (count > 0) { barra.classList.add('active'); } else { barra.classList.remove('active'); }
+        }
+
+        async function abrirModalBag() {
+            if (materiaisSelecionados.size === 0) { showNotification('Selecione materiais primeiro', 'error'); return; }
+            document.getElementById('modalBag').classList.add('active');
+            document.getElementById('bagBody').innerHTML = '<div style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i></div>';
+            try {
+                const resp = await fetchAPI('/estoque-ativo/bags/abertos');
+                const bagsAbertos = await resp.json();
+                renderizarModalBag(bagsAbertos);
+            } catch(e) { document.getElementById('bagBody').innerHTML = '<p style="color:red;">Erro</p>'; }
+        }
+
+        function renderizarModalBag(bagsAbertos) {
+            const matIds = Array.from(materiaisSelecionados);
+            const matHtml = matIds.map(id => {
+                const el = document.querySelector(`[data-sublote-id="${id}"]`);
+                const peso = el ? parseFloat(el.dataset.peso) : 0;
+                const nome = el ? el.dataset.nome : 'Material';
+                return `
+                    <div style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;background:var(--gray-50);border-radius:8px;margin-bottom:0.5rem;">
+                        <div style="flex:1;"><strong>${nome}</strong><span style="color:var(--gray-500);font-size:0.8rem;"> (Disponível: ${peso.toFixed(2)} kg)</span></div>
+                        <input type="number" id="bagPeso_${id}" value="${peso.toFixed(3)}" max="${peso}" min="0.001" step="0.001" style="width:120px;padding:0.5rem;border:1px solid var(--gray-300);border-radius:8px;text-align:center;font-weight:bold;">
+                        <span style="font-size:0.85rem;color:var(--gray-500);">kg</span>
+                    </div>
+                `;
+            }).join('');
+
+            const bagsOptions = bagsAbertos.map(b => `<option value="${b.id}">${b.codigo} (${b.peso_acumulado.toFixed(1)} kg)</option>`).join('');
+
+            document.getElementById('bagBody').innerHTML = `
+                <div style="margin-bottom:1.5rem;">
+                    <h4 style="margin:0 0 0.75rem;"><i class="fas fa-box"></i> Escolher Bag</h4>
+                    <div style="display:flex;gap:0.75rem;align-items:center;">
+                        <select id="selectBagExistente" style="flex:1;padding:0.6rem;border:1px solid var(--gray-300);border-radius:8px;" onchange="document.getElementById('novoBagNome').disabled = this.value !== 'novo'">
+                            <option value="novo">✨ Criar Novo Bag</option>
+                            ${bagsOptions}
+                        </select>
+                        <input type="text" id="novoBagNome" placeholder="Nome do bag (opcional)" style="flex:1;padding:0.6rem;border:1px solid var(--gray-300);border-radius:8px;">
+                    </div>
+                </div>
+                <h4 style="margin:0 0 0.75rem;"><i class="fas fa-list"></i> Materiais Selecionados (${matIds.length})</h4>
+                <div style="max-height:300px;overflow-y:auto;">${matHtml}</div>
+                <button id="btnEnviarBag" onclick="enviarMaterialParaBag()" class="btn" style="width:100%;margin-top:1.5rem;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:1rem;border-radius:12px;font-size:1.1rem;font-weight:bold;">
+                    <i class="fas fa-paper-plane"></i> Enviar para Bag
+                </button>
+            `;
+        }
+
+        async function enviarMaterialParaBag() {
+            if (isActionBusy('enviarBag')) return;
+            setActionBusy('enviarBag', true);
+            const btn = document.getElementById('btnEnviarBag');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...'; }
+            const selectBag = document.getElementById('selectBagExistente').value;
+            let bagId = selectBag;
+            if (selectBag === 'novo') {
+                const nome = document.getElementById('novoBagNome').value.trim();
+                try {
+                    const resp = await fetchAPI('/estoque-ativo/bags/criar', {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({nome: nome})
+                    });
+                    const data = await resp.json();
+                    if (!data.sucesso) { showNotification(data.erro || 'Erro ao criar bag', 'error'); setActionBusy('enviarBag', false); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar para Bag'; } return; }
+                    bagId = data.bag.id;
+                } catch(e) { showNotification('Erro ao criar bag', 'error'); setActionBusy('enviarBag', false); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar para Bag'; } return; }
+            }
+            const materiais = Array.from(materiaisSelecionados).map(id => {
+                const pesoInput = document.getElementById(`bagPeso_${id}`);
+                return { sublote_id: id, peso_enviar: parseFloat(pesoInput ? pesoInput.value : 0) };
+            }).filter(m => m.peso_enviar > 0);
+            try {
+                const resp = await fetchAPI('/estoque-ativo/bags/adicionar-materiais', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({bag_id: parseInt(bagId), materiais: materiais})
+                });
+                const data = await resp.json();
+                if (data.sucesso) {
+                    showNotification(data.mensagem, 'success');
+                    fecharModalBag();
+                    toggleModoSelecao();
+                    await carregarLotesAtivos();
+                    await carregarDashboardEstoque();
+                    await carregarBagsEstoque();
+                } else { showNotification(data.erro || 'Erro', 'error'); }
+            } catch(e) { showNotification('Erro ao enviar para bag', 'error'); }
+            finally { setActionBusy('enviarBag', false); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar para Bag'; } }
+        }
+
+        function fecharModalBag() { document.getElementById('modalBag').classList.remove('active'); }
+
+        // ============================
+        // BAGS - Fechar e Ver
+        // ============================
+        async function fecharBagAction(bagId) {
+            if (isActionBusy('fecharBag_' + bagId)) return;
+            if (!confirm('Fechar este bag? Não será possível adicionar mais materiais.')) return;
+            setActionBusy('fecharBag_' + bagId, true);
+            try {
+                const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}/fechar`, {method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}'});
+                const data = await resp.json();
+                if (data.sucesso) {
+                    showNotification('Bag fechado!', 'success');
+                    await carregarBagsEstoque();
+                } else { showNotification(data.erro, 'error'); }
+            } catch(e) { showNotification('Erro', 'error'); }
+            finally { setActionBusy('fecharBag_' + bagId, false); }
+        }
+
+        async function abrirVerBag(bagId) {
+            document.getElementById('modalVerBag').classList.add('active');
+            document.getElementById('verBagBody').innerHTML = '<div style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i></div>';
+            try {
+                const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}/detalhes`);
+                const bag = await resp.json();
+                renderizarVerBag(bag);
+            } catch(e) { document.getElementById('verBagBody').innerHTML = '<p style="color:red;">Erro ao carregar</p>'; }
+        }
+
+        function renderizarVerBag(bag) {
+            const verBagCores = {
+                'HIGH_GRADE': '#10B981', 'high': '#10B981',
+                'MG1': '#EAB308', 'mg1': '#EAB308', 'MID_GRADE_1': '#EAB308',
+                'MG2': '#F97316', 'mg2': '#F97316', 'MID_GRADE_2': '#F97316',
+                'LOW_GRADE': '#EF4444', 'low': '#EF4444',
+                'RESIDUO': '#6B7280', 'DIVERSOS': '#8B5CF6'
+            };
+            const verBagNomes = {
+                'HIGH_GRADE': 'High', 'high': 'High',
+                'MG1': 'MG1', 'mg1': 'MG1', 'MID_GRADE_1': 'MG1',
+                'MG2': 'MG2', 'mg2': 'MG2', 'MID_GRADE_2': 'MG2',
+                'LOW_GRADE': 'Low', 'low': 'Low',
+                'RESIDUO': 'Resíduo', 'DIVERSOS': 'Diversos'
+            };
+
+            const matRows = (bag.materiais || []).map(m => {
+                const mCatCor = verBagCores[m.categoria] || 'var(--gray-400)';
+                const mCatNome = verBagNomes[m.categoria] || getCategoriaLabel(m.categoria) || m.classificacao || 'N/A';
+                return `
+                <tr style="border-bottom:1px solid var(--gray-200);">
+                    <td style="padding:0.75rem;font-weight:bold;">${m.nome}</td>
+                    <td style="padding:0.75rem;text-align:center;">
+                        <span style="font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:999px;background:${mCatCor}20;color:${mCatCor};border:1px solid ${mCatCor}40;">${mCatNome}</span>
+                    </td>
+                    <td style="padding:0.75rem;text-align:center;">${m.fornecedor || 'N/A'}</td>
+                    <td style="padding:0.75rem;text-align:right;color:var(--success-color);font-weight:bold;">${m.peso_kg.toFixed(3)} kg</td>
+                    <td style="padding:0.75rem;text-align:right;color:#8b5cf6;">R$ ${m.preco_kg.toFixed(2)}</td>
+                    <td style="padding:0.75rem;text-align:right;font-weight:bold;color:#059669;">R$ ${m.valor_total.toFixed(2)}</td>
+                </tr>`;
+            }).join('');
+
+            const realMedia = bag.total_peso > 0 ? (bag.total_valor / bag.total_peso) : 0;
+
+            document.getElementById('verBagBody').innerHTML = `
+                <h4 style="margin-bottom:1rem; color:var(--primary-color); text-align: center;"><i class="fas fa-box"></i> Bag: ${bag.codigo}</h4>
+                <div class="producao-stat">
+                    <div class="producao-stat-item"><div class="value" style="color:var(--success-color);">${(bag.total_peso || 0).toFixed(2)}</div><div class="label">Quantidade kg</div></div>
+                    <div class="producao-stat-item"><div class="value" style="color:#059669;">R$ ${(bag.total_valor || 0).toFixed(2)}</div><div class="label">Total Comprado</div></div>
+                    <div class="producao-stat-item"><div class="value" style="color:#8b5cf6;">R$ ${realMedia.toFixed(2)}</div><div class="label">Média R$/kg</div></div>
+                </div>
+                <div style="margin:1rem 0;">
+                    <span class="badge ${getBagBadgeClass(bag.status)}">${getBagStatusLabel(bag.status)}</span>
+                    <span style="font-size:0.85rem;color:var(--gray-500);margin-left:0.5rem;">${bag.total_materiais || 0} material(is)</span>
+                </div>
+                <div class="table-container" style="border-radius:12px;overflow:hidden;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr style="background:linear-gradient(135deg,#0891b2,#0e7490);color:white;">
+                                <th style="padding:0.75rem;text-align:left;">Material</th>
+                                <th style="padding:0.75rem;text-align:center;">Classificação</th>
+                                <th style="padding:0.75rem;text-align:center;">Fornecedor</th>
+                                <th style="padding:0.75rem;text-align:right;">Quantidade</th>
+                                <th style="padding:0.75rem;text-align:right;">Valor R$/kg</th>
+                                <th style="padding:0.75rem;text-align:right;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>${matRows || '<tr><td colspan="6" style="text-align:center;padding:1rem;color:var(--gray-400);">Nenhum material</td></tr>'}</tbody>
+                        <tfoot>
+                            <tr style="background:var(--gray-100);font-weight:bold;">
+                                <td colspan="3" style="padding:0.75rem;">TOTAL</td>
+                                <td style="padding:0.75rem;text-align:right;color:var(--success-color);">${(bag.total_peso || 0).toFixed(3)} kg</td>
+                                <td style="padding:0.75rem;text-align:right;color:#8b5cf6;">R$ ${realMedia.toFixed(2)}</td>
+                                <td style="padding:0.75rem;text-align:right;color:#059669;">R$ ${(bag.total_valor || 0).toFixed(2)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+        }
+
+        // ============================
+        // EM SEPARAÇÃO - Admin Tab
+        // ============================
+        async function carregarEmSeparacao() {
+            try {
+                const resp = await fetchAPI('/estoque-ativo/producao/em-separacao');
+                const itens = await resp.json();
+                const container = document.getElementById('listaSeparacao');
+                if (!itens || itens.length === 0) {
+                    container.innerHTML = '<div class="card" style="text-align:center;color:var(--gray-500);padding:2rem;"><i class="fas fa-check-circle" style="font-size:2rem;margin-bottom:0.5rem;"></i><br>Nenhum material em separação no momento</div>';
+                    return;
+                }
+                container.innerHTML = itens.map(item => `
+                    <div class="card" style="margin-bottom:0.75rem;border-left:4px solid #f59e0b;">
+                        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:0.5rem;">
+                            <div>
+                                <h4 style="margin:0;color:#f59e0b;"><i class="fas fa-cogs"></i> ${item.nome_material}</h4>
+                                <p style="margin:0.25rem 0 0;font-size:0.85rem;color:var(--gray-600);">Lote: ${item.numero_lote} | Fornecedor: ${item.fornecedor_nome}</p>
+                            </div>
+                            <span class="badge badge-warning">Em Separação</span>
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0.5rem;margin-top:0.75rem;">
+                            <div style="text-align:center;padding:0.5rem;background:var(--gray-50);border-radius:8px;">
+                                <div style="font-weight:bold;font-size:1.1rem;color:var(--primary-color);">${item.peso_original.toFixed(2)} kg</div>
+                                <div style="font-size:0.7rem;color:var(--gray-500);">Peso Original</div>
+                            </div>
+                            <div style="text-align:center;padding:0.5rem;background:var(--gray-50);border-radius:8px;">
+                                <div style="font-weight:bold;font-size:1.1rem;color:#f59e0b;">${item.peso_separado.toFixed(2)} kg</div>
+                                <div style="font-size:0.7rem;color:var(--gray-500);">Já Separado</div>
+                            </div>
+                            <div style="text-align:center;padding:0.5rem;background:var(--gray-50);border-radius:8px;">
+                                <div style="font-weight:bold;font-size:1.1rem;color:var(--success-color);">${item.peso_restante.toFixed(2)} kg</div>
+                                <div style="font-size:0.7rem;color:var(--gray-500);">Peso Restante</div>
+                            </div>
+                            <div style="text-align:center;padding:0.5rem;background:var(--gray-50);border-radius:8px;">
+                                <div style="font-weight:bold;font-size:1.1rem;color:#8b5cf6;">${item.quantidade_itens}</div>
+                                <div style="font-size:0.7rem;color:var(--gray-500);">Itens Separados</div>
+                            </div>
+                        </div>
+                        <div style="margin-top:0.75rem;">
+                            <button onclick="abrirModalProducaoItem(${item.id})" class="btn btn-sm" style="background:#059669;color:white;padding:0.4rem 0.75rem;border-radius:8px;font-size:0.8rem;">
+                                <i class="fas fa-cogs"></i> Abrir Produção
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                document.getElementById('listaSeparacao').innerHTML = '<div class="card" style="color:red;text-align:center;">Erro ao carregar</div>';
+            }
+        }
+
+        // Handle hash navigation (from admin card)
+        if (window.location.hash === '#separacao') {
+            setTimeout(() => {
+                const tabBtns = document.querySelectorAll('.tab-btn');
+                tabBtns.forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => { c.classList.remove('active'); c.style.display = 'none'; });
+                const sepTab = document.getElementById('tabSeparacao');
+                if (sepTab) { sepTab.classList.add('active'); sepTab.style.display = 'block'; }
+                tabBtns.forEach(b => { if (b.textContent.includes('Separação')) b.classList.add('active'); });
+                carregarEmSeparacao();
+            }, 500);
         }
 
         carregarPagina();

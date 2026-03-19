@@ -217,7 +217,7 @@ PERFIL_CONFIG = {
         'ocultar_menu_inferior': True
     },
     'Producao': {
-        'tela_inicial': '/producao.html',
+        'tela_inicial': '/solicitacoes.html',
         'rotas_api_permitidas': [
             '/api/solicitacoes',
             '/api/fornecedores',
@@ -225,10 +225,7 @@ PERFIL_CONFIG = {
             '/api/notificacoes',
             '/api/fornecedor-tabela-precos',
             '/api/materiais-base',
-            '/api/producao',
             '/api/estoque-ativo',
-            '/api/separacao',
-            '/api/conferencia',
             '/api/lotes',
             '/api/estoque',
             '/api/entradas'
@@ -240,25 +237,12 @@ PERFIL_CONFIG = {
             '/notificacoes.html',
             '/compras.html',
             '/fornecedor-tabela-precos.html',
-            '/producao.html',
-            '/producao-ordem.html',
-            '/api/producao',
-            '/estoque-ativo.html',
-            '/separacao-fila.html',
-            '/separacao-workflow.html',
-            '/conferencia.html',
-            '/lotes.html',
-            '/lotes-recebidos.html',
-            '/lotes_aprovados.html',
-            '/lotes-detalhes.html',
-            '/validacao.html'
+            '/estoque-ativo.html'
         ],
         'menus': [
-            {'id': 'producao', 'nome': 'Produção', 'url': '/producao.html', 'icone': 'precision_manufacturing'},
-            {'id': 'estoque-ativo', 'nome': 'Estoque Ativo', 'url': '/estoque-ativo.html', 'icone': 'warehouse'},
-            {'id': 'separacao', 'nome': 'Separação', 'url': '/separacao-fila.html', 'icone': 'format_list_bulleted'},
             {'id': 'solicitacoes', 'nome': 'Compra', 'url': '/solicitacoes.html', 'icone': 'request_quote'},
-            {'id': 'fornecedores', 'nome': 'Fornecedores', 'url': '/fornecedores.html', 'icone': 'business'}
+            {'id': 'fornecedores', 'nome': 'Fornecedores', 'url': '/fornecedores.html', 'icone': 'business'},
+            {'id': 'estoque-ativo', 'nome': 'Estoque', 'url': '/estoque-ativo.html', 'icone': 'warehouse'}
         ]
     }
 }
