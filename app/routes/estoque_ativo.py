@@ -1412,6 +1412,91 @@ def fechar_bag(bag_id):
         return jsonify({'erro': str(e)}), 500
 
 
+@bp.route('/bags/<int:bag_id>/reabrir', methods=['POST'])
+@jwt_required()
+def reabrir_bag(bag_id):
+    """Reabre um bag fechado/devolvido ao estoque e limpa informações de exportação/rastreio"""
+    try:
+        bag = BagProducao.query.get_or_404(bag_id)
+        
+        if bag.status == 'aberto':
+            return jsonify({'erro': 'Bag já está aberto'}), 400
+            
+        bag.status = 'aberto'
+        bag.ordem_exportacao = None
+        bag.numero_remessa = None
+        bag.data_envio_refinaria = None
+        bag.enviado_por_id = None
+        bag.data_atualizacao = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'sucesso': True, 
+            'mensagem': 'Bag reaberto com sucesso. Você pode adicionar/remover itens novamente.',
+            'bag': bag.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Erro ao reabrir bag {bag_id}: {str(e)}')
+        return jsonify({'erro': str(e)}), 500
+
+
+@bp.route('/bags/<int:bag_id>/remover-item/<int:item_id>', methods=['DELETE'])
+@jwt_required()
+def remover_item_bag(bag_id, item_id):
+    """Remove um item de um bag e devolve o respectivo peso ao Lote/Sublote de origem"""
+    try:
+        bag = BagProducao.query.get_or_404(bag_id)
+        
+        if bag.status != 'aberto':
+            return jsonify({'erro': 'Só é possível remover itens de bags abertos'}), 400
+            
+        item = ItemSeparadoProducao.query.filter_by(id=item_id, bag_id=bag_id).first_or_404()
+        
+        # Devolver peso ao Lote de origem
+        if item.entrada_estoque_id:
+            sublote = Lote.query.get(item.entrada_estoque_id)
+            if sublote:
+                peso_kg = float(item.peso_kg or 0)
+                peso_atual_sublote = float(sublote.peso_liquido or sublote.peso_total_kg or 0)
+                novo_peso = peso_atual_sublote + peso_kg
+                
+                # Se o sublote estava processado (peso 0), reativar seu status para poder ser usado novamente
+                if sublote.status == 'processado':
+                    sublote.status = 'em_estoque'
+                    
+                sublote.peso_liquido = novo_peso
+                sublote.peso_total_kg = novo_peso
+                
+                # Recalcular valor total do sublote
+                preco_kg_item = float(item.valor_estimado or 0) / peso_kg if peso_kg > 0 else 0
+                valor_adicionado = preco_kg_item * peso_kg
+                sublote.valor_total = float(sublote.valor_total or 0) + valor_adicionado
+
+        # Atualizar dados do Bag
+        bag.peso_acumulado = max(0, float(bag.peso_acumulado or 0) - float(item.peso_kg or 0))
+        bag.quantidade_itens = max(0, (bag.quantidade_itens or 1) - 1)
+        bag.data_atualizacao = datetime.utcnow()
+        
+        # Deletar item do bag
+        db.session.delete(item)
+        db.session.commit()
+        
+        return jsonify({
+            'sucesso': True,
+            'mensagem': 'Item removido do bag e devolvido ao estoque original',
+            'bag_info': {
+                'peso_acumulado': bag.peso_acumulado,
+                'quantidade_itens': bag.quantidade_itens
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Erro ao remover item {item_id} do bag {bag_id}: {str(e)}')
+        return jsonify({'erro': str(e)}), 500
+
+
 @bp.route('/bags/<int:bag_id>/detalhes', methods=['GET'])
 @jwt_required()
 def detalhes_bag(bag_id):
