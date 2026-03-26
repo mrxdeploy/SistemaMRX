@@ -32,7 +32,7 @@ def verificar_acesso_fornecedor(fornecedor_id, usuario_id):
         return False
     
     # Qualquer comprador (usuário com perfil "Comprador (PJ)", "Producao" ou "Gestor") pode enviar tabela para aprovação
-    if usuario.perfil and usuario.perfil.nome in ['Comprador (PJ)', 'Producao', 'Produção', 'Gestor']:
+    if usuario.perfil and (usuario.perfil.nome in ['Comprador (PJ)', 'Producao', 'Produção', 'Gestor'] or 'Gestor' in usuario.perfil.nome):
         return True
     
     # Caso não seja comprador, verificar se é o responsável ou criador
@@ -1284,7 +1284,7 @@ def listar_fornecedores_aprovados():
             tabela_preco_status='aprovada'
         )
         
-        is_gestor = usuario.perfil and usuario.perfil.nome == 'Gestor'
+        is_gestor = usuario.perfil and ('Gestor' in usuario.perfil.nome)
         if usuario.tipo != 'admin' and not is_gestor:
             query = query.filter(Fornecedor.comprador_responsavel_id == usuario_id)
         

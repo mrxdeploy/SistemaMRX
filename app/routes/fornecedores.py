@@ -67,7 +67,8 @@ def verificar_acesso_fornecedor(fornecedor_id, usuario_id):
     tem_acesso = (
         fornecedor.comprador_responsavel_id == usuario_id or 
         fornecedor.criado_por_id == usuario_id or
-        (perfil_nome in perfis_permitidos)
+        (perfil_nome in perfis_permitidos) or
+        ('Gestor' in perfil_nome if perfil_nome else False)
     )
     
     return tem_acesso
@@ -259,8 +260,11 @@ def listar_fornecedores():
         # RBAC: Admin e Gestor veem todos os fornecedores
         # Outros usuários veem apenas os atribuídos a eles ou criados por eles
         if usuario.tipo == 'funcionario':
-            perfil_nome = usuario.perfil.nome if usuario.perfil else None
-            if perfil_nome not in ['Auditoria / BI', 'Gestor', 'Administrador']:
+            perfil_nome = usuario.perfil.nome if usuario.perfil else ''
+            
+            is_gestor = 'Gestor' in perfil_nome if perfil_nome else False
+            
+            if perfil_nome not in ['Auditoria / BI', 'Administrador'] and not is_gestor:
                 # Comprador vê apenas fornecedores onde ele é o comprador responsável ou criador
                 query = query.filter(
                     db.or_(
