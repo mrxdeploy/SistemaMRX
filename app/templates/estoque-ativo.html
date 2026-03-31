@@ -1861,20 +1861,69 @@
                 'RESIDUO': 'Resíduo', 'DIVERSOS': 'Diversos'
             };
 
-            const matRows = (bag.materiais || []).map(m => {
-                const mCatCor = verBagCores[m.categoria] || 'var(--gray-400)';
-                const mCatNome = verBagNomes[m.categoria] || getCategoriaLabel(m.categoria) || m.classificacao || 'N/A';
-                return `
-                <tr style="border-bottom:1px solid var(--gray-200);">
-                    <td style="padding:0.75rem;font-weight:bold;">${m.nome}</td>
-                    <td style="padding:0.75rem;text-align:center;">
-                        <span style="font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:999px;background:${mCatCor}20;color:${mCatCor};border:1px solid ${mCatCor}40;">${mCatNome}</span>
-                    </td>
-                    <td style="padding:0.75rem;text-align:center;">${m.fornecedor || 'N/A'}</td>
-                    <td style="padding:0.75rem;text-align:right;color:var(--success-color);font-weight:bold;">${m.peso_kg.toFixed(3)} kg</td>
-                    <td style="padding:0.75rem;text-align:right;color:#8b5cf6;">R$ ${m.preco_kg.toFixed(2)}</td>
-                    <td style="padding:0.75rem;text-align:right;font-weight:bold;color:#059669;">R$ ${m.valor_total.toFixed(2)}</td>
-                </tr>`;
+            const materiaisAgrupados = {};
+            (bag.materiais || []).forEach(m => {
+                if (!materiaisAgrupados[m.nome]) {
+                    materiaisAgrupados[m.nome] = {
+                        nome: m.nome,
+                        categoria: m.categoria,
+                        classificacao: m.classificacao,
+                        peso_kg: 0,
+                        valor_total: 0,
+                        itens: []
+                    };
+                }
+                materiaisAgrupados[m.nome].peso_kg += m.peso_kg;
+                materiaisAgrupados[m.nome].valor_total += m.valor_total;
+                materiaisAgrupados[m.nome].itens.push(m);
+            });
+
+            const matRows = Object.values(materiaisAgrupados).map((grupo, idx) => {
+                const mCatCor = verBagCores[grupo.categoria] || 'var(--gray-400)';
+                const mCatNome = verBagNomes[grupo.categoria] || getCategoriaLabel(grupo.categoria) || grupo.classificacao || 'N/A';
+                const precoKgMedia = grupo.peso_kg > 0 ? (grupo.valor_total / grupo.peso_kg) : 0;
+                
+                const fornecedoresUnicos = [...new Set(grupo.itens.map(i => i.fornecedor || 'N/A'))];
+                const fornecedorDisplay = fornecedoresUnicos.length > 1 ? 'Vários' : (fornecedoresUnicos[0] || 'N/A');
+
+                let html = `
+                <tbody id="grupo-materiais-${idx}">
+                    <tr style="border-bottom:1px solid var(--gray-200); cursor: pointer; background: #fdfdfd; transition: background 0.2s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='#fdfdfd'" onclick="document.getElementById('sub-materiais-${idx}').style.display = document.getElementById('sub-materiais-${idx}').style.display === 'none' ? 'table-row-group' : 'none'">
+                        <td style="padding:0.75rem;font-weight:bold;">
+                            <i class="fas fa-chevron-down" style="font-size: 0.8rem; color: var(--gray-500); margin-right: 0.5rem;"></i>
+                            ${grupo.nome} <span style="font-size: 0.75rem; color: var(--gray-500); font-weight: normal;">(${grupo.itens.length})</span>
+                        </td>
+                        <td style="padding:0.75rem;text-align:center;">
+                            <span style="font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:999px;background:${mCatCor}20;color:${mCatCor};border:1px solid ${mCatCor}40;">${mCatNome}</span>
+                        </td>
+                        <td style="padding:0.75rem;text-align:center;">${fornecedorDisplay}</td>
+                        <td style="padding:0.75rem;text-align:right;color:var(--success-color);font-weight:bold;">${grupo.peso_kg.toFixed(3)} kg</td>
+                        <td style="padding:0.75rem;text-align:right;color:#8b5cf6;">R$ ${precoKgMedia.toFixed(2)}</td>
+                        <td style="padding:0.75rem;text-align:right;font-weight:bold;color:#059669;">R$ ${grupo.valor_total.toFixed(2)}</td>
+                    </tr>
+                </tbody>
+                <tbody id="sub-materiais-${idx}" style="display:none; background-color: #ffffff;">`;
+                
+                grupo.itens.forEach(m => {
+                    const subCatCor = verBagCores[m.categoria] || 'var(--gray-400)';
+                    const subCatNome = verBagNomes[m.categoria] || getCategoriaLabel(m.categoria) || m.classificacao || 'N/A';
+                    html += `
+                    <tr style="border-bottom:1px dashed var(--gray-200); font-size: 0.9em; background-color: #fafafa;">
+                        <td style="padding:0.5rem 0.75rem 0.5rem 2.5rem; color: var(--gray-600); border-left: 3px solid ${subCatCor}50;">
+                            <i class="fas fa-level-up-alt fa-rotate-90" style="margin-right: 0.3rem; opacity: 0.5;"></i> ${m.nome}
+                        </td>
+                        <td style="padding:0.5rem 0.75rem;text-align:center;">
+                            <span style="font-size:0.7rem;font-weight:600;padding:0.1rem 0.4rem;border-radius:999px;background:${subCatCor}10;color:${subCatCor};border:1px solid ${subCatCor}30;">${subCatNome}</span>
+                        </td>
+                        <td style="padding:0.5rem 0.75rem;text-align:center; color: var(--gray-600);">${m.fornecedor || 'N/A'}</td>
+                        <td style="padding:0.5rem 0.75rem;text-align:right;color:var(--success-color); opacity: 0.9;">${m.peso_kg.toFixed(3)} kg</td>
+                        <td style="padding:0.5rem 0.75rem;text-align:right;color:#8b5cf6; opacity: 0.9;">R$ ${m.preco_kg.toFixed(2)}</td>
+                        <td style="padding:0.5rem 0.75rem;text-align:right;color:#059669; opacity: 0.9;">R$ ${m.valor_total.toFixed(2)}</td>
+                    </tr>`;
+                });
+                
+                html += `</tbody>`;
+                return html;
             }).join('');
 
             const realMedia = bag.total_peso > 0 ? (bag.total_valor / bag.total_peso) : 0;
