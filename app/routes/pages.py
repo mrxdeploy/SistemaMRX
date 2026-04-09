@@ -96,3 +96,11 @@ def estoque_ativo():
 def producao():
     from flask import redirect
     return redirect('/solicitacoes.html')
+
+@bp.route('/gestao-motoristas.html')
+def gestao_motoristas():
+    return render_template('gestao-motoristas.html')
+
+@bp.route('/modelos-tabela-preco.html')
+def modelos_tabela_preco():
+    return render_template('modelos-tabela-preco.html')

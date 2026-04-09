@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required
-from app.models import db, Fornecedor, Solicitacao, Lote, EntradaEstoque, FornecedorTipoLotePreco, ItemSolicitacao, TipoLote, OrdemCompra, Usuario, Motorista, OrdemServico
+from app.models import db, Fornecedor, Solicitacao, Lote, EntradaEstoque, FornecedorTipoLotePreco, ItemSolicitacao, TipoLote, OrdemCompra, Usuario, Motorista, OrdemServico, BagProducao, MaterialBase
 from app.auth import admin_ou_auditor_required
 from sqlalchemy import func, extract, case, and_, or_
 from datetime import datetime, timedelta
@@ -626,3 +626,100 @@ def obter_indicadores_externos():
             ],
             'erro': 'API temporariamente indisponível - usando valores estimados'
         }), 200
+
+@bp.route('/main-metrics', methods=['GET'])
+@admin_ou_auditor_required
+def obter_main_metrics():
+    """Retorna todas as métricas principais para o novo dashboard centralizado"""
+    hoje = datetime.now()
+    mes_atual = datetime(hoje.year, hoje.month, 1)
+
+    # 1. Top 5 Fornecedores por Valor (Dinheiro)
+    top_5_valor_query = db.session.query(
+        Fornecedor.nome,
+        func.sum(Lote.valor_total).label('total_valor')
+    ).join(Lote, Lote.fornecedor_id == Fornecedor.id)\
+    .filter(Lote.status.in_(['aprovado', 'em_estoque', 'em_producao']))\
+    .group_by(Fornecedor.nome)\
+    .order_by(func.sum(Lote.valor_total).desc())\
+    .limit(5).all()
+
+    top_5_valor = [{'nome': row.nome, 'valor': float(row.total_valor or 0)} for row in top_5_valor_query]
+
+    # 2. Top 5 Fornecedores por Volume (Solicitações Aprovadas)
+    top_5_volume_query = db.session.query(
+        Fornecedor.nome,
+        func.count(Solicitacao.id).label('total_solicitacoes')
+    ).join(Solicitacao, Solicitacao.fornecedor_id == Fornecedor.id)\
+    .filter(Solicitacao.status == 'aprovada')\
+    .group_by(Fornecedor.nome)\
+    .order_by(func.count(Solicitacao.id).desc())\
+    .limit(5).all()
+
+    top_5_volume = [{'nome': row.nome, 'qtd': row.total_solicitacoes} for row in top_5_volume_query]
+
+    # 3. Quantidade de Fornecedores com Tabela Ativa
+    qtd_tabelas = db.session.query(func.count(func.distinct(FornecedorTipoLotePreco.fornecedor_id))).scalar() or 0
+
+    # 4. Métricas Relacionadas às Bags (Em Estoque / Abertas)
+    bags_abertas = db.session.query(func.count(BagProducao.id)).filter(BagProducao.status == 'aberto').scalar() or 0
+    bags_fechadas = db.session.query(func.count(BagProducao.id)).filter(BagProducao.status == 'cheio').scalar() or 0
+
+    # 5. Métricas Relacionadas ao Estoque de Lotes (Peso Ativo seguindo regra da aba de seleção de bag)
+    lotes_ativos_status = ['em_estoque', 'disponivel', 'aprovado', 'em_producao', 'CRIADO_SEPARACAO', 'PROCESSADO', 'criado_separacao', 'processado', 'AGUARDANDO_SEPARACAO', 'EM_SEPARACAO']
+    lotes_ativos = db.session.query(func.count(Lote.id)).filter(Lote.status.in_(lotes_ativos_status)).scalar() or 0
+    lotes_em_producao = db.session.query(func.count(Lote.id)).filter(Lote.status == 'em_producao').scalar() or 0
+    
+    peso_total_lotes = db.session.query(func.sum(func.coalesce(Lote.peso_liquido, Lote.peso_total_kg)))\
+        .filter(Lote.status.in_(lotes_ativos_status))\
+        .filter(Lote.bloqueado == False).scalar() or 0
+
+    # 6. Novas Métricas Solicitadas (Solicitações/OCs)
+    total_solic = db.session.query(func.count(Solicitacao.id)).scalar() or 0
+    solic_aprovadas = db.session.query(func.count(Solicitacao.id)).filter(Solicitacao.status == 'aprovada').scalar() or 0
+    solic_rejeitadas = db.session.query(func.count(Solicitacao.id)).filter(Solicitacao.status == 'rejeitada').scalar() or 0
+
+    valor_total_aprovado = db.session.query(func.sum(Lote.valor_total)).filter(Lote.status.in_(['aprovado', 'em_estoque', 'disponivel'])).scalar() or 0
+
+    # 7. Item Mais Comprado e Classificação Mais Comprada (via Solicitacao/ItemSolicitacao aprovadas)
+    item_query = db.session.query(MaterialBase.nome, MaterialBase.classificacao, func.sum(ItemSolicitacao.peso_kg).label('total_peso'))\
+        .join(ItemSolicitacao, ItemSolicitacao.material_id == MaterialBase.id)\
+        .join(Solicitacao, Solicitacao.id == ItemSolicitacao.solicitacao_id)\
+        .filter(Solicitacao.status == 'aprovada')\
+        .group_by(MaterialBase.nome, MaterialBase.classificacao).order_by(func.sum(ItemSolicitacao.peso_kg).desc()).limit(5).all()
+
+    classif_query = db.session.query(MaterialBase.classificacao, func.sum(ItemSolicitacao.peso_kg).label('total_peso'))\
+        .join(ItemSolicitacao, ItemSolicitacao.material_id == MaterialBase.id)\
+        .join(Solicitacao, Solicitacao.id == ItemSolicitacao.solicitacao_id)\
+        .filter(Solicitacao.status == 'aprovada')\
+        .group_by(MaterialBase.classificacao).order_by(func.sum(ItemSolicitacao.peso_kg).desc()).limit(5).all()
+
+    return jsonify({
+        'top_valor': top_5_valor,
+        'top_volume': top_5_volume,
+        'tabelas_ativas': qtd_tabelas,
+        'bags': {
+            'abertas': bags_abertas,
+            'cheias': bags_fechadas
+        },
+        'estoque': {
+            'lotes_ativos': lotes_ativos,
+            'lotes_em_producao': lotes_em_producao,
+            'peso_total': float(peso_total_lotes)
+        },
+        'solicitacoes': {
+            'total': total_solic,
+            'aprovadas': solic_aprovadas,
+            'rejeitadas': solic_rejeitadas,
+            'taxa_aprovacao': round((solic_aprovadas / total_solic * 100) if total_solic > 0 else 0, 1),
+            'valor_total_aprovado': float(valor_total_aprovado),
+            'top_itens': [
+                {'nome': r.nome, 'classificacao': str(r.classificacao).upper() if r.classificacao else 'OUTROS', 'peso': float(r.total_peso)}
+                for r in item_query
+            ],
+            'top_classificacoes': [
+                {'classificacao': str(c.classificacao).upper() if c.classificacao else 'OUTROS', 'peso': float(c.total_peso)}
+                for c in classif_query
+            ]
+        }
+    }), 200

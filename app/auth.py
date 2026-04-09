@@ -3,7 +3,7 @@ from functools import wraps
 from flask import jsonify, request
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
 from app.models import db, Usuario, Perfil
-from app.rbac_config import check_rota_api_permitida
+from app.rbac_config import check_rota_api_permitida, perfil_tem_motorista
 
 def hash_senha(senha):
     return bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -63,10 +63,11 @@ def perfil_required(*perfis_permitidos):
     return decorator
 
 PERFIL_AUDITORIA = 'Auditoria / BI'
+PERFIL_ADMIN = 'Administrador'
 
 def admin_ou_auditor_required(fn):
     """
-    Decorator que permite acesso para Admin e Auditor
+    Decorator que permite acesso para usuários com permissão ao dashboard (antigo Admin e Auditor)
     Usado principalmente para rotas de dashboard e relatórios
     """
     @wraps(fn)
@@ -80,8 +81,8 @@ def admin_ou_auditor_required(fn):
         if usuario.tipo == 'admin':
             return fn(*args, **kwargs)
 
-        # Auditor também tem acesso total ao dashboard
-        if usuario.perfil and usuario.perfil.nome == PERFIL_AUDITORIA:
+        # Agora checamos dinamicamente a permissão ao invés do nome de perfil fixo
+        if usuario.has_permission('modulo_dashboard'):
             return fn(*args, **kwargs)
 
         return jsonify({'erro': 'Acesso negado. Apenas Administradores e Auditores podem acessar este recurso.'}), 403
@@ -99,9 +100,19 @@ def somente_leitura_ou_admin(fn):
         if usuario.tipo == 'admin':
             return fn(*args, **kwargs)
 
-        if usuario.perfil and usuario.perfil.nome == PERFIL_AUDITORIA:
-            if request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
-                return jsonify({'erro': 'Perfil Auditoria / BI possui apenas acesso de leitura'}), 403
+        # Se for um usuário não-admin acessando métodos de escrita e estivermos limitando a leitura
+        if request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            # Aqui no novo RBAC as permissões de edição garantem quem pode escrever,
+            # porém se um endpoint explícito demandar isso (como logs ou listagens amplas protegidas),
+            # bloqueamos de forma genérica para usuários que apenas "tem permissão de ler o dashboard"
+            # e queríamos prevenir modificações em massa.
+            if usuario.has_permission('modulo_dashboard') and not usuario.has_permission('configuracoes_gerenciar'):
+                pass # Por hora, a rota específica que devia validar vai gerenciar. Mas vamos manter um log de consistência.
+                # Como essa função foi depreciada por causa dos claims de RBAC mais granulares, vamos deixar passar se for admin, senão checar.
+            
+            # Para não quebrar a lógica original: se o usuário SÓ tinha leitura:
+            if usuario.perfil and usuario.perfil.nome == PERFIL_AUDITORIA:
+                return jsonify({'erro': 'Perfil de Auditoria possui apenas acesso de leitura'}), 403
 
         return fn(*args, **kwargs)
     return wrapper
@@ -114,30 +125,18 @@ def get_user_jwt_claims(usuario):
     permissoes = {}
     permissoes_lista = []
 
-    if usuario.perfil:
+    if usuario.tipo == 'admin':
+        perfil_nome = 'Administrador'
+        # Admin tem todas as permissões - serão geradas dinamicamente
+        from app.rbac_config import PERMISSOES_CATALOGO
+        for modulo_config in PERMISSOES_CATALOGO.values():
+            for perm_key in modulo_config['permissoes']:
+                permissoes[perm_key] = True
+    elif usuario.perfil:
         perfil_nome = usuario.perfil.nome
         permissoes = usuario.perfil.permissoes or {}
-    elif usuario.tipo == 'admin':
-        perfil_nome = 'Administrador'
-        permissoes = {
-            'gerenciar_usuarios': True,
-            'gerenciar_perfis': True,
-            'gerenciar_fornecedores': True,
-            'gerenciar_veiculos': True,
-            'gerenciar_motoristas': True,
-            'criar_solicitacao': True,
-            'aprovar_solicitacao': True,
-            'rejeitar_solicitacao': True,
-            'criar_lote': True,
-            'aprovar_lote': True,
-            'processar_entrada': True,
-            'visualizar_auditoria': True,
-            'exportar_relatorios': True,
-            'definir_limites': True,
-            'autorizar_descarte': True
-        }
 
-    permissoes_lista = [k for k, v in permissoes.items() if v]
+    permissoes_lista = [k for k, v in permissoes.items() if v and k != 'menus_inferiores']
 
     return {
         'perfil': perfil_nome,
@@ -179,115 +178,175 @@ def rota_permitida_por_perfil(fn):
     return wrapper
 
 def criar_perfis_padrao():
-    perfis_existentes = {p.nome for p in Perfil.query.all()}
+    from app.rbac_config import PERMISSOES_CATALOGO
+    
+    # Gerar permissões completas de admin dinamicamente
+    admin_permissoes = {}
+    for modulo_config in PERMISSOES_CATALOGO.values():
+        for perm_key in modulo_config['permissoes']:
+            admin_permissoes[perm_key] = True
+    admin_permissoes['menus_inferiores'] = [
+        {'id': 'dashboard', 'nome': 'Dashboard', 'url': '/dashboard.html', 'icone': 'dashboard'},
+        {'id': 'solicitacoes', 'nome': 'Compra', 'url': '/solicitacoes.html', 'icone': 'request_quote'},
+        {'id': 'fornecedores', 'nome': 'Fornecedores', 'url': '/fornecedores.html', 'icone': 'business'},
+        {'id': 'estoque-ativo', 'nome': 'Estoque', 'url': '/estoque-ativo.html', 'icone': 'warehouse'},
+    ]
 
     perfis = [
         {
             'nome': 'Administrador',
-            'descricao': 'Acesso total; define limites; aprova exceções; autoriza descarte; fecha inventário; gerencia usuários e perfis.',
-            'permissoes': {
-                'gerenciar_usuarios': True,
-                'gerenciar_perfis': True,
-                'gerenciar_fornecedores': True,
-                'gerenciar_veiculos': True,
-                'gerenciar_motoristas': True,
-                'criar_solicitacao': True,
-                'aprovar_solicitacao': True,
-                'rejeitar_solicitacao': True,
-                'criar_lote': True,
-                'aprovar_lote': True,
-                'processar_entrada': True,
-                'visualizar_auditoria': True,
-                'exportar_relatorios': True,
-                'definir_limites': True,
-                'autorizar_descarte': True
-            }
+            'descricao': 'Acesso total ao sistema. Define limites, aprova exceções, gerencia usuários e perfis.',
+            'permissoes': admin_permissoes
         },
         {
             'nome': 'Comprador (PJ)',
-            'descricao': 'Abre solicitações de compra, cadastra fornecedores, informa entregas/coletas e registra preço pago.',
+            'descricao': 'Abre solicitações de compra, cadastra fornecedores, gerencia tabelas de preço.',
             'permissoes': {
-                'criar_fornecedor': True,
-                'editar_fornecedor': True,
-                'criar_solicitacao': True,
-                'visualizar_solicitacao': True,
-                'informar_entrega': True,
-                'registrar_preco': True,
-                'visualizar_fornecedores': True,
-                'gerenciar_tabela_precos': True,
-                'visualizar_materiais': True
+                'modulo_compras': True, 'solicitacao_criar': True, 'solicitacao_editar': True,
+                'solicitacao_visualizar': True,
+                'modulo_fornecedores': True, 'fornecedor_criar': True, 'fornecedor_editar': True,
+                'fornecedor_visualizar': True, 'fornecedor_tabela_precos': True,
+                'fornecedor_gerenciar_tabela_precos': True,
+                'modulo_notificacoes': True,
+                'menus_inferiores': [
+                    {'id': 'solicitacoes', 'nome': 'Compra', 'url': '/solicitacoes.html', 'icone': 'request_quote'},
+                    {'id': 'fornecedores', 'nome': 'Fornecedores', 'url': '/fornecedores.html', 'icone': 'business'},
+                ]
             }
         },
         {
             'nome': 'Conferente / Estoque',
-            'descricao': 'Valida chegada, pesa, confere itens e qualidade; cria lotes e dá entrada no estoque.',
+            'descricao': 'Valida chegada, confere qualidade, cria lotes e dá entrada no estoque.',
             'permissoes': {
-                'validar_chegada': True,
-                'pesar_itens': True,
-                'conferir_qualidade': True,
-                'criar_lote': True,
-                'dar_entrada_estoque': True,
-                'visualizar_lotes': True,
-                'visualizar_entradas': True
+                'modulo_conferencia': True, 'conferencia_criar': True, 'conferencia_validar': True,
+                'conferencia_visualizar': True,
+                'modulo_lotes': True, 'lote_criar': True, 'lote_visualizar': True,
+                'modulo_estoque_ativo': True, 'estoque_entrada': True, 'estoque_visualizar': True,
+                'modulo_dashboard': True, 'dashboard_visualizar_metricas': True,
+                'modulo_notificacoes': True,
+                'menus_inferiores': [
+                    {'id': 'conferencia', 'nome': 'Conferência', 'url': '/conferencia.html', 'icone': 'fact_check'},
+                    {'id': 'lotes', 'nome': 'Lotes', 'url': '/lotes.html', 'icone': 'inventory_2'},
+                    {'id': 'estoque-ativo', 'nome': 'Estoque', 'url': '/estoque-ativo.html', 'icone': 'warehouse'},
+                    {'id': 'dashboard', 'nome': 'Dashboard', 'url': '/dashboard.html', 'icone': 'dashboard'},
+                ]
             }
         },
         {
             'nome': 'Separação',
-            'descricao': 'Separa lotes por material/condição; gera sublotes e resíduos para descarte (com aprovação ADM).',
+            'descricao': 'Separa lotes por material/condição; gera sublotes e resíduos.',
             'permissoes': {
-                'separar_lotes': True,
-                'criar_sublotes': True,
-                'marcar_residuos': True,
-                'visualizar_lotes': True,
-                'solicitar_descarte': True
+                'modulo_separacao': True, 'separacao_fila': True, 'separacao_workflow': True,
+                'separacao_criar_sublote': True, 'separacao_marcar_residuo': True,
+                'modulo_lotes': True, 'lote_visualizar': True,
+                'modulo_dashboard': True, 'dashboard_visualizar_metricas': True,
+                'modulo_notificacoes': True,
+                'menus_inferiores': [
+                    {'id': 'separacao-fila', 'nome': 'Separação', 'url': '/separacao-fila.html', 'icone': 'format_list_bulleted'},
+                    {'id': 'lotes', 'nome': 'Lotes', 'url': '/lotes.html', 'icone': 'inventory_2'},
+                    {'id': 'dashboard', 'nome': 'Dashboard', 'url': '/dashboard.html', 'icone': 'dashboard'},
+                ]
             }
         },
         {
             'nome': 'Motorista',
             'descricao': 'Recebe rotas, realiza coletas e envia comprovantes/fotos.',
             'permissoes': {
-                'visualizar_rotas': True,
-                'registrar_coleta': True,
-                'enviar_comprovante': True,
-                'enviar_fotos': True,
-                'visualizar_dados_pessoais': True
+                'modulo_motorista': True, 'motorista_app': True,
+                'motorista_visualizar_os': True, 'motorista_atualizar_os': True,
+                'motorista_enviar_comprovante': True,
+                'modulo_notificacoes': True,
+                'menus_inferiores': [
+                    {'id': 'app-motorista', 'nome': 'Meu App', 'url': '/app-motorista.html', 'icone': 'local_shipping'},
+                    {'id': 'notificacoes', 'nome': 'Notificações', 'url': '/notificacoes.html', 'icone': 'notifications'},
+                ]
             }
         },
         {
             'nome': 'Financeiro',
-            'descricao': 'Emite notas, controla pagamentos e conciliação bancária.',
+            'descricao': 'Visualiza solicitações, fornecedores e lotes para controle financeiro.',
             'permissoes': {
-                'emitir_notas': True,
-                'controlar_pagamentos': True,
-                'conciliacao_bancaria': True,
-                'visualizar_fornecedores': True,
-                'visualizar_solicitacoes': True,
-                'exportar_relatorios': True
+                'modulo_dashboard': True, 'dashboard_visualizar_metricas': True,
+                'dashboard_visualizar_graficos': True,
+                'modulo_compras': True, 'solicitacao_visualizar': True,
+                'modulo_fornecedores': True, 'fornecedor_visualizar': True,
+                'modulo_lotes': True, 'lote_visualizar': True,
+                'modulo_notificacoes': True,
+                'menus_inferiores': [
+                    {'id': 'dashboard', 'nome': 'Dashboard', 'url': '/dashboard.html', 'icone': 'dashboard'},
+                    {'id': 'solicitacoes', 'nome': 'Compra', 'url': '/solicitacoes.html', 'icone': 'request_quote'},
+                    {'id': 'fornecedores', 'nome': 'Fornecedores', 'url': '/fornecedores.html', 'icone': 'business'},
+                    {'id': 'lotes', 'nome': 'Lotes', 'url': '/lotes.html', 'icone': 'inventory_2'},
+                ]
             }
         },
         {
             'nome': 'Auditoria / BI',
             'descricao': 'Acesso apenas leitura aos painéis e trilhas de auditoria.',
             'permissoes': {
-                'visualizar_auditoria': True,
-                'visualizar_paineis': True,
-                'visualizar_relatorios': True,
-                'exportar_relatorios': True,
-                'visualizar_usuarios': True,
-                'visualizar_fornecedores': True,
-                'visualizar_solicitacoes': True,
-                'visualizar_lotes': True,
-                'visualizar_entradas': True,
-                'somente_leitura': True
+                'modulo_auditoria': True, 'auditoria_somente_leitura': True,
+                'auditoria_exportar': True,
+                'modulo_dashboard': True, 'dashboard_visualizar_metricas': True,
+                'dashboard_visualizar_graficos': True, 'dashboard_exportar': True,
+                'menus_inferiores': []
             }
-        }
+        },
+        {
+            'nome': 'Gestor',
+            'descricao': 'Perfil de gestão com acesso amplo a compras, fornecedores, estoque e WMS.',
+            'permissoes': {
+                'modulo_compras': True, 'solicitacao_criar': True, 'solicitacao_editar': True,
+                'solicitacao_visualizar': True, 'solicitacao_aprovar': True,
+                'modulo_fornecedores': True, 'fornecedor_criar': True, 'fornecedor_editar': True,
+                'fornecedor_visualizar': True, 'fornecedor_tabela_precos': True,
+                'fornecedor_gerenciar_tabela_precos': True,
+                'modulo_estoque_ativo': True, 'estoque_visualizar': True, 'estoque_movimentar': True,
+                'modulo_lotes': True, 'lote_visualizar': True, 'lote_editar': True,
+                'modulo_separacao': True, 'separacao_fila': True, 'separacao_workflow': True,
+                'modulo_notificacoes': True,
+                'menus_inferiores': [
+                    {'id': 'solicitacoes', 'nome': 'Compra', 'url': '/solicitacoes.html', 'icone': 'request_quote'},
+                    {'id': 'fornecedores', 'nome': 'Fornecedores', 'url': '/fornecedores.html', 'icone': 'business'},
+                    {'id': 'estoque-ativo', 'nome': 'Estoque', 'url': '/estoque-ativo.html', 'icone': 'warehouse'},
+                    {'id': 'lotes', 'nome': 'Lotes', 'url': '/lotes.html', 'icone': 'inventory_2'},
+                ]
+            }
+        },
+        {
+            'nome': 'Producao',
+            'descricao': 'Perfil para equipe de produção com acesso a compras, fornecedores e estoque.',
+            'permissoes': {
+                'modulo_compras': True, 'solicitacao_criar': True, 'solicitacao_editar': True,
+                'solicitacao_visualizar': True,
+                'modulo_fornecedores': True, 'fornecedor_criar': True, 'fornecedor_editar': True,
+                'fornecedor_visualizar': True, 'fornecedor_tabela_precos': True,
+                'fornecedor_gerenciar_tabela_precos': True,
+                'modulo_estoque_ativo': True, 'estoque_visualizar': True,
+                'modulo_notificacoes': True,
+                'menus_inferiores': [
+                    {'id': 'solicitacoes', 'nome': 'Compra', 'url': '/solicitacoes.html', 'icone': 'request_quote'},
+                    {'id': 'fornecedores', 'nome': 'Fornecedores', 'url': '/fornecedores.html', 'icone': 'business'},
+                    {'id': 'estoque-ativo', 'nome': 'Estoque', 'url': '/estoque-ativo.html', 'icone': 'warehouse'},
+                ]
+            }
+        },
     ]
 
+    perfis_existentes = {p.nome: p for p in Perfil.query.all()}
+
     for perfil_data in perfis:
-        if perfil_data['nome'] not in perfis_existentes:
+        nome = perfil_data['nome']
+        if nome in perfis_existentes:
+            # Atualizar permissões do perfil existente para o novo formato
+            perfil_existente = perfis_existentes[nome]
+            perfil_existente.permissoes = perfil_data['permissoes']
+            perfil_existente.descricao = perfil_data['descricao']
+            perfil_existente.ativo = True
+            print(f'Perfil atualizado: {nome}')
+        else:
             perfil = Perfil(**perfil_data)
             db.session.add(perfil)
-            print(f'Perfil criado: {perfil_data["nome"]}')
+            print(f'Perfil criado: {nome}')
 
     db.session.commit()
 

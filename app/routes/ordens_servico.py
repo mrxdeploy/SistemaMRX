@@ -282,28 +282,32 @@ def iniciar_rota(id):
         usuario = Usuario.query.get(usuario_id)
         data = request.get_json() or {}
         
-        if not data.get('gps'):
+        is_admin = usuario and (usuario.tipo == 'admin' or (usuario.perfil and usuario.perfil.nome == 'Administrador'))
+        
+        if not is_admin and not data.get('gps'):
             return jsonify({'erro': 'GPS é obrigatório para iniciar rota'}), 400
         
         os = OrdemServico.query.get(id)
         if not os:
             return jsonify({'erro': 'Ordem de Serviço não encontrada'}), 404
         
-        motorista = Motorista.query.filter_by(usuario_id=usuario_id).first()
-        if not motorista or os.motorista_id != motorista.id:
-            return jsonify({'erro': 'Apenas o motorista atribuído pode iniciar a rota'}), 403
+        if not is_admin:
+            motorista = Motorista.query.filter_by(usuario_id=usuario_id).first()
+            if not motorista or os.motorista_id != motorista.id:
+                return jsonify({'erro': 'Apenas o motorista atribuído pode iniciar a rota'}), 403
         
         if os.status not in ['AGENDADA', 'PENDENTE']:
             return jsonify({'erro': f'OS não pode ser iniciada no status {os.status}'}), 400
         
         os.status = 'EM_ROTA'
         
+        gps_data = data.get('gps') or {'latitude': 0, 'longitude': 0}
         gps_log = GPSLog(
             os_id=os.id,
             evento='INICIO_ROTA',
-            latitude=data['gps']['latitude'],
-            longitude=data['gps']['longitude'],
-            precisao=data['gps'].get('precisao'),
+            latitude=gps_data['latitude'],
+            longitude=gps_data['longitude'],
+            precisao=gps_data.get('precisao'),
             device_id=data.get('device_id'),
             ip=request.remote_addr,
             dados_adicionais=data.get('dados_adicionais')
@@ -311,8 +315,9 @@ def iniciar_rota(id):
         db.session.add(gps_log)
         
         registrar_auditoria_os(os, 'INICIO_ROTA', usuario_id, {
-            'gps': data['gps'],
-            'device_id': data.get('device_id')
+            'gps': gps_data,
+            'device_id': data.get('device_id'),
+            'via_admin': is_admin
         })
         
         db.session.commit()
@@ -334,16 +339,22 @@ def registrar_evento(id):
         usuario = Usuario.query.get(usuario_id)
         data = request.get_json()
         
-        if not data or not data.get('evento') or not data.get('gps'):
-            return jsonify({'erro': 'evento e gps são obrigatórios'}), 400
+        is_admin = usuario and (usuario.tipo == 'admin' or (usuario.perfil and usuario.perfil.nome == 'Administrador'))
+        
+        if not data or not data.get('evento'):
+            return jsonify({'erro': 'evento é obrigatório'}), 400
+        
+        if not is_admin and not data.get('gps'):
+            return jsonify({'erro': 'gps é obrigatório'}), 400
         
         os = OrdemServico.query.get(id)
         if not os:
             return jsonify({'erro': 'Ordem de Serviço não encontrada'}), 404
         
-        motorista = Motorista.query.filter_by(usuario_id=usuario_id).first()
-        if not motorista or os.motorista_id != motorista.id:
-            return jsonify({'erro': 'Apenas o motorista atribuído pode registrar eventos'}), 403
+        if not is_admin:
+            motorista = Motorista.query.filter_by(usuario_id=usuario_id).first()
+            if not motorista or os.motorista_id != motorista.id:
+                return jsonify({'erro': 'Apenas o motorista atribuído pode registrar eventos'}), 403
         
         evento = data['evento'].upper()
         eventos_validos = ['CHEGUEI', 'COLETEI', 'SAI', 'FINALIZEI', 'CHEGUEI_MRX', 'FORNECEDOR_FECHADO', 'FORNECEDOR_NAO_ENCONTRADO']
@@ -351,18 +362,20 @@ def registrar_evento(id):
         if evento not in eventos_validos:
             return jsonify({'erro': f'Evento inválido. Valores aceitos: {", ".join(eventos_validos)}'}), 400
         
+        gps_data = data.get('gps') or {'latitude': 0, 'longitude': 0}
         gps_log = GPSLog(
             os_id=os.id,
             evento=evento,
-            latitude=data['gps']['latitude'],
-            longitude=data['gps']['longitude'],
-            precisao=data['gps'].get('precisao'),
+            latitude=gps_data['latitude'],
+            longitude=gps_data['longitude'],
+            precisao=gps_data.get('precisao'),
             device_id=data.get('device_id'),
             ip=request.remote_addr,
             dados_adicionais={
                 'observacao': data.get('observacao'),
                 'foto': data.get('foto'),
-                'motivo': data.get('motivo')
+                'motivo': data.get('motivo'),
+                'via_admin': is_admin
             }
         )
         db.session.add(gps_log)
@@ -713,6 +726,109 @@ def marcar_recebido(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'erro': f'Erro ao marcar como recebido: {str(e)}'}), 500
+
+@bp.route('/<int:id>/admin-avancar-status', methods=['PUT'])
+@admin_required
+def admin_avancar_status(id):
+    """Admin avança o status da OS pelo fluxo sem exigir GPS."""
+    try:
+        usuario_id = get_jwt_identity()
+        
+        os = OrdemServico.query.get(id)
+        if not os:
+            return jsonify({'erro': 'Ordem de Serviço não encontrada'}), 404
+        
+        fluxo = {
+            'PENDENTE':        ('AGENDADA',         'AGENDAMENTO_ADMIN'),
+            'AGENDADA':        ('EM_ROTA',           'INICIO_ROTA_ADMIN'),
+            'EM_ROTA':         ('NO_FORNECEDOR',     'CHEGADA_FORNECEDOR_ADMIN'),
+            'NO_FORNECEDOR':   ('COLETADO',          'COLETA_ADMIN'),
+            'COLETADO':        ('A_CAMINHO_MATRIZ',  'SAIDA_FORNECEDOR_ADMIN'),
+            'A_CAMINHO_MATRIZ':('ENTREGUE',          'CHEGADA_MATRIZ_ADMIN'),
+            'ENTREGUE':        ('FINALIZADA',        'FINALIZACAO_ADMIN'),
+            'IMPEDIDO':        ('AGENDADA',          'REATIVACAO_IMPEDIDO_ADMIN'),
+        }
+        
+        if os.status not in fluxo:
+            return jsonify({'erro': f'Não é possível avançar OS com status {os.status}'}), 400
+        
+        novo_status, acao_auditoria = fluxo[os.status]
+        status_anterior = os.status
+        os.status = novo_status
+        
+        gps_log = GPSLog(
+            os_id=os.id,
+            evento=acao_auditoria,
+            latitude=0,
+            longitude=0,
+            ip=request.remote_addr,
+            dados_adicionais={'via_admin': True, 'status_anterior': status_anterior}
+        )
+        db.session.add(gps_log)
+        
+        if novo_status == 'FINALIZADA':
+            conferencia_existente = ConferenciaRecebimento.query.filter_by(os_id=os.id).first()
+            if not conferencia_existente:
+                oc = OrdemCompra.query.get(os.oc_id)
+                if oc:
+                    peso_previsto = 0
+                    quantidade_prevista = 0
+                    if oc.solicitacao and oc.solicitacao.itens:
+                        for item in oc.solicitacao.itens:
+                            peso_previsto += item.peso_kg or 0
+                            quantidade_prevista += 1
+                    
+                    conferencia = ConferenciaRecebimento(
+                        os_id=os.id,
+                        oc_id=os.oc_id,
+                        peso_fornecedor=peso_previsto,
+                        quantidade_prevista=quantidade_prevista,
+                        conferencia_status='PENDENTE',
+                        auditoria=[{
+                            'acao': 'CRIACAO_AUTOMATICA_ADMIN',
+                            'usuario_id': usuario_id,
+                            'timestamp': datetime.utcnow().isoformat(),
+                            'detalhes': {'os_id': os.id, 'oc_id': os.oc_id, 'criado_por': 'FINALIZACAO_ADMIN'},
+                            'ip': request.remote_addr,
+                            'user_agent': request.headers.get('User-Agent')
+                        }]
+                    )
+                    db.session.add(conferencia)
+                    
+                    conferentes = Usuario.query.join(Usuario.perfil).filter(
+                        db.or_(
+                            db.text("perfis.nome = 'Conferente / Estoque'"),
+                            db.text("perfis.nome = 'Administrador'")
+                        )
+                    ).all()
+                    for conferente in conferentes:
+                        notificacao = Notificacao(
+                            usuario_id=conferente.id,
+                            titulo='Nova Conferência Pendente',
+                            mensagem=f'OS {os.numero_os} foi finalizada pelo admin. Conferência criada.',
+                            tipo='nova_conferencia',
+                            url='/conferencias.html',
+                            lida=False
+                        )
+                        db.session.add(notificacao)
+        
+        registrar_auditoria_os(os, acao_auditoria, usuario_id, {
+            'status_anterior': status_anterior,
+            'novo_status': novo_status,
+            'via_admin': True
+        })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'mensagem': f'Status avançado para {novo_status}',
+            'os': os.to_dict()
+        }), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': f'Erro ao avançar status: {str(e)}'}), 500
+
 
 @bp.route('/estatisticas', methods=['GET'])
 @jwt_required()

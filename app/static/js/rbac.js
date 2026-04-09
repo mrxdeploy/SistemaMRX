@@ -222,6 +222,11 @@ function verificarAcessoPagina() {
         return true;
     }
 
+    // /administracao.html é permitida para TODOS os usuários autenticados
+    if (paginaAtual === '/administracao.html') {
+        return true;
+    }
+
     if (!rbacCarregado) {
         console.warn('RBAC ainda não foi carregado, aguardando...');
         return false;
@@ -246,37 +251,16 @@ function verificarAcessoPagina() {
         return false;
     }
 
-    // PROTEÇÃO ESPECÍFICA: Perfil Auditoria / BI só pode acessar dashboard
-    if (currentUserData.perfil === 'Auditoria / BI') {
-        console.log('🔍 Verificando acesso para perfil Auditoria/BI');
-        console.log('Página atual:', paginaAtual);
-        
-        if (paginaAtual === '/dashboard.html') {
-            console.log('✅ Acesso permitido - Dashboard é permitido para Auditoria/BI');
-            return true;
-        } else {
-            console.warn('⚠️ Perfil Auditoria/BI tentou acessar:', paginaAtual);
-            console.warn('⚠️ Redirecionando para dashboard');
-            window.location.href = '/dashboard.html';
-            return false;
-        }
-    }
-
     if (!paginasPermitidas || paginasPermitidas.length === 0) {
         console.error('ERRO CRÍTICO: Nenhuma página permitida configurada para o perfil:', currentUserData.perfil);
-        console.error('Usuário:', currentUserData);
-        console.error('Negando acesso por segurança até que as permissões sejam carregadas');
         window.location.href = '/acesso-negado.html';
         return false;
     }
 
     const paginaPermitida = paginasPermitidas.some(pagPermitida => {
-        // Verifica igualdade exata ou se termina com (ex: /dashboard.html)
         if (paginaAtual === pagPermitida || paginaAtual.endsWith(pagPermitida)) {
             return true;
         }
-        // Verifica se é uma sub-rota (apenas se a permissão não for um arquivo .html)
-        // Ex: pagPermitida='api/producao', paginaAtual='/api/producao/ordem/7'
         if ((!pagPermitida.endsWith('.html')) && paginaAtual.startsWith(pagPermitida)) {
             return true;
         }

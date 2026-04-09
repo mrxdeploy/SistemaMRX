@@ -95,9 +95,8 @@ def deletar_perfil(perfil_id):
     if not perfil:
         return jsonify({'erro': 'Perfil não encontrado'}), 404
     
-    if perfil.nome in ['Administrador', 'Comprador (PJ)', 'Conferente / Estoque', 
-                       'Separação', 'Motorista', 'Financeiro', 'Auditoria / BI']:
-        return jsonify({'erro': 'Não é possível deletar perfis padrão do sistema'}), 400
+    if perfil.nome == 'Administrador':
+        return jsonify({'erro': 'Não é possível deletar o perfil Administrador'}), 400
     
     if perfil.usuarios:
         return jsonify({'erro': 'Não é possível deletar perfil com usuários associados'}), 400

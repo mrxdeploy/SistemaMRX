@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, Usuario, Solicitacao, Fornecedor, AuditoriaLog, Perfil, Motorista
 from app.auth import admin_required, hash_senha
 from app.utils.auditoria import registrar_criacao, registrar_atualizacao, registrar_exclusao
+from app.rbac_config import perfil_tem_motorista, get_catalogo_completo, get_menus_disponiveis
 from datetime import datetime, timedelta
 from sqlalchemy import func, and_
 import os
@@ -10,6 +11,18 @@ import io
 from werkzeug.utils import secure_filename
 
 bp = Blueprint('rh', __name__, url_prefix='/api/rh')
+
+
+@bp.route('/permissoes-catalogo', methods=['GET'])
+@jwt_required()
+def obter_catalogo_permissoes():
+    """Retorna o catálogo completo de permissões para o frontend montar checkboxes"""
+    catalogo = get_catalogo_completo()
+    menus_disponiveis = get_menus_disponiveis()
+    return jsonify({
+        'catalogo': catalogo,
+        'menus_disponiveis': menus_disponiveis
+    }), 200
 
 
 @bp.route('/usuarios/<int:id>/foto', methods=['GET'])
@@ -85,10 +98,9 @@ def criar_usuario_rh():
     if not perfil:
         return jsonify({'erro': 'Perfil não encontrado'}), 404
     
+    # Determinar tipo baseado nas permissoes do perfil
     if perfil.nome == 'Administrador':
         tipo = 'admin'
-    elif perfil.nome == 'Motorista':
-        tipo = 'motorista'
     else:
         tipo = 'funcionario'
     
@@ -134,7 +146,8 @@ def criar_usuario_rh():
             filename = secure_filename(f"usuario_{usuario.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.{file.filename.rsplit('.', 1)[1].lower()}")
             usuario.foto_path = f"usuarios/{filename}"
     
-    if perfil.nome == 'Motorista':
+    # Auto-criar registro de Motorista se o perfil tem modulo_motorista
+    if perfil_tem_motorista(perfil.permissoes):
         cpf_limpo = (data.get('cpf') or '').replace('.', '').replace('-', '')
         motorista = Motorista(
             usuario_id=usuario.id,
@@ -203,10 +216,9 @@ def atualizar_usuario_rh(id):
         alteracoes['antes']['perfil'] = usuario.perfil.nome if usuario.perfil else None
         usuario.perfil_id = int(data['perfil_id'])
         
+        # Determinar tipo baseado nas permissoes do perfil
         if perfil.nome == 'Administrador':
             usuario.tipo = 'admin'
-        elif perfil.nome == 'Motorista':
-            usuario.tipo = 'motorista'
         else:
             usuario.tipo = 'funcionario'
         
@@ -257,7 +269,8 @@ def atualizar_usuario_rh(id):
             
             alteracoes['depois']['foto_path'] = usuario.foto_path
     
-    if novo_perfil and novo_perfil.nome == 'Motorista':
+    # Auto-criar/atualizar registro Motorista se perfil tem modulo_motorista
+    if novo_perfil and perfil_tem_motorista(novo_perfil.permissoes):
         motorista_existente = Motorista.query.filter_by(usuario_id=usuario.id).first()
         if not motorista_existente:
             cpf_limpo = (usuario.cpf or '').replace('.', '').replace('-', '')
@@ -278,6 +291,11 @@ def atualizar_usuario_rh(id):
             motorista_existente.ativo = usuario.ativo
             if usuario.cpf:
                 motorista_existente.cpf = usuario.cpf.replace('.', '').replace('-', '')
+    elif novo_perfil and not perfil_tem_motorista(novo_perfil.permissoes):
+        # Desativar motorista se o perfil nao tem mais modulo_motorista
+        motorista_existente = Motorista.query.filter_by(usuario_id=usuario.id).first()
+        if motorista_existente:
+            motorista_existente.ativo = False
     
     db.session.commit()
     

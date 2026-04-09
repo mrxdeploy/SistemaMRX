@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Motoristas - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        * { box-sizing: border-box; }
+
+        body { background: #f0fdf4; min-height: 100vh; }
+
+        .gm-container {
+            padding: 20px;
+            padding-top: 80px;
+            padding-bottom: 90px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* ─── HEADER ─── */
+        .gm-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .gm-header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .gm-header-title i {
+            font-size: 2rem;
+            color: #059669;
+        }
+        .gm-header-title h1 {
+            margin: 0;
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: #064e3b;
+        }
+        .gm-header-title p {
+            margin: 2px 0 0;
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+        .btn-atualizar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #059669;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-atualizar:hover { background: #047857; }
+        .btn-atualizar.loading i { animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ─── KPI CARDS ─── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+        .kpi-card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 18px 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.1); }
+        .kpi-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+        .kpi-icon.total    { background: #ecfdf5; color: #059669; }
+        .kpi-icon.pendente { background: #fffbeb; color: #d97706; }
+        .kpi-icon.em-rota  { background: #eff6ff; color: #3b82f6; }
+        .kpi-icon.impedida { background: #fef2f2; color: #ef4444; }
+        .kpi-icon.finalizada { background: #f0fdf4; color: #16a34a; }
+        .kpi-icon.motoristas { background: #f5f3ff; color: #7c3aed; }
+        .kpi-info { flex: 1; }
+        .kpi-valor {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #064e3b;
+            line-height: 1;
+            margin-bottom: 3px;
+        }
+        .kpi-label { font-size: 0.75rem; color: #6b7280; font-weight: 500; }
+
+        /* ─── FILTROS ─── */
+        .filtros-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 22px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .filtros-titulo {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .filtros-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .filtro-grupo { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 160px; }
+        .filtro-grupo label { font-size: 0.78rem; color: #374151; font-weight: 600; }
+        .filtro-grupo select, .filtro-grupo input {
+            padding: 9px 12px;
+            border: 1.5px solid #d1fae5;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            color: #1f2937;
+            background: #f9fafb;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .filtro-grupo select:focus, .filtro-grupo input:focus { border-color: #059669; background: #fff; }
+        .btn-filtro-limpar {
+            padding: 9px 16px;
+            border: 1.5px solid #d1d5db;
+            border-radius: 8px;
+            background: #fff;
+            color: #6b7280;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-filtro-limpar:hover { border-color: #059669; color: #059669; }
+
+        /* ─── SEÇÃO MOTORISTA ─── */
+        .motoristas-lista { display: flex; flex-direction: column; gap: 20px; }
+
+        .motorista-section {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+            overflow: hidden;
+            transition: box-shadow 0.2s;
+        }
+        .motorista-section:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+
+        .motorista-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border-bottom: 1.5px solid #a7f3d0;
+            cursor: pointer;
+        }
+        .motorista-avatar {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #059669, #34d399);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 800;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(5,150,105,0.35);
+        }
+        .motorista-info { flex: 1 }
+        .motorista-nome { font-size: 1rem; font-weight: 700; color: #064e3b; margin-bottom: 2px; }
+        .motorista-meta { font-size: 0.78rem; color: #6b7280; }
+        .motorista-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+        .motorista-badge {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+        .motorista-badge.ativas { background: #d1fae5; color: #065f46; }
+        .motorista-badge.em-rota { background: #dbeafe; color: #1e40af; }
+        .motorista-badge.sem-os { background: #f3f4f6; color: #9ca3af; }
+        .motorista-chevron { color: #059669; transition: transform 0.3s; font-size: 1.3rem; }
+        .motorista-chevron.collapsed { transform: rotate(-90deg); }
+
+        /* ─── OS CARDS ─── */
+        .os-lista {
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .os-lista.collapsed { display: none; }
+
+        .os-card {
+            border: 1.5px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #fafafa;
+        }
+        .os-card:hover { border-color: #34d399; box-shadow: 0 3px 12px rgba(5,150,105,0.1); }
+
+        .os-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .os-numero { font-size: 0.85rem; font-weight: 800; color: #059669; font-family: monospace; }
+        .os-fornecedor { font-size: 1rem; font-weight: 700; color: #1f2937; margin-bottom: 2px; }
+        .os-meta { font-size: 0.75rem; color: #9ca3af; }
+
+        /* Status Badges */
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.73rem;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .status-PENDENTE    { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+        .status-AGENDADA    { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+        .status-EM_ROTA     { background: linear-gradient(135deg,#3b82f6,#60a5fa); color:#fff; border:none; }
+        .status-NO_FORNECEDOR { background: linear-gradient(135deg,#8b5cf6,#a78bfa); color:#fff; border:none; }
+        .status-COLETADO    { background: linear-gradient(135deg,#f59e0b,#fbbf24); color:#fff; border:none; }
+        .status-A_CAMINHO_MATRIZ { background: linear-gradient(135deg,#f97316,#fb923c); color:#fff; border:none; }
+        .status-ENTREGUE    { background: linear-gradient(135deg,#059669,#34d399); color:#fff; border:none; }
+        .status-FINALIZADA  { background: linear-gradient(135deg,#16a34a,#4ade80); color:#fff; border:none; }
+        .status-IMPEDIDO    { background: linear-gradient(135deg,#ef4444,#f87171); color:#fff; border:none; }
+        .status-CANCELADA   { background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }
+
+        /* ─── STEP PROGRESS ─── */
+        .step-progress {
+            display: flex;
+            align-items: center;
+            margin-bottom: 14px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        .step-progress::-webkit-scrollbar { height: 3px; }
+        .step-progress::-webkit-scrollbar-track { background: #f1f5f9; }
+        .step-progress::-webkit-scrollbar-thumb { background: #a7f3d0; border-radius: 3px; }
+
+        .step-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .step-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            border: 2px solid #e5e7eb;
+            background: #f9fafb;
+            color: #9ca3af;
+            transition: all 0.3s;
+            z-index: 1;
+        }
+        .step-dot.done {
+            background: linear-gradient(135deg, #059669, #34d399);
+            border-color: #059669;
+            color: #fff;
+        }
+        .step-dot.current {
+            background: linear-gradient(135deg, #3b82f6, #60a5fa);
+            border-color: #3b82f6;
+            color: #fff;
+            box-shadow: 0 0 0 4px rgba(59,130,246,0.2);
+            animation: pulse-step 2s infinite;
+        }
+        @keyframes pulse-step {
+            0%, 100% { box-shadow: 0 0 0 4px rgba(59,130,246,0.2); }
+            50% { box-shadow: 0 0 0 7px rgba(59,130,246,0.1); }
+        }
+        .step-dot.blocked { background: #fef2f2; border-color: #f87171; color: #ef4444; }
+        .step-label {
+            font-size: 0.6rem;
+            color: #9ca3af;
+            margin-top: 4px;
+            text-align: center;
+            max-width: 52px;
+            line-height: 1.2;
+        }
+        .step-label.done, .step-label.current { color: #059669; font-weight: 600; }
+        .step-label.current { color: #3b82f6; }
+        .step-label.blocked { color: #ef4444; }
+
+        .step-line {
+            flex: 1;
+            height: 3px;
+            background: #e5e7eb;
+            min-width: 20px;
+            max-width: 40px;
+            margin-bottom: 18px;
+            transition: background 0.3s;
+        }
+        .step-line.done { background: linear-gradient(to right, #059669, #34d399); }
+
+        /* ─── BOTÕES DE AÇÃO ─── */
+        .os-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+        .btn-acao {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-acao:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        .btn-acao:active { transform: translateY(0); }
+        .btn-acao.avancar {
+            background: linear-gradient(135deg, #059669, #34d399);
+            color: #fff;
+        }
+        .btn-acao.avancar:hover { background: linear-gradient(135deg, #047857, #059669); }
+        .btn-acao.concluir {
+            background: linear-gradient(135deg, #16a34a, #4ade80);
+            color: #fff;
+        }
+        .btn-acao.concluir:hover { background: linear-gradient(135deg, #166534, #16a34a); }
+        .btn-acao.atribuir {
+            background: linear-gradient(135deg, #7c3aed, #a78bfa);
+            color: #fff;
+        }
+        .btn-acao.atribuir:hover { background: linear-gradient(135deg, #6d28d9, #7c3aed); }
+        .btn-acao.reativar {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: #fff;
+        }
+        .btn-acao.reativar:hover { background: linear-gradient(135deg, #d97706, #f59e0b); }
+        .btn-acao.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        .btn-acao i { font-size: 0.85rem; }
+
+        /* Botão concluir com destaque especial */
+        .btn-concluir-destaque {
+            background: linear-gradient(135deg, #064e3b, #065f46);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 18px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            box-shadow: 0 3px 12px rgba(6,78,59,0.4);
+        }
+        .btn-concluir-destaque:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(6,78,59,0.5); }
+
+        /* ─── ESTADO VAZIO ─── */
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: #9ca3af;
+        }
+        .empty-state i { font-size: 3.5rem; margin-bottom: 14px; opacity: 0.4; display: block; }
+        .empty-state h3 { margin: 0 0 6px; color: #6b7280; }
+        .empty-state p { margin: 0; font-size: 0.88rem; }
+
+        /* ─── MODAL ATRIBUIR ─── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        }
+        .modal-titulo {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #064e3b;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .modal-grupo { margin-bottom: 14px; }
+        .modal-grupo label { font-size: 0.82rem; font-weight: 700; color: #374151; display: block; margin-bottom: 6px; }
+        .modal-grupo select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1.5px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .modal-grupo select:focus { border-color: #059669; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .btn-modal-cancelar {
+            padding: 10px 18px;
+            border: 1.5px solid #d1d5db;
+            border-radius: 8px;
+            background: #fff;
+            color: #6b7280;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-modal-salvar {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #059669, #34d399);
+            color: #fff;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-modal-salvar:hover { background: linear-gradient(135deg, #047857, #059669); }
+
+        /* ─── TOAST ─── */
+        .toast-container {
+            position: fixed;
+            bottom: 90px;
+            right: 16px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            padding: 12px 18px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+            animation: slideIn 0.3s ease, fadeOut 0.4s ease 2.5s forwards;
+        }
+        .toast.success { background: linear-gradient(135deg, #059669, #34d399); }
+        .toast.error   { background: linear-gradient(135deg, #ef4444, #f87171); }
+        @keyframes slideIn { from { opacity:0; transform:translateX(100%); } to { opacity:1; transform:translateX(0); } }
+        @keyframes fadeOut { to { opacity:0; transform:translateX(100%); } }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 640px) {
+            .kpi-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+            .kpi-card { padding: 12px 10px; gap: 8px; }
+            .kpi-icon { width: 36px; height: 36px; font-size: 1.1rem; border-radius: 9px; }
+            .kpi-valor { font-size: 1.4rem; }
+            .os-card-top { flex-direction: column; }
+            .os-actions { gap: 6px; }
+            .btn-acao { padding: 7px 10px; font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+{% include 'includes/_header.html' %}
+
+<main>
+<div class="gm-container">
+
+    <!-- HEADER -->
+    <div class="gm-header">
+        <div class="gm-header-title">
+            <i class="fas fa-truck-moving"></i>
+            <div>
+                <h1>Gestão de Motoristas</h1>
+                <p>Acompanhe e gerencie as OS em tempo real</p>
+            </div>
+        </div>
+        <button class="btn-atualizar" onclick="carregarDados()">
+            <i class="fas fa-sync-alt" id="iconeAtualizar"></i> Atualizar
+        </button>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon total"><i class="fas fa-clipboard-list"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-valor" id="kpiTotal">—</div>
+                <div class="kpi-label">Total de OS</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon motoristas"><i class="fas fa-id-card"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-valor" id="kpiMotoristas">—</div>
+                <div class="kpi-label">Motoristas Ativos</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon pendente"><i class="fas fa-clock"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-valor" id="kpiPendentes">—</div>
+                <div class="kpi-label">Pendentes</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon em-rota"><i class="fas fa-route"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-valor" id="kpiEmRota">—</div>
+                <div class="kpi-label">Em Rota</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon impedida"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-valor" id="kpiImpedidas">—</div>
+                <div class="kpi-label">Impedidas</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon finalizada"><i class="fas fa-check-circle"></i></div>
+            <div class="kpi-info">
+                <div class="kpi-valor" id="kpiFinalizadas">—</div>
+                <div class="kpi-label">Finalizadas</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="filtros-card">
+        <div class="filtros-titulo"><i class="fas fa-filter"></i> Filtros</div>
+        <div class="filtros-row">
+            <div class="filtro-grupo">
+                <label>Motorista</label>
+                <select id="filtroMotorista" onchange="aplicarFiltros()">
+                    <option value="">Todos os motoristas</option>
+                </select>
+            </div>
+            <div class="filtro-grupo">
+                <label>Status da OS</label>
+                <select id="filtroStatus" onchange="aplicarFiltros()">
+                    <option value="">Todos os status</option>
+                    <option value="PENDENTE">Pendente</option>
+                    <option value="AGENDADA">Agendada</option>
+                    <option value="EM_ROTA">Em Rota</option>
+                    <option value="NO_FORNECEDOR">No Fornecedor</option>
+                    <option value="COLETADO">Coletado</option>
+                    <option value="A_CAMINHO_MATRIZ">A Caminho da Matriz</option>
+                    <option value="ENTREGUE">Entregue</option>
+                    <option value="IMPEDIDO">Impedido</option>
+                    <option value="FINALIZADA">Finalizada</option>
+                </select>
+            </div>
+            <button class="btn-filtro-limpar" onclick="limparFiltros()">
+                <i class="fas fa-times"></i> Limpar
+            </button>
+        </div>
+    </div>
+
+    <!-- LISTA DE MOTORISTAS COM OS -->
+    <div class="motoristas-lista" id="motoristasLista">
+        <div class="empty-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <h3>Carregando...</h3>
+            <p>Buscando dados dos motoristas</p>
+        </div>
+    </div>
+
+</div>
+</main>
+
+<!-- MODAL ATRIBUIR MOTORISTA -->
+<div class="modal-overlay" id="modalAtribuir">
+    <div class="modal-card">
+        <div class="modal-titulo"><i class="fas fa-user-plus"></i> Atribuir Motorista</div>
+        <input type="hidden" id="modalOsId">
+        <div class="modal-grupo">
+            <label>Motorista</label>
+            <select id="modalSelectMotorista">
+                <option value="">Selecione...</option>
+            </select>
+        </div>
+        <div class="modal-grupo">
+            <label>Veículo (opcional)</label>
+            <select id="modalSelectVeiculo">
+                <option value="">Selecione...</option>
+            </select>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-modal-cancelar" onclick="fecharModal()">Cancelar</button>
+            <button class="btn-modal-salvar" onclick="salvarAtribuicao()">
+                <i class="fas fa-check"></i> Atribuir
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<nav class="bottom-nav" id="navMenuMobile"></nav>
+{% include 'includes/_core_scripts.html' %}
+
+<script>
+// ─── Estado global ───
+let todasOS = [];
+let todosMotoristas = [];
+let todosVeiculos = [];
+
+// ─── Fluxo de status ───
+const FLUXO_LABELS = [
+    { key: 'PENDENTE',         label: 'Pendente',       icone: '⏳' },
+    { key: 'AGENDADA',         label: 'Agendada',        icone: '📅' },
+    { key: 'EM_ROTA',          label: 'Em Rota',         icone: '🚚' },
+    { key: 'NO_FORNECEDOR',    label: 'No Fornec.',      icone: '📍' },
+    { key: 'COLETADO',         label: 'Coletado',        icone: '📦' },
+    { key: 'A_CAMINHO_MATRIZ', label: 'A Caminho',       icone: '↩️' },
+    { key: 'ENTREGUE',         label: 'Entregue',        icone: '✅' },
+    { key: 'FINALIZADA',       label: 'Finalizada',      icone: '🏁' },
+];
+
+const PROXIMO_PASSO = {
+    'PENDENTE':         { label: 'Agendar', icone: 'fa-calendar-check', classe: 'avancar' },
+    'AGENDADA':         { label: 'Iniciar Rota', icone: 'fa-play', classe: 'avancar' },
+    'EM_ROTA':          { label: 'Marcar Chegada', icone: 'fa-map-marker-alt', classe: 'avancar' },
+    'NO_FORNECEDOR':    { label: 'Registrar Coleta', icone: 'fa-box', classe: 'avancar' },
+    'COLETADO':         { label: 'Saiu do Fornec.', icone: 'fa-arrow-right', classe: 'avancar' },
+    'A_CAMINHO_MATRIZ': { label: 'Chegou na Matriz', icone: 'fa-home', classe: 'avancar' },
+    'ENTREGUE':         { label: 'Concluir OS', icone: 'fa-flag-checkered', classe: 'concluir' },
+    'IMPEDIDO':         { label: 'Reativar OS', icone: 'fa-redo', classe: 'reativar' },
+};
+
+// ─── Toast ───
+function toast(msg, tipo = 'success') {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = `toast ${tipo}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+
+// ─── Carregar dados ───
+async function carregarDados() {
+    const icone = document.getElementById('iconeAtualizar');
+    icone.classList.add('fa-spin');
+    try {
+        const [osResp, motoristasResp, veiculosResp] = await Promise.all([
+            fetchAPI('/os'),
+            fetchAPI('/motoristas'),
+            fetchAPI('/veiculos'),
+        ]);
+        if (!osResp || !motoristasResp || !veiculosResp) {
+            throw new Error('Sessão expirada');
+        }
+        if (!osResp.ok || !motoristasResp.ok || !veiculosResp.ok) {
+            throw new Error('Erro na resposta do servidor');
+        }
+        todasOS = await osResp.json();
+        todosMotoristas = await motoristasResp.json();
+        todosVeiculos = await veiculosResp.json();
+
+        atualizarKPIs();
+        popularFiltroMotoristas();
+        popularSelectsModal();
+        aplicarFiltros();
+    } catch (e) {
+        console.error('Erro ao carregar dados:', e);
+        toast('Erro ao carregar dados: ' + (e.message || 'Tente novamente'), 'error');
+        document.getElementById('motoristasLista').innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-exclamation-triangle" style="color:#ef4444"></i>
+                <h3>Erro ao carregar</h3>
+                <p>${e.message || 'Verifique sua conexão e tente novamente'}</p>
+            </div>`;
+    } finally {
+        icone.classList.remove('fa-spin');
+    }
+}
+
+// ─── KPIs ───
+function atualizarKPIs() {
+    document.getElementById('kpiTotal').textContent = todasOS.length;
+    document.getElementById('kpiPendentes').textContent = todasOS.filter(o => o.status === 'PENDENTE').length;
+    document.getElementById('kpiEmRota').textContent = todasOS.filter(o => o.status === 'EM_ROTA').length;
+    document.getElementById('kpiImpedidas').textContent = todasOS.filter(o => o.status === 'IMPEDIDO').length;
+    document.getElementById('kpiFinalizadas').textContent = todasOS.filter(o => o.status === 'FINALIZADA').length;
+    document.getElementById('kpiMotoristas').textContent = todosMotoristas.length;
+}
+
+// ─── Filtros ───
+function popularFiltroMotoristas() {
+    const sel = document.getElementById('filtroMotorista');
+    const val = sel.value;
+    sel.innerHTML = '<option value="">Todos os motoristas</option>';
+    todosMotoristas.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.usuario_nome || m.nome || `Motorista #${m.id}`;
+        sel.appendChild(opt);
+    });
+    if (val) sel.value = val;
+}
+
+function limparFiltros() {
+    document.getElementById('filtroMotorista').value = '';
+    document.getElementById('filtroStatus').value = '';
+    aplicarFiltros();
+}
+
+function aplicarFiltros() {
+    const filtroMotoristaId = parseInt(document.getElementById('filtroMotorista').value) || null;
+    const filtroStatus = document.getElementById('filtroStatus').value;
+
+    let osFiltradas = todasOS.filter(os => {
+        if (filtroStatus && os.status !== filtroStatus) return false;
+        if (filtroMotoristaId && os.motorista_id !== filtroMotoristaId) return false;
+        return true;
+    });
+
+    renderizarLista(osFiltradas, filtroMotoristaId);
+}
+
+// ─── Render principal ───
+function renderizarLista(osFiltradas, filtroMotoristaId) {
+    const container = document.getElementById('motoristasLista');
+
+    // Agrupar OS por motorista
+    const grupos = {};
+
+    // Motoristas do filtro ou todos
+    const motoristasExibir = filtroMotoristaId
+        ? todosMotoristas.filter(m => m.id === filtroMotoristaId)
+        : todosMotoristas;
+
+    motoristasExibir.forEach(m => {
+        grupos[m.id] = { motorista: m, os: [] };
+    });
+
+    // OS sem motorista (PENDENTE)
+    const semMotorista = osFiltradas.filter(os => !os.motorista_id);
+    if (semMotorista.length > 0 && !filtroMotoristaId) {
+        grupos['sem_motorista'] = {
+            motorista: { id: 'sem_motorista', usuario_nome: 'Sem Motorista Atribuído', nome: '' },
+            os: semMotorista
+        };
+    }
+
+    osFiltradas.forEach(os => {
+        if (os.motorista_id && grupos[os.motorista_id]) {
+            grupos[os.motorista_id].os.push(os);
+        }
+    });
+
+    const gruposArray = Object.values(grupos).filter(g => g.os.length > 0 || !filtroMotoristaId);
+
+    if (gruposArray.every(g => g.os.length === 0) && semMotorista.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-truck-moving"></i>
+                <h3>Nenhuma OS encontrada</h3>
+                <p>Ajuste os filtros ou crie novas ordens de serviço</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = '';
+    gruposArray.forEach(grupo => {
+        if (grupo.os.length === 0) return;
+        container.appendChild(criarSecaoMotorista(grupo));
+    });
+}
+
+function criarSecaoMotorista(grupo) {
+    const { motorista, os } = grupo;
+    const nome = motorista.usuario_nome || motorista.nome || `Motorista #${motorista.id}`;
+    const iniciais = nome.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
+    const ativas = os.filter(o => !['FINALIZADA','CANCELADA'].includes(o.status)).length;
+    const emRota = os.filter(o => o.status === 'EM_ROTA').length;
+    const isSemMotorista = motorista.id === 'sem_motorista';
+
+    const secao = document.createElement('div');
+    secao.className = 'motorista-section';
+    secao.id = `secao-motorista-${motorista.id}`;
+
+    // Header do motorista
+    const header = document.createElement('div');
+    header.className = 'motorista-header';
+    header.onclick = () => toggleSecao(motorista.id);
+
+    let avatarHtml = isSemMotorista
+        ? `<div class="motorista-avatar" style="background:linear-gradient(135deg,#6b7280,#9ca3af)"><i class="fas fa-user-slash" style="font-size:1rem"></i></div>`
+        : `<div class="motorista-avatar">${iniciais}</div>`;
+
+    let badgesHtml = '';
+    if (isSemMotorista) {
+        badgesHtml = `<span class="motorista-badge sem-os">${os.length} aguardando atribuição</span>`;
+    } else {
+        if (ativas > 0) badgesHtml += `<span class="motorista-badge ativas">${ativas} ativa${ativas > 1 ? 's' : ''}</span>`;
+        if (emRota > 0) badgesHtml += `<span class="motorista-badge em-rota">${emRota} em rota</span>`;
+        if (ativas === 0) badgesHtml += `<span class="motorista-badge sem-os">Sem OS ativas</span>`;
+    }
+
+    header.innerHTML = `
+        ${avatarHtml}
+        <div class="motorista-info">
+            <div class="motorista-nome">${nome}</div>
+            <div class="motorista-meta">${os.length} OS no filtro atual</div>
+            <div class="motorista-badges" style="margin-top:4px">${badgesHtml}</div>
+        </div>
+        <i class="fas fa-chevron-down motorista-chevron" id="chevron-${motorista.id}"></i>
+    `;
+
+    // Lista de OS
+    const osLista = document.createElement('div');
+    osLista.className = 'os-lista';
+    osLista.id = `os-lista-${motorista.id}`;
+
+    os.forEach(ordem => {
+        osLista.appendChild(criarOsCard(ordem, isSemMotorista));
+    });
+
+    secao.appendChild(header);
+    secao.appendChild(osLista);
+    return secao;
+}
+
+function toggleSecao(motoristaId) {
+    const lista = document.getElementById(`os-lista-${motoristaId}`);
+    const chevron = document.getElementById(`chevron-${motoristaId}`);
+    lista.classList.toggle('collapsed');
+    chevron.classList.toggle('collapsed');
+}
+
+function criarOsCard(os, isSemMotorista) {
+    const card = document.createElement('div');
+    card.className = 'os-card';
+    card.id = `os-card-${os.id}`;
+
+    const fornecedor = os.fornecedor_snapshot?.nome || os.fornecedor_nome || 'Fornecedor';
+    const dataStr = os.criado_em ? new Date(os.criado_em).toLocaleDateString('pt-BR') : '';
+    const statusLabel = formatarStatus(os.status);
+
+    // Step progress
+    const stepHtml = criarStepProgress(os.status);
+
+    // Botões de ação
+    const acoesHtml = criarBotoesAcao(os, isSemMotorista);
+
+    card.innerHTML = `
+        <div class="os-card-top">
+            <div>
+                <div class="os-numero">${os.numero_os || `OS #${os.id}`}</div>
+                <div class="os-fornecedor">${fornecedor}</div>
+                <div class="os-meta">${dataStr}${os.tipo ? ' · ' + os.tipo : ''}</div>
+            </div>
+            <span class="status-badge status-${os.status}">${statusLabel}</span>
+        </div>
+        ${stepHtml}
+        <div class="os-actions">${acoesHtml}</div>
+    `;
+
+    return card;
+}
+
+function criarStepProgress(statusAtual) {
+    const statusIndex = FLUXO_LABELS.findIndex(s => s.key === statusAtual);
+    const isImpedido = statusAtual === 'IMPEDIDO';
+    const isCancelado = statusAtual === 'CANCELADA';
+
+    if (isCancelado) {
+        return `<div class="step-progress" style="margin-bottom:12px">
+            <span style="font-size:0.8rem;color:#9ca3af;font-style:italic">OS Cancelada</span>
+        </div>`;
+    }
+
+    let html = '<div class="step-progress">';
+    FLUXO_LABELS.forEach((step, idx) => {
+        let dotClass = '';
+        let labelClass = '';
+        let conteudo = `<span style="font-size:0.65rem">${idx + 1}</span>`;
+
+        if (isImpedido && idx === statusIndex) {
+            dotClass = 'blocked';
+            labelClass = 'blocked';
+            conteudo = '<i class="fas fa-exclamation" style="font-size:0.65rem"></i>';
+        } else if (idx < statusIndex) {
+            dotClass = 'done';
+            labelClass = 'done';
+            conteudo = '<i class="fas fa-check" style="font-size:0.65rem"></i>';
+        } else if (idx === statusIndex) {
+            dotClass = 'current';
+            labelClass = 'current';
+            conteudo = '<i class="fas fa-circle" style="font-size:0.5rem"></i>';
+        }
+
+        html += `
+            <div class="step-item">
+                <div class="step-dot ${dotClass}">${conteudo}</div>
+                <div class="step-label ${labelClass}">${step.label}</div>
+            </div>
+        `;
+
+        if (idx < FLUXO_LABELS.length - 1) {
+            const lineClass = idx < statusIndex ? 'done' : '';
+            html += `<div class="step-line ${lineClass}"></div>`;
+        }
+    });
+    html += '</div>';
+    return html;
+}
+
+function criarBotoesAcao(os, isSemMotorista) {
+    let html = '';
+
+    if (['FINALIZADA', 'CANCELADA'].includes(os.status)) {
+        return `<span style="font-size:0.8rem;color:#9ca3af;font-style:italic">OS concluída</span>`;
+    }
+
+    // Botão de atribuir/reatribuir
+    if (isSemMotorista || !os.motorista_id) {
+        html += `<button class="btn-acao atribuir" onclick="abrirModalAtribuir(${os.id})">
+            <i class="fas fa-user-plus"></i> Atribuir Motorista
+        </button>`;
+    } else if (os.status !== 'EM_ROTA' && os.status !== 'NO_FORNECEDOR' && os.status !== 'COLETADO' && os.status !== 'A_CAMINHO_MATRIZ') {
+        html += `<button class="btn-acao atribuir" onclick="abrirModalAtribuir(${os.id})" style="background:linear-gradient(135deg,#6366f1,#818cf8)">
+            <i class="fas fa-exchange-alt"></i> Reatribuir
+        </button>`;
+    }
+
+    // Botão de avançar status
+    const proximo = PROXIMO_PASSO[os.status];
+    if (proximo) {
+        if (os.status === 'ENTREGUE') {
+            html += `<button class="btn-acao concluir" onclick="avancarStatus(${os.id}, this)">
+                <i class="fas ${proximo.icone}"></i> ${proximo.label}
+            </button>`;
+        } else {
+            html += `<button class="btn-acao ${proximo.classe}" onclick="avancarStatus(${os.id}, this)">
+                <i class="fas ${proximo.icone}"></i> ${proximo.label}
+            </button>`;
+        }
+    }
+
+    return html;
+}
+
+function formatarStatus(status) {
+    const map = {
+        'PENDENTE': 'Pendente', 'AGENDADA': 'Agendada', 'EM_ROTA': 'Em Rota',
+        'NO_FORNECEDOR': 'No Fornecedor', 'COLETADO': 'Coletado',
+        'A_CAMINHO_MATRIZ': 'A Caminho', 'ENTREGUE': 'Entregue',
+        'FINALIZADA': 'Finalizada', 'IMPEDIDO': 'Impedido', 'CANCELADA': 'Cancelada',
+    };
+    return map[status] || status;
+}
+
+// ─── Ações ───
+async function avancarStatus(osId, btn) {
+    btn.classList.add('loading');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aguarde...';
+    try {
+        const resp = await fetchAPI(`/os/${osId}/admin-avancar-status`, { method: 'PUT' });
+        if (!resp) return;
+        const data = await resp.json();
+        if (resp.ok) {
+            toast(`Status atualizado: ${formatarStatus(data.os.status)}`, 'success');
+            const idx = todasOS.findIndex(o => o.id === osId);
+            if (idx !== -1) todasOS[idx] = data.os;
+            atualizarKPIs();
+            aplicarFiltros();
+        } else {
+            toast(data.erro || 'Erro ao avançar status', 'error');
+            btn.classList.remove('loading');
+        }
+    } catch (e) {
+        toast('Erro de conexão', 'error');
+        btn.classList.remove('loading');
+    }
+}
+
+// ─── Modal Atribuir ───
+let osIdAtribuindo = null;
+
+function popularSelectsModal() {
+    const selMot = document.getElementById('modalSelectMotorista');
+    const selVei = document.getElementById('modalSelectVeiculo');
+
+    selMot.innerHTML = '<option value="">Selecione o motorista...</option>';
+    todosMotoristas.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.usuario_nome || m.nome || `Motorista #${m.id}`;
+        selMot.appendChild(opt);
+    });
+
+    selVei.innerHTML = '<option value="">Sem veículo específico</option>';
+    todosVeiculos.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.id;
+        opt.textContent = `${v.placa} - ${v.modelo || ''}`.trim();
+        selVei.appendChild(opt);
+    });
+}
+
+function abrirModalAtribuir(osId) {
+    osIdAtribuindo = osId;
+    document.getElementById('modalSelectMotorista').value = '';
+    document.getElementById('modalSelectVeiculo').value = '';
+    document.getElementById('modalAtribuir').classList.add('active');
+}
+
+function fecharModal() {
+    document.getElementById('modalAtribuir').classList.remove('active');
+    osIdAtribuindo = null;
+}
+
+async function salvarAtribuicao() {
+    const motoristaId = document.getElementById('modalSelectMotorista').value;
+    const veiculoId = document.getElementById('modalSelectVeiculo').value;
+
+    if (!motoristaId) { toast('Selecione um motorista', 'error'); return; }
+
+    const body = { motorista_id: parseInt(motoristaId) };
+    if (veiculoId) body.veiculo_id = parseInt(veiculoId);
+
+    try {
+        const resp = await fetchAPI(`/os/${osIdAtribuindo}/atribuir-motorista`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!resp) return;
+        const data = await resp.json();
+        if (resp.ok) {
+            toast('Motorista atribuído com sucesso!', 'success');
+            fecharModal();
+            const idx = todasOS.findIndex(o => o.id === osIdAtribuindo);
+            if (idx !== -1) todasOS[idx] = data.os;
+            atualizarKPIs();
+            aplicarFiltros();
+        } else {
+            toast(data.erro || 'Erro ao atribuir', 'error');
+        }
+    } catch (e) {
+        toast('Erro de conexão', 'error');
+    }
+}
+
+// Fechar modal ao clicar fora
+document.getElementById('modalAtribuir').addEventListener('click', function(e) {
+    if (e.target === this) fecharModal();
+});
+
+// ─── Init ───
+document.addEventListener('DOMContentLoaded', async () => {
+    const user = await verificarAuth();
+    if (!user) return;
+    await carregarDados();
+    await atualizarNotificacoes();
+});
+</script>
+</body>
+</html>

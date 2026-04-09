@@ -6,10 +6,12 @@ from flask_jwt_extended import (
     get_jwt_identity,
     get_jwt
 )
-from app.models import db, Usuario
+from app.models import db, Usuario, Perfil
 from app.auth import verificar_senha, get_user_jwt_claims
 from app.utils.auditoria import registrar_login
-from app.rbac_config import get_menus_by_perfil, get_tela_inicial_by_perfil, get_paginas_permitidas, get_ocultar_menu_inferior, get_ocultar_botao_adicionar
+from app.rbac_config import (get_menus_by_perfil, get_tela_inicial_by_perfil, get_paginas_permitidas,
+                              get_ocultar_menu_inferior, get_ocultar_botao_adicionar, get_perfil_config,
+                              perfil_tem_motorista, PERMISSOES_CATALOGO)
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -53,41 +55,20 @@ def login():
     # Determinar o perfil do usuário
     if usuario.tipo == 'admin':
         perfil_nome = 'Administrador'
-    elif usuario.tipo == 'motorista':
-        perfil_nome = 'Motorista'
     elif usuario.perfil:
         perfil_nome = usuario.perfil.nome
     else:
         perfil_nome = 'Sem perfil'
     
     permissoes = {}
-    if usuario.tipo == 'motorista':
-        permissoes = {
-            'visualizar_os': True,
-            'atualizar_os': True
-        }
+    if usuario.tipo == 'admin':
+        for modulo_config in PERMISSOES_CATALOGO.values():
+            for perm_key in modulo_config['permissoes']:
+                permissoes[perm_key] = True
     elif usuario.perfil:
         permissoes = usuario.perfil.permissoes or {}
-    elif usuario.tipo == 'admin':
-        permissoes = {
-            'gerenciar_usuarios': True,
-            'gerenciar_perfis': True,
-            'gerenciar_fornecedores': True,
-            'gerenciar_veiculos': True,
-            'gerenciar_motoristas': True,
-            'criar_solicitacao': True,
-            'aprovar_solicitacao': True,
-            'rejeitar_solicitacao': True,
-            'criar_lote': True,
-            'aprovar_lote': True,
-            'processar_entrada': True,
-            'visualizar_auditoria': True,
-            'exportar_relatorios': True,
-            'definir_limites': True,
-            'autorizar_descarte': True
-        }
     
-    tela_inicial = get_tela_inicial_by_perfil(perfil_nome)
+    tela_inicial = '/administracao.html'
     
     usuario_dict = usuario.to_dict()
     usuario_dict['permissoes'] = permissoes
@@ -125,51 +106,27 @@ def get_current_user_endpoint():
     if not usuario:
         return jsonify({'erro': 'Usuário não encontrado'}), 404
     
-    claims = get_jwt()
-    
     # Determinar o perfil do usuário
     if usuario.tipo == 'admin':
         perfil_nome = 'Administrador'
-    elif usuario.tipo == 'motorista':
-        perfil_nome = 'Motorista'
     elif usuario.perfil:
         perfil_nome = usuario.perfil.nome
     else:
-        perfil_nome = claims.get('perfil', 'Sem perfil')
+        perfil_nome = 'Sem perfil'
     
     permissoes = {}
     permissoes_lista = []
     
-    if usuario.tipo == 'motorista':
-        permissoes = {
-            'visualizar_os': True,
-            'atualizar_os': True
-        }
+    if usuario.tipo == 'admin':
+        for modulo_config in PERMISSOES_CATALOGO.values():
+            for perm_key in modulo_config['permissoes']:
+                permissoes[perm_key] = True
         permissoes_lista = list(permissoes.keys())
     elif usuario.perfil:
         permissoes = usuario.perfil.permissoes or {}
-        permissoes_lista = [k for k, v in permissoes.items() if v]
-    elif usuario.tipo == 'admin':
-        permissoes = {
-            'gerenciar_usuarios': True,
-            'gerenciar_perfis': True,
-            'gerenciar_fornecedores': True,
-            'gerenciar_veiculos': True,
-            'gerenciar_motoristas': True,
-            'criar_solicitacao': True,
-            'aprovar_solicitacao': True,
-            'rejeitar_solicitacao': True,
-            'criar_lote': True,
-            'aprovar_lote': True,
-            'processar_entrada': True,
-            'visualizar_auditoria': True,
-            'exportar_relatorios': True,
-            'definir_limites': True,
-            'autorizar_descarte': True
-        }
-        permissoes_lista = list(permissoes.keys())
+        permissoes_lista = [k for k, v in permissoes.items() if v and k != 'menus_inferiores']
     
-    tela_inicial = get_tela_inicial_by_perfil(perfil_nome)
+    tela_inicial = '/administracao.html'
     
     usuario_dict = usuario.to_dict()
     usuario_dict['perfil'] = perfil_nome
@@ -182,21 +139,28 @@ def get_current_user_endpoint():
 @bp.route('/menus', methods=['GET'])
 @jwt_required()
 def get_menus():
-    claims = get_jwt()
-    perfil_nome = claims.get('perfil')
+    usuario_id = int(get_jwt_identity())
+    usuario = Usuario.query.get(usuario_id)
     
-    if not perfil_nome:
-        return jsonify({'erro': 'Perfil não definido'}), 403
+    if not usuario:
+        return jsonify({'erro': 'Usuário não encontrado'}), 404
     
-    menus = get_menus_by_perfil(perfil_nome)
-    paginas_permitidas = get_paginas_permitidas(perfil_nome)
-    ocultar_menu = get_ocultar_menu_inferior(perfil_nome)
-    ocultar_botao = get_ocultar_botao_adicionar(perfil_nome)
+    if usuario.tipo == 'admin':
+        perfil_nome = 'Administrador'
+        perfil_obj = None
+    elif usuario.perfil:
+        perfil_nome = usuario.perfil.nome
+        perfil_obj = usuario.perfil
+    else:
+        perfil_nome = 'Sem perfil'
+        perfil_obj = None
+    
+    config = get_perfil_config(perfil_nome, perfil_obj)
     
     return jsonify({
         'perfil': perfil_nome,
-        'menus': menus,
-        'paginas_permitidas': paginas_permitidas,
-        'ocultar_menu_inferior': ocultar_menu,
-        'ocultar_botao_adicionar': ocultar_botao
+        'menus': config.get('menus', []),
+        'paginas_permitidas': config.get('paginas_permitidas', []),
+        'ocultar_menu_inferior': config.get('ocultar_menu_inferior', False),
+        'ocultar_botao_adicionar': config.get('ocultar_botao_adicionar', True)
     }), 200

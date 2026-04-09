@@ -475,18 +475,21 @@
         }
 
         // Preview de imagem
-        document.getElementById('foto').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    document.getElementById('previewImg').src = event.target.result;
-                    document.getElementById('imageName').textContent = file.name;
-                    document.getElementById('imagePreview').style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+        const inputFoto = document.getElementById('foto');
+        if (inputFoto) {
+            inputFoto.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        document.getElementById('previewImg').src = event.target.result;
+                        document.getElementById('imageName').textContent = file.name;
+                        document.getElementById('imagePreview').style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
 
         // Variáveis para armazenar localização
         let currentLat = null;

@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelos de Tabela de Preço - MRX Systems</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#059669">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { padding-top: 60px; padding-bottom: 95px; }
+        main.container { padding-top: 20px !important; padding-bottom: 100px !important; }
+        
+        @media (max-width: 768px) {
+            body { padding-top: 70px; }
+            main.container { padding-top: 25px !important; }
+        }
+
+        .hero-banner {
+            background: linear-gradient(135deg, #6366f1, #818cf8, #a78bfa);
+            border-radius: 16px;
+            padding: 28px 24px;
+            color: white;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-banner::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+        }
+        .hero-banner .icon-box {
+            width: 64px; height: 64px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .hero-banner .icon-box i { font-size: 28px; }
+        .hero-banner h2 { margin: 0 0 4px; font-size: 1.5rem; }
+        .hero-banner p { margin: 0; opacity: 0.9; font-size: 0.9rem; }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 18px;
+            text-align: center;
+            border: 1px solid #e5e7eb;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .stat-card .number { font-size: 2rem; font-weight: 700; color: #6366f1; }
+        .stat-card .label { font-size: 0.85rem; color: #6b7280; margin-top: 2px; }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .toolbar input[type="text"] {
+            flex: 1; min-width: 200px; max-width: 400px;
+            padding: 10px 14px; border: 2px solid #e5e7eb;
+            border-radius: 10px; font-size: 15px;
+            transition: border-color 0.2s;
+        }
+        .toolbar input[type="text"]:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+
+        .modelos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 18px;
+        }
+        @media (max-width: 480px) {
+            .modelos-grid { grid-template-columns: 1fr; }
+        }
+
+        .modelo-card {
+            background: white;
+            border-radius: 14px;
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        .modelo-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(99,102,241,0.12); }
+
+        .modelo-card-header {
+            padding: 18px 20px;
+            background: linear-gradient(135deg, #f5f3ff, #eef2ff);
+            border-bottom: 1px solid #e0e7ff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modelo-card-header h3 {
+            margin: 0; font-size: 1.05rem; color: #312e81;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .modelo-card-header h3 i { color: #6366f1; font-size: 1rem; }
+
+        .modelo-card-body {
+            padding: 16px 20px;
+        }
+        .modelo-card-body .desc {
+            font-size: 0.875rem; color: #6b7280;
+            margin: 0 0 14px; line-height: 1.5;
+            display: -webkit-box; -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical; overflow: hidden;
+        }
+
+        .modelo-meta {
+            display: flex; flex-wrap: wrap; gap: 10px;
+            padding-top: 12px; border-top: 1px solid #f3f4f6;
+        }
+        .modelo-meta-item {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.8rem; color: #6b7280;
+            background: #f9fafb; padding: 4px 10px; border-radius: 6px;
+        }
+        .modelo-meta-item i { color: #6366f1; }
+
+        .modelo-card-actions {
+            padding: 12px 20px;
+            border-top: 1px solid #f3f4f6;
+            display: flex; gap: 8px; justify-content: flex-end;
+        }
+        .modelo-card-actions .btn-sm {
+            padding: 6px 12px; font-size: 0.8rem; border-radius: 6px;
+            border: 1px solid #e5e7eb; background: white; color: #374151;
+            cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px;
+        }
+        .modelo-card-actions .btn-sm:hover { background: #f3f4f6; }
+        .modelo-card-actions .btn-sm.btn-edit { border-color: #6366f1; color: #6366f1; }
+        .modelo-card-actions .btn-sm.btn-edit:hover { background: #eef2ff; }
+        .modelo-card-actions .btn-sm.btn-copy { border-color: #059669; color: #059669; }
+        .modelo-card-actions .btn-sm.btn-copy:hover { background: #ecfdf5; }
+        .modelo-card-actions .btn-sm.btn-del { border-color: #ef4444; color: #ef4444; }
+        .modelo-card-actions .btn-sm.btn-del:hover { background: #fef2f2; }
+        .modelo-card-actions .btn-sm.btn-activate { border-color: #059669; color: #059669; }
+        .modelo-card-actions .btn-sm.btn-activate:hover { background: #ecfdf5; }
+
+        .badge-status {
+            display: inline-flex; align-items: center; padding: 3px 10px;
+            border-radius: 20px; font-size: 0.7rem; font-weight: 600;
+        }
+        .badge-ativo { background: #dcfce7; color: #166534; }
+        .badge-inativo { background: #fee2e2; color: #991b1b; }
+
+        /* Modal */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: flex-start;
+            padding: 20px; overflow-y: auto;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-box {
+            background: white; border-radius: 16px; width: 100%; max-width: 900px;
+            max-height: 90vh; overflow-y: auto; margin-top: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .modal-header-custom {
+            padding: 20px 24px; border-bottom: 1px solid #e5e7eb;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; background: white; z-index: 1; border-radius: 16px 16px 0 0;
+        }
+        .modal-header-custom h2 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
+        .modal-header-custom h2 i { color: #6366f1; }
+        .modal-close-btn {
+            width: 36px; height: 36px; border-radius: 8px; border: none;
+            background: #f3f4f6; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem; color: #6b7280; transition: all 0.2s;
+        }
+        .modal-close-btn:hover { background: #fee2e2; color: #ef4444; }
+        .modal-body { padding: 24px; }
+        .modal-footer {
+            padding: 16px 24px; border-top: 1px solid #e5e7eb;
+            display: flex; gap: 12px; justify-content: flex-end;
+            position: sticky; bottom: 0; background: white; border-radius: 0 0 16px 16px;
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-weight: 600; font-size: 0.875rem; color: #374151; margin-bottom: 6px; }
+        .form-group input, .form-group textarea {
+            width: 100%; padding: 10px 14px; border: 2px solid #e5e7eb;
+            border-radius: 10px; font-size: 15px; font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+
+        .itens-section { margin-top: 8px; }
+        .itens-section h4 { margin: 0 0 12px; font-size: 0.95rem; color: #374151; display: flex; align-items: center; gap: 8px; }
+        .itens-section h4 .count { background: #6366f1; color: white; border-radius: 12px; padding: 2px 10px; font-size: 0.75rem; }
+
+        .item-search-bar {
+            display: flex; gap: 8px; margin-bottom: 14px; align-items: center;
+        }
+        .item-search-bar input {
+            flex: 1; padding: 10px 14px; border: 2px solid #e5e7eb;
+            border-radius: 10px; font-size: 14px;
+        }
+        .item-search-bar input:focus { outline: none; border-color: #6366f1; }
+
+        .items-list {
+            max-height: 400px; overflow-y: auto; border: 1px solid #e5e7eb;
+            border-radius: 10px;
+        }
+        .item-entry {
+            display: grid; grid-template-columns: 1fr 140px;
+            gap: 12px; align-items: center; padding: 10px 14px;
+            border-bottom: 1px solid #f3f4f6; transition: background 0.15s;
+        }
+        .item-entry:last-child { border-bottom: none; }
+        .item-entry:hover { background: #f9fafb; }
+        .item-entry .mat-info strong { font-size: 0.875rem; color: #1f2937; }
+        .item-entry .mat-info small { color: #6b7280; font-size: 0.75rem; }
+        .item-entry input[type="number"] {
+            width: 100%; padding: 8px 10px; border: 2px solid #e5e7eb;
+            border-radius: 8px; font-size: 14px; text-align: right;
+        }
+        .item-entry input[type="number"]:focus { outline: none; border-color: #6366f1; }
+
+        .empty-state {
+            text-align: center; padding: 60px 20px; color: #9ca3af;
+        }
+        .empty-state i { font-size: 3rem; margin-bottom: 12px; display: block; }
+        .empty-state h3 { color: #6b7280; margin: 0 0 8px; }
+        .empty-state p { font-size: 0.9rem; }
+
+        /* Badge de classificação */
+        .class-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+        }
+        .class-high { background: #fef3c7; color: #92400e; }
+        .class-mg1 { background: #dbeafe; color: #1e40af; }
+        .class-mg2 { background: #e0e7ff; color: #3730a3; }
+        .class-low { background: #f3e8ff; color: #6b21a8; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content" style="justify-content: space-between;">
+            <div class="logo" style="cursor: pointer;" onclick="window.location.href='/administracao.html'">
+                <i class="fas fa-arrow-left" style="margin-right: 8px;"></i>
+                <span>Modelos de Tabela</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div class="notification-badge" onclick="window.location.href='/notificacoes.html'">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count" id="headerNotificationCount" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary" onclick="logout()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mt-4">
+        <div class="hero-banner">
+            <div class="icon-box"><i class="fas fa-layer-group"></i></div>
+            <div>
+                <h2>Modelos de Tabela de Preço</h2>
+                <p>Crie e gerencie templates de preços reutilizáveis para pré-preencher tabelas de fornecedores</p>
+            </div>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="number" id="statTotal">0</div>
+                <div class="label">Total de Modelos</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="statAtivos">0</div>
+                <div class="label">Ativos</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="statMateriais">0</div>
+                <div class="label">Materiais Média</div>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <input type="text" id="buscaModelo" placeholder="Buscar modelo por nome..." oninput="filtrarModelos()">
+            <button class="btn btn-primary" onclick="abrirModalCriar()">
+                <i class="fas fa-plus"></i> Novo Modelo
+            </button>
+        </div>
+
+        <div id="modelosGrid" class="modelos-grid">
+            <div class="empty-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <h3>Carregando...</h3>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Criar/Editar Modelo -->
+    <div class="modal-overlay" id="modalModelo">
+        <div class="modal-box">
+            <div class="modal-header-custom">
+                <h2><i class="fas fa-layer-group"></i> <span id="modalTitulo">Novo Modelo</span></h2>
+                <button class="modal-close-btn" onclick="fecharModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="modeloEditId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-tag"></i> Nome do Modelo *</label>
+                        <input type="text" id="modeloNome" placeholder="Ex: Tabela Padrão 2026">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-align-left"></i> Descrição</label>
+                        <input type="text" id="modeloDescricao" placeholder="Breve descrição do modelo">
+                    </div>
+                </div>
+
+                <div class="itens-section">
+                    <h4>
+                        <i class="fas fa-boxes-stacked"></i> Materiais e Preços
+                        <span class="count" id="itensCount">0</span>
+                    </h4>
+                    <div class="item-search-bar">
+                        <input type="text" id="buscaMaterial" placeholder="Filtrar materiais..." oninput="filtrarMateriaisModal()">
+                    </div>
+                    <div class="items-list" id="itensContainer">
+                        <div style="padding: 20px; text-align: center; color: #9ca3af;">Carregando materiais...</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+                <button class="btn btn-primary" id="btnSalvarModelo" onclick="salvarModelo()">
+                    <i class="fas fa-save"></i> Salvar Modelo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat-widget.js"></script>
+    <script>
+        let modelos = [];
+        let materiaisBase = [];
+        let modeloItensTemp = {}; // { material_id: preco }
+
+        async function carregarPagina() {
+            const user = await verificarAuth();
+            if (!user) return;
+            currentUser = user;
+
+            await Promise.all([carregarModelos(), carregarMateriais()]);
+            await atualizarNotificacoes();
+        }
+
+        async function carregarModelos() {
+            try {
+                const response = await fetchAPI('/modelos-tabela-preco?apenas_ativos=false');
+                if (response.ok) {
+                    modelos = await response.json();
+                    renderizarModelos();
+                    atualizarStats();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar modelos:', error);
+            }
+        }
+
+        async function carregarMateriais() {
+            try {
+                const response = await fetchAPI('/materiais-base');
+                if (response.ok) {
+                    materiaisBase = await response.json();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar materiais:', error);
+            }
+        }
+
+        function atualizarStats() {
+            const ativos = modelos.filter(m => m.ativo);
+            document.getElementById('statTotal').textContent = modelos.length;
+            document.getElementById('statAtivos').textContent = ativos.length;
+            const avgItens = ativos.length > 0
+                ? Math.round(ativos.reduce((s, m) => s + (m.total_itens || 0), 0) / ativos.length)
+                : 0;
+            document.getElementById('statMateriais').textContent = avgItens;
+        }
+
+        function filtrarModelos() {
+            renderizarModelos();
+        }
+
+        function getClassBadge(classificacao) {
+            const cls = (classificacao || '').toLowerCase();
+            return `<span class="class-badge class-${cls}">${cls.toUpperCase()}</span>`;
+        }
+
+        function renderizarModelos() {
+            const container = document.getElementById('modelosGrid');
+            const busca = document.getElementById('buscaModelo').value.toLowerCase();
+
+            const filtrados = modelos.filter(m =>
+                !busca || m.nome.toLowerCase().includes(busca) || (m.descricao || '').toLowerCase().includes(busca)
+            );
+
+            if (filtrados.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <i class="fas fa-layer-group"></i>
+                        <h3>${busca ? 'Nenhum modelo encontrado' : 'Nenhum modelo criado'}</h3>
+                        <p>${busca ? 'Tente outra busca' : 'Crie seu primeiro modelo de tabela de preço'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtrados.map(m => `
+                <div class="modelo-card">
+                    <div class="modelo-card-header">
+                        <h3><i class="fas fa-layer-group"></i> ${m.nome}</h3>
+                        <span class="badge-status ${m.ativo ? 'badge-ativo' : 'badge-inativo'}">
+                            ${m.ativo ? 'Ativo' : 'Inativo'}
+                        </span>
+                    </div>
+                    <div class="modelo-card-body" onclick="abrirModalEditar(${m.id})">
+                        <p class="desc">${m.descricao || '<em style=\"color:#d1d5db\">Sem descrição</em>'}</p>
+                        <div class="modelo-meta">
+                            <div class="modelo-meta-item">
+                                <i class="fas fa-boxes-stacked"></i> ${m.total_itens} materiais
+                            </div>
+                            <div class="modelo-meta-item">
+                                <i class="fas fa-user"></i> ${m.criador_nome || 'Sistema'}
+                            </div>
+                            <div class="modelo-meta-item">
+                                <i class="fas fa-calendar"></i> ${formatarData(m.created_at)}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modelo-card-actions">
+                        <button class="btn-sm btn-edit" onclick="event.stopPropagation(); abrirModalEditar(${m.id})" title="Editar">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button class="btn-sm btn-copy" onclick="event.stopPropagation(); duplicarModelo(${m.id})" title="Duplicar">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        ${m.ativo ? `
+                            <button class="btn-sm btn-del" onclick="event.stopPropagation(); desativarModelo(${m.id})" title="Desativar">
+                                <i class="fas fa-ban"></i>
+                            </button>
+                        ` : `
+                            <button class="btn-sm btn-activate" onclick="event.stopPropagation(); ativarModelo(${m.id})" title="Ativar">
+                                <i class="fas fa-check-circle"></i>
+                            </button>
+                        `}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function formatarData(isoStr) {
+            if (!isoStr) return '-';
+            const d = new Date(isoStr);
+            return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+
+        // Modal
+        function abrirModalCriar() {
+            document.getElementById('modeloEditId').value = '';
+            document.getElementById('modalTitulo').textContent = 'Novo Modelo';
+            document.getElementById('modeloNome').value = '';
+            document.getElementById('modeloDescricao').value = '';
+            modeloItensTemp = {};
+            renderizarItensModal();
+            document.getElementById('modalModelo').classList.add('show');
+        }
+
+        async function abrirModalEditar(id) {
+            try {
+                const response = await fetchAPI(`/modelos-tabela-preco/${id}`);
+                if (!response.ok) { alert('Erro ao carregar modelo'); return; }
+
+                const modelo = await response.json();
+
+                document.getElementById('modeloEditId').value = modelo.id;
+                document.getElementById('modalTitulo').textContent = 'Editar Modelo';
+                document.getElementById('modeloNome').value = modelo.nome;
+                document.getElementById('modeloDescricao').value = modelo.descricao || '';
+
+                modeloItensTemp = {};
+                (modelo.itens || []).forEach(item => {
+                    modeloItensTemp[item.material_id] = item.preco_por_kg;
+                });
+
+                renderizarItensModal();
+                document.getElementById('modalModelo').classList.add('show');
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao carregar modelo');
+            }
+        }
+
+        function fecharModal() {
+            document.getElementById('modalModelo').classList.remove('show');
+        }
+
+        function filtrarMateriaisModal() {
+            renderizarItensModal();
+        }
+
+        function renderizarItensModal() {
+            const container = document.getElementById('itensContainer');
+            const busca = (document.getElementById('buscaMaterial').value || '').toLowerCase();
+
+            const filtrados = materiaisBase.filter(m =>
+                m.ativo !== false && (!busca ||
+                m.nome.toLowerCase().includes(busca) ||
+                m.codigo.toLowerCase().includes(busca))
+            );
+
+            if (filtrados.length === 0) {
+                container.innerHTML = '<div style="padding: 20px; text-align: center; color: #9ca3af;">Nenhum material encontrado</div>';
+                atualizarContadorItens();
+                return;
+            }
+
+            container.innerHTML = filtrados.map(m => {
+                const precoAtual = modeloItensTemp[m.id] !== undefined ? modeloItensTemp[m.id] : '';
+                return `
+                    <div class="item-entry">
+                        <div class="mat-info">
+                            <strong>${m.nome}</strong>
+                            <br><small>${m.codigo} ${getClassBadge(m.classificacao)}</small>
+                        </div>
+                        <input type="number" step="0.01" min="0" placeholder="R$/kg"
+                               value="${precoAtual}"
+                               onchange="atualizarPrecoTemp(${m.id}, this.value)"
+                               oninput="atualizarPrecoTemp(${m.id}, this.value)">
+                    </div>
+                `;
+            }).join('');
+
+            atualizarContadorItens();
+        }
+
+        function atualizarPrecoTemp(materialId, valor) {
+            if (valor === '' || valor === null || valor === undefined) {
+                delete modeloItensTemp[materialId];
+            } else {
+                const preco = parseFloat(valor);
+                if (!isNaN(preco) && preco >= 0) {
+                    modeloItensTemp[materialId] = preco;
+                }
+            }
+            atualizarContadorItens();
+        }
+
+        function atualizarContadorItens() {
+            const count = Object.keys(modeloItensTemp).filter(k => modeloItensTemp[k] !== undefined && modeloItensTemp[k] !== '').length;
+            document.getElementById('itensCount').textContent = count;
+        }
+
+        async function salvarModelo() {
+            const id = document.getElementById('modeloEditId').value;
+            const nome = document.getElementById('modeloNome').value.trim();
+            const descricao = document.getElementById('modeloDescricao').value.trim();
+
+            if (!nome) { alert('Nome do modelo é obrigatório'); return; }
+
+            // Montar itens (apenas os com preço preenchido)
+            const itens = [];
+            for (const [materialId, preco] of Object.entries(modeloItensTemp)) {
+                if (preco !== undefined && preco !== '' && preco !== null) {
+                    itens.push({ material_id: parseInt(materialId), preco_por_kg: parseFloat(preco) });
+                }
+            }
+
+            if (itens.length === 0) {
+                alert('Preencha o preço de pelo menos um material');
+                return;
+            }
+
+            const btn = document.getElementById('btnSalvarModelo');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+
+            try {
+                const url = id ? `/modelos-tabela-preco/${id}` : '/modelos-tabela-preco';
+                const method = id ? 'PUT' : 'POST';
+
+                const response = await fetchAPI(url, {
+                    method: method,
+                    body: JSON.stringify({ nome, descricao, itens })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(result.mensagem || 'Modelo salvo com sucesso!');
+                    fecharModal();
+                    await carregarModelos();
+                } else {
+                    alert(result.erro || 'Erro ao salvar modelo');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao salvar modelo');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-save"></i> Salvar Modelo';
+            }
+        }
+
+        async function duplicarModelo(id) {
+            if (!confirm('Deseja duplicar este modelo?')) return;
+            try {
+                const response = await fetchAPI(`/modelos-tabela-preco/${id}/duplicar`, { method: 'POST' });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.mensagem || 'Modelo duplicado!');
+                    await carregarModelos();
+                } else {
+                    alert(result.erro || 'Erro ao duplicar');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao duplicar modelo');
+            }
+        }
+
+        async function desativarModelo(id) {
+            if (!confirm('Deseja desativar este modelo?')) return;
+            try {
+                const response = await fetchAPI(`/modelos-tabela-preco/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.mensagem || 'Modelo desativado!');
+                    await carregarModelos();
+                } else {
+                    alert(result.erro || 'Erro ao desativar');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+            }
+        }
+
+        async function ativarModelo(id) {
+            if (!confirm('Deseja reativar este modelo?')) return;
+            try {
+                const response = await fetchAPI(`/modelos-tabela-preco/${id}/ativar`, { method: 'PUT' });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.mensagem || 'Modelo ativado!');
+                    await carregarModelos();
+                } else {
+                    alert(result.erro || 'Erro ao ativar');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+            }
+        }
+
+        carregarPagina();
+    </script>
+</body>
+</html>

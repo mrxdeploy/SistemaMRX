@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         @media (max-width: 768px) {
             .container { padding-left: var(--spacing-md); padding-right: var(--spacing-md); }
@@ -213,6 +214,74 @@
             cursor: pointer; transition: all 0.2s;
         }
         .barra-selecao-fixa .btn-enviar-bag:hover { transform: scale(1.05); }
+
+        /* Estilos para Impressão A4 */
+        @media print {
+            body * { visibility: hidden; }
+            #modalVerBag, #modalVerBag * { visibility: visible; }
+            #modalVerBag {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white !important;
+                display: block !important;
+                overflow: visible !important;
+            }
+            .modal-producao-header {
+                background: white !important;
+                color: black !important;
+                border-bottom: 2px solid #eee;
+            }
+            .modal-producao-header button, .btn-export-group { display: none !important; }
+            .modal-producao-content {
+                box-shadow: none !important;
+                max-height: none !important;
+                overflow: visible !important;
+                width: 100% !important;
+                max-width: none !important;
+            }
+            .producao-stat {
+                background: #f9fafb !important;
+                border: 1px solid #ddd !important;
+                border-radius: 8px !important;
+            }
+            .table-container { overflow: visible !important; }
+            table { width: 100% !important; border-collapse: collapse !important; }
+            th { background: #f3f4f6 !important; color: black !important; -webkit-print-color-adjust: exact; }
+            td, th { border: 1px solid #ddd !important; padding: 8px !important; }
+            .badge { border: 1px solid #ddd !important; color: black !important; }
+            
+            @page {
+                size: A4;
+                margin: 1.5cm;
+            }
+        }
+
+        .btn-export-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            justify-content: center;
+        }
+        .btn-export {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.2rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .btn-export:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
+        .btn-pdf { background: linear-gradient(135deg, #10b981, #059669); }
+        .btn-excel { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .btn-print { background: linear-gradient(135deg, #6b7280, #4b5563); }
     </style>
 </head>
 <body>
@@ -1846,6 +1915,7 @@
         }
 
         function renderizarVerBag(bag) {
+            window.lastBagData = bag; // Store for export functions
             const verBagCores = {
                 'HIGH_GRADE': '#10B981', 'high': '#10B981',
                 'MG1': '#EAB308', 'mg1': '#EAB308', 'MID_GRADE_1': '#EAB308',
@@ -1930,10 +2000,17 @@
 
             document.getElementById('verBagBody').innerHTML = `
                 <h4 style="margin-bottom:1rem; color:var(--primary-color); text-align: center;"><i class="fas fa-box"></i> Bag: ${bag.codigo}</h4>
+                
+                <div class="btn-export-group">
+                    <button class="btn-export btn-pdf" onclick="exportarBagPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                    <button class="btn-export btn-excel" onclick="exportarBagExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button class="btn-export btn-print" onclick="imprimirBag()"><i class="fas fa-print"></i> Imprimir</button>
+                </div>
+
                 <div class="producao-stat">
                     <div class="producao-stat-item"><div class="value" style="color:var(--success-color);">${(bag.total_peso || 0).toFixed(2)}</div><div class="label">Quantidade kg</div></div>
                     <div class="producao-stat-item"><div class="value" style="color:#059669;">R$ ${(bag.total_valor || 0).toFixed(2)}</div><div class="label">Total Comprado</div></div>
-                    <div class="producao-stat-item"><div class="value" style="color:#8b5cf6;">R$ ${realMedia.toFixed(2)}</div><div class="label">Média R$/kg</div></div>
+                    <div class="producao-stat-item"><div class="value" style="color:#8b5cf6;">R$ ${realMedia.toFixed(2)}</div><div class="label">Valor Média R$/kg</div></div>
                 </div>
                 <div style="margin:1rem 0;">
                     <span class="badge ${getBagBadgeClass(bag.status)}">${getBagStatusLabel(bag.status)}</span>
@@ -1947,7 +2024,7 @@
                                 <th style="padding:0.75rem;text-align:center;">Classificação</th>
                                 <th style="padding:0.75rem;text-align:center;">Fornecedor</th>
                                 <th style="padding:0.75rem;text-align:right;">Quantidade</th>
-                                <th style="padding:0.75rem;text-align:right;">Valor R$/kg</th>
+                                <th style="padding:0.75rem;text-align:right;">Valor Média R$/kg</th>
                                 <th style="padding:0.75rem;text-align:right;">Total</th>
                             </tr>
                         </thead>
@@ -1963,6 +2040,122 @@
                     </table>
                 </div>
             `;
+        }
+
+        // --- Export Functions ---
+        
+        function getGroupedMaterials(bag) {
+            const materiaisAgrupados = {};
+            (bag.materiais || []).forEach(m => {
+                if (!materiaisAgrupados[m.nome]) {
+                    materiaisAgrupados[m.nome] = {
+                        nome: m.nome,
+                        categoria: m.categoria,
+                        classificacao: m.classificacao,
+                        peso_kg: 0,
+                        valor_total: 0
+                    };
+                }
+                materiaisAgrupados[m.nome].peso_kg += m.peso_kg;
+                materiaisAgrupados[m.nome].valor_total += m.valor_total;
+            });
+            return Object.values(materiaisAgrupados);
+        }
+
+        function exportarBagPDF() {
+            const bag = window.lastBagData;
+            if (!bag) return;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const emeraldColor = [5, 150, 105];
+            
+            // Header
+            doc.setFillColor(...emeraldColor);
+            doc.rect(0, 0, 210, 20, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            doc.text(`Detalhes do Bag: ${bag.codigo}`, 14, 13);
+            
+            doc.setFontSize(10);
+            const dataStr = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR');
+            doc.text(`Gerado em: ${dataStr}`, 195, 13, { align: 'right' });
+
+            // Stats Section
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text("Resumo Geral", 14, 30);
+            
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(10);
+            doc.text(`Quantidade total: ${bag.total_peso.toFixed(2)} kg`, 14, 37);
+            doc.text(`Total comprado: R$ ${bag.total_valor.toFixed(2)}`, 14, 42);
+            const media = bag.total_peso > 0 ? (bag.total_valor / bag.total_peso) : 0;
+            doc.text(`Valor Média R$/kg: R$ ${media.toFixed(2)}`, 14, 47);
+            doc.text(`Status: ${getBagStatusLabel(bag.status)}`, 14, 52);
+
+            // Table Data (Summary Grouped)
+            const grouped = getGroupedMaterials(bag);
+            const body = grouped.map(g => [
+                g.nome,
+                getCategoriaLabel(g.categoria) || g.classificacao || 'N/A',
+                `${g.peso_kg.toFixed(3)} kg`,
+                `R$ ${(g.valor_total / g.peso_kg || 0).toFixed(2)}`,
+                `R$ ${g.valor_total.toFixed(2)}`
+            ]);
+
+            doc.autoTable({
+                startY: 60,
+                head: [['Material', 'Classificação', 'Quantidade', 'Vlr Méd R$/kg', 'Total']],
+                body: body,
+                theme: 'striped',
+                headStyles: { fillColor: emeraldColor, textColor: 255 },
+                foot: [['TOTAL', '', `${bag.total_peso.toFixed(3)} kg`, `R$ ${media.toFixed(2)}`, `R$ ${bag.total_valor.toFixed(2)}`]],
+                footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' }
+            });
+
+            doc.save(`Bag_${bag.codigo}_${new Date().toISOString().slice(0,10)}.pdf`);
+        }
+
+        function exportarBagExcel() {
+            const bag = window.lastBagData;
+            if (!bag) return;
+
+            const grouped = getGroupedMaterials(bag);
+            const media = bag.total_peso > 0 ? (bag.total_valor / bag.total_peso) : 0;
+            
+            const data = [
+                ["RELATÓRIO DE BAG", bag.codigo],
+                ["Data de Exportação", new Date().toLocaleString('pt-BR')],
+                ["Status", getBagStatusLabel(bag.status)],
+                [],
+                ["Material", "Classificação", "Quantidade (kg)", "Valor Méd R$/kg", "Total (R$)"]
+            ];
+
+            grouped.forEach(g => {
+                data.push([
+                    g.nome,
+                    getCategoriaLabel(g.categoria) || g.classificacao || 'N/A',
+                    g.peso_kg,
+                    (g.valor_total / g.peso_kg || 0),
+                    g.valor_total
+                ]);
+            });
+
+            data.push([]);
+            data.push(["TOTAL", "", bag.total_peso, media, bag.total_valor]);
+
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Detalhes do Bag");
+            
+            XLSX.writeFile(wb, `Bag_${bag.codigo}_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+
+        function imprimirBag() {
+            window.print();
         }
 
         // ============================

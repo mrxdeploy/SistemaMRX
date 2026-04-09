@@ -433,6 +433,9 @@
             <button class="tab-btn" onclick="showTab('auditoria')">
                 <i class="fas fa-history"></i> Auditoria
             </button>
+            <button class="tab-btn" onclick="showTab('perfis')">
+                <i class="fas fa-user-shield"></i> Perfis
+            </button>
         </div>
 
         <div id="tab-usuarios" class="tab-content active">
@@ -605,6 +608,16 @@
 
             <div id="listaAuditoria"></div>
         </div>
+
+        <div id="tab-perfis" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+                <h3 style="margin: 0;"><i class="fas fa-user-shield"></i> Gerenciamento de Perfis</h3>
+                <button class="btn btn-primary" onclick="abrirModalNovoPerfil()">
+                    <i class="fas fa-plus"></i> Novo Perfil
+                </button>
+            </div>
+            <div id="listaPerfis" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">Carregando...</div>
+        </div>
     </main>
 
     <div class="modal" id="modalNovoUsuario">
@@ -727,6 +740,47 @@
         </div>
     </div>
 
+    <!-- Modal Criar/Editar Perfil -->
+    <div class="modal" id="modalPerfil">
+        <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2 id="tituloModalPerfil"><i class="fas fa-user-shield"></i> Novo Perfil</h2>
+                <span class="modal-close" onclick="fecharModalPerfil()">&times;</span>
+            </div>
+            <form id="formPerfil" onsubmit="salvarPerfil(event)">
+                <input type="hidden" id="perfilEditId">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="form-group">
+                        <label>Nome do Perfil *</label>
+                        <input type="text" id="perfilNome" required placeholder="Ex: Comprador Senior">
+                    </div>
+                    <div class="form-group">
+                        <label>Descrição</label>
+                        <input type="text" id="perfilDescricao" placeholder="Breve descrição do perfil">
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <input type="text" id="buscaPermissao" placeholder="Buscar permissão..." style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;" oninput="filtrarPermissoes()">
+                </div>
+
+                <div id="permissoesContainer" style="margin-bottom: 1.5rem;">Carregando permissões...</div>
+
+                <div style="background: #f9fafb; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
+                    <h4 style="margin: 0 0 0.75rem; font-size: 0.95rem;"><i class="fas fa-bars"></i> Menu Inferior (máx. 4 itens)</h4>
+                    <p style="font-size: 0.8rem; color: #6b7280; margin: 0 0 0.75rem;">"Painel" é fixo. Selecione até 4 módulos adicionais para o menu inferior.</p>
+                    <div id="menuInferiorContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.5rem;"></div>
+                    <div id="menuInferiorSelecionados" style="margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
+                </div>
+
+                <div style="display: flex; gap: 1rem;">
+                    <button type="button" class="btn btn-secondary" onclick="fecharModalPerfil()" style="flex: 1;">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 1;"><i class="fas fa-save"></i> Salvar Perfil</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/rbac.js"></script>
@@ -743,9 +797,9 @@
             const user = await verificarAuth();
             if (!user) return;
             
-            if (user.tipo !== 'admin') {
-                showAlert('Acesso negado. Apenas administradores podem acessar esta página.');
-                window.location.href = '/dashboard.html';
+            if (user.tipo !== 'admin' && !(user.permissoes && user.permissoes.includes('modulo_rh'))) {
+                showAlert('Acesso negado.');
+                window.location.href = '/administracao.html';
                 return;
             }
             
@@ -774,12 +828,8 @@
                     defaultOption.textContent = "Selecione um perfil...";
                     select.appendChild(defaultOption);
 
-                    const perfisExcluidos = ['Conferente / Estoque', 'Separação', 'Financeiro'];
-                    
-                    console.log('Perfis carregados:', perfis); // Debug
-                    
                     perfis.forEach(p => {
-                        if (p && p.nome && !perfisExcluidos.includes(p.nome)) {
+                        if (p && p.nome) {
                             const option = document.createElement('option');
                             option.value = p.id;
                             option.textContent = p.nome;
@@ -1497,6 +1547,8 @@
                 carregarAuditoria();
             } else if (tabName === 'fornecedores') {
                 carregarFornecedoresComprador();
+            } else if (tabName === 'perfis') {
+                carregarListaPerfis();
             }
         }
 
@@ -1664,6 +1716,304 @@
                 value = value.replace(/(\d{2})(\d{0,5})/, '($1) $2');
             }
             input.value = value;
+        }
+
+        // ==================== PERFIS ====================
+        let catalogoPermissoes = null;
+        let menusDisponiveis = [];
+        let menusInferioresSelecionados = [];
+
+        async function carregarCatalogoPermissoes() {
+            if (catalogoPermissoes) return;
+            try {
+                const response = await fetchAPI('/rh/permissoes-catalogo');
+                if (response.ok) {
+                    const data = await response.json();
+                    catalogoPermissoes = data.catalogo;
+                    menusDisponiveis = data.menus_disponiveis;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar catálogo:', error);
+            }
+        }
+
+        async function carregarListaPerfis() {
+            try {
+                const response = await fetchAPI('/perfis');
+                if (!response.ok) return;
+                const lista = await response.json();
+                const container = document.getElementById('listaPerfis');
+                if (lista.length === 0) {
+                    container.innerHTML = '<div class="card" style="text-align:center;padding:2rem;color:#6b7280;">Nenhum perfil encontrado</div>';
+                    return;
+                }
+                container.innerHTML = lista.map(p => {
+                    const permCount = p.permissoes ? Object.keys(p.permissoes).filter(k => k !== 'menus_inferiores' && p.permissoes[k]).length : 0;
+                    const usrCount = usuarios.filter(u => u.perfil_id === p.id).length;
+                    return `
+                    <div class="card" style="padding: 1.25rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                            <div>
+                                <h4 style="margin: 0; font-size: 1.05rem;">${p.nome}</h4>
+                                <p style="margin: 0.25rem 0 0; font-size: 0.8rem; color: #6b7280;">${p.descricao || 'Sem descrição'}</p>
+                            </div>
+                            ${p.nome === 'Administrador' ? '<span class="status-badge status-ativo">Sistema</span>' : ''}
+                        </div>
+                        <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem; font-size: 0.8rem; color: #6b7280;">
+                            <span><i class="fas fa-key"></i> ${permCount} permissões</span>
+                            <span><i class="fas fa-users"></i> ${usrCount} usuários</span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-primary" onclick="editarPerfil(${p.id})" style="flex:1; padding: 0.4rem; font-size: 0.8rem;">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                            ${p.nome !== 'Administrador' ? `
+                                <button class="btn btn-secondary" onclick="confirmarExcluirPerfil(${p.id}, '${p.nome.replace(/'/g, "\\\'")}')" style="padding: 0.4rem 0.6rem; font-size: 0.8rem; background: #fee2e2; color: #991b1b; border-color: #fca5a5;">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch (error) {
+                console.error('Erro ao carregar perfis:', error);
+            }
+        }
+
+        async function abrirModalNovoPerfil() {
+            await carregarCatalogoPermissoes();
+            document.getElementById('tituloModalPerfil').innerHTML = '<i class="fas fa-user-shield"></i> Novo Perfil';
+            document.getElementById('formPerfil').reset();
+            document.getElementById('perfilEditId').value = '';
+            menusInferioresSelecionados = [];
+            renderizarPermissoes({});
+            renderizarMenuInferior({});
+            document.getElementById('modalPerfil').classList.add('active');
+        }
+
+        async function editarPerfil(id) {
+            await carregarCatalogoPermissoes();
+            try {
+                const response = await fetchAPI(`/perfis/${id}`);
+                if (!response.ok) return;
+                const perfil = await response.json();
+                document.getElementById('tituloModalPerfil').innerHTML = `<i class="fas fa-user-shield"></i> Editar: ${perfil.nome}`;
+                document.getElementById('perfilEditId').value = perfil.id;
+                document.getElementById('perfilNome').value = perfil.nome;
+                document.getElementById('perfilDescricao').value = perfil.descricao || '';
+                const perms = perfil.permissoes || {};
+                menusInferioresSelecionados = perms.menus_inferiores || [];
+                renderizarPermissoes(perms);
+                renderizarMenuInferior(perms);
+                document.getElementById('modalPerfil').classList.add('active');
+            } catch (error) {
+                showAlert('Erro ao carregar perfil');
+            }
+        }
+
+        function renderizarPermissoes(permissoesAtuais) {
+            if (!catalogoPermissoes) return;
+            const container = document.getElementById('permissoesContainer');
+            let html = '';
+            for (const [moduloKey, modulo] of Object.entries(catalogoPermissoes)) {
+                const chaveModulo = `modulo_${moduloKey}`;
+                const moduloAtivo = permissoesAtuais[chaveModulo] || false;
+                html += `
+                <div class="perm-modulo" data-modulo="${moduloKey}" style="border: 1px solid ${moduloAtivo ? modulo.cor + '40' : '#e5e7eb'}; border-radius: 10px; margin-bottom: 0.75rem; overflow: hidden; transition: border-color 0.2s;">
+                    <div onclick="toggleModulo('${moduloKey}')" style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; cursor: pointer; background: ${moduloAtivo ? modulo.cor + '10' : '#f9fafb'}; transition: background 0.2s;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <i class="${modulo.icone}" style="color: ${modulo.cor}; font-size: 1.1rem; width: 20px; text-align: center;"></i>
+                            <span style="font-weight: 600; font-size: 0.95rem;">${modulo.nome}</span>
+                        </div>
+                        <label onclick="event.stopPropagation()" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" class="perm-checkbox" data-perm="${chaveModulo}" ${moduloAtivo ? 'checked' : ''} onchange="onModuloToggle('${moduloKey}', this.checked)" style="width: 18px; height: 18px; accent-color: ${modulo.cor};">
+                        </label>
+                    </div>
+                    <div id="subperms_${moduloKey}" style="display: ${moduloAtivo ? 'block' : 'none'}; padding: 0.5rem 1rem 0.75rem; border-top: 1px solid #e5e7eb;">`;
+                const subPerms = Object.entries(modulo.permissoes).filter(([k]) => k !== chaveModulo);
+                if (subPerms.length > 0) {
+                    html += `<div style="display: flex; justify-content: flex-end; margin-bottom: 0.25rem;">
+                        <button type="button" onclick="toggleTodosSubPerms('${moduloKey}', true)" style="font-size: 0.7rem; color: ${modulo.cor}; background: none; border: none; cursor: pointer; padding: 0.25rem;">Marcar todos</button>
+                        <button type="button" onclick="toggleTodosSubPerms('${moduloKey}', false)" style="font-size: 0.7rem; color: #6b7280; background: none; border: none; cursor: pointer; padding: 0.25rem;">Desmarcar</button>
+                    </div>`;
+                    subPerms.forEach(([permKey, permDesc]) => {
+                        const ativo = permissoesAtuais[permKey] || false;
+                        html += `
+                        <label class="perm-sub-item" data-perm-text="${permDesc.toLowerCase()}" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0; cursor: pointer; font-size: 0.85rem; color: #374151;">
+                            <input type="checkbox" class="perm-checkbox perm-sub" data-perm="${permKey}" data-modulo="${moduloKey}" ${ativo ? 'checked' : ''} style="width: 16px; height: 16px; accent-color: ${modulo.cor};">
+                            ${permDesc}
+                        </label>`;
+                    });
+                } else {
+                    html += '<p style="font-size: 0.8rem; color: #9ca3af; margin: 0;">Sem sub-permissões adicionais</p>';
+                }
+                html += '</div></div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function toggleModulo(moduloKey) {
+            const subContainer = document.getElementById(`subperms_${moduloKey}`);
+            if (subContainer) {
+                subContainer.style.display = subContainer.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        function onModuloToggle(moduloKey, checked) {
+            const subContainer = document.getElementById(`subperms_${moduloKey}`);
+            const moduloDiv = document.querySelector(`.perm-modulo[data-modulo="${moduloKey}"]`);
+            if (subContainer) {
+                subContainer.style.display = checked ? 'block' : 'none';
+                if (!checked) {
+                    subContainer.querySelectorAll('.perm-sub').forEach(cb => cb.checked = false);
+                }
+            }
+            if (moduloDiv && catalogoPermissoes[moduloKey]) {
+                const cor = catalogoPermissoes[moduloKey].cor;
+                moduloDiv.style.borderColor = checked ? cor + '40' : '#e5e7eb';
+                moduloDiv.querySelector('div').style.background = checked ? cor + '10' : '#f9fafb';
+            }
+            renderizarMenuInferior();
+        }
+
+        function toggleTodosSubPerms(moduloKey, marcar) {
+            const subContainer = document.getElementById(`subperms_${moduloKey}`);
+            if (subContainer) {
+                subContainer.querySelectorAll('.perm-sub').forEach(cb => cb.checked = marcar);
+            }
+        }
+
+        function filtrarPermissoes() {
+            const busca = document.getElementById('buscaPermissao').value.toLowerCase();
+            document.querySelectorAll('.perm-modulo').forEach(modulo => {
+                const nomeModulo = modulo.querySelector('span').textContent.toLowerCase();
+                const subItems = modulo.querySelectorAll('.perm-sub-item');
+                let algumVisivel = nomeModulo.includes(busca);
+                subItems.forEach(item => {
+                    const texto = item.dataset.permText || '';
+                    const visivel = texto.includes(busca) || nomeModulo.includes(busca);
+                    item.style.display = visivel ? 'flex' : 'none';
+                    if (visivel) algumVisivel = true;
+                });
+                modulo.style.display = algumVisivel ? 'block' : 'none';
+            });
+        }
+
+        function renderizarMenuInferior(permsAtuais) {
+            const container = document.getElementById('menuInferiorContainer');
+            const selContainer = document.getElementById('menuInferiorSelecionados');
+            if (!menusDisponiveis || menusDisponiveis.length === 0) {
+                container.innerHTML = '<p style="font-size: 0.8rem; color: #9ca3af;">Carregando...</p>';
+                return;
+            }
+            // Verificar quais modulos estão habilitados
+            const modulosAtivos = new Set();
+            document.querySelectorAll('.perm-checkbox[data-perm^="modulo_"]').forEach(cb => {
+                if (cb.checked) {
+                    modulosAtivos.add(cb.dataset.perm.replace('modulo_', ''));
+                }
+            });
+
+            container.innerHTML = menusDisponiveis.filter(m => modulosAtivos.has(m.modulo)).map(m => {
+                const selecionado = menusInferioresSelecionados.some(s => s.id === m.id);
+                return `
+                <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.6rem; border: 1px solid ${selecionado ? '#059669' : '#e5e7eb'}; border-radius: 8px; cursor: pointer; font-size: 0.8rem; background: ${selecionado ? '#ecfdf5' : 'white'}; transition: all 0.2s;">
+                    <input type="checkbox" ${selecionado ? 'checked' : ''} onchange="toggleMenuInferior('${m.id}', '${m.nome}', '${m.url}', '${m.icone}', this.checked)" style="accent-color: #059669;">
+                    ${m.nome}
+                </label>`;
+            }).join('');
+
+            // Mostrar selecionados
+            selContainer.innerHTML = menusInferioresSelecionados.map((m, i) => `
+                <span style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; background: #ecfdf5; color: #065f46; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                    ${i + 1}. ${m.nome}
+                    <button type="button" onclick="removerMenuInferior('${m.id}')" style="background: none; border: none; cursor: pointer; color: #991b1b; font-size: 0.8rem; padding: 0;">&times;</button>
+                </span>
+            `).join('');
+        }
+
+        function toggleMenuInferior(id, nome, url, icone, checked) {
+            if (checked) {
+                if (menusInferioresSelecionados.length >= 4) {
+                    showAlert('Máximo de 4 itens no menu inferior');
+                    event.target.checked = false;
+                    return;
+                }
+                menusInferioresSelecionados.push({id, nome, url, icone});
+            } else {
+                menusInferioresSelecionados = menusInferioresSelecionados.filter(m => m.id !== id);
+            }
+            renderizarMenuInferior();
+        }
+
+        function removerMenuInferior(id) {
+            menusInferioresSelecionados = menusInferioresSelecionados.filter(m => m.id !== id);
+            renderizarMenuInferior();
+        }
+
+        function coletarPermissoes() {
+            const permissoes = {};
+            document.querySelectorAll('.perm-checkbox:checked').forEach(cb => {
+                permissoes[cb.dataset.perm] = true;
+            });
+            permissoes['menus_inferiores'] = menusInferioresSelecionados;
+            return permissoes;
+        }
+
+        async function salvarPerfil(e) {
+            e.preventDefault();
+            const id = document.getElementById('perfilEditId').value;
+            const data = {
+                nome: document.getElementById('perfilNome').value,
+                descricao: document.getElementById('perfilDescricao').value,
+                permissoes: coletarPermissoes()
+            };
+            try {
+                const url = id ? `/api/perfis/${id}` : '/api/perfis';
+                const method = id ? 'PUT' : 'POST';
+                const token = localStorage.getItem('token');
+                const response = await fetch(url, {
+                    method, headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                    body: JSON.stringify(data)
+                });
+                if (response.ok) {
+                    showAlert(id ? 'Perfil atualizado!' : 'Perfil criado!', 'success');
+                    fecharModalPerfil();
+                    await carregarPerfis();
+                    carregarListaPerfis();
+                } else {
+                    const err = await response.json();
+                    showAlert(err.erro || 'Erro ao salvar perfil');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar perfil:', error);
+                showAlert('Erro ao salvar perfil');
+            }
+        }
+
+        function fecharModalPerfil() {
+            document.getElementById('modalPerfil').classList.remove('active');
+        }
+
+        function confirmarExcluirPerfil(id, nome) {
+            document.getElementById('mensagemConfirmacao').innerHTML = `Deseja excluir o perfil <strong>${nome}</strong>?<br><br><small style="color:#6b7280;">Perfis com usuários vinculados não podem ser excluídos.</small>`;
+            document.getElementById('btnConfirmar').onclick = async () => {
+                try {
+                    const response = await fetchAPI(`/perfis/${id}`, {method: 'DELETE'});
+                    if (response.ok) {
+                        showAlert('Perfil excluído!', 'success');
+                        fecharModalConfirmacao();
+                        await carregarPerfis();
+                        carregarListaPerfis();
+                    } else {
+                        const err = await response.json();
+                        showAlert(err.erro || 'Erro ao excluir perfil');
+                    }
+                } catch (error) {
+                    showAlert('Erro ao excluir perfil');
+                }
+            };
+            document.getElementById('modalConfirmacao').classList.add('active');
         }
 
         document.addEventListener('DOMContentLoaded', carregarPagina);

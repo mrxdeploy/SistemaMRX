@@ -2361,3 +2361,82 @@ class BagProducao(db.Model):  # type: ignore
             'data_atualizacao': self.data_atualizacao.isoformat() if self.data_atualizacao else None,
             'observacoes': self.observacoes
         }
+
+class ModeloTabelaPreco(db.Model):  # type: ignore
+    """Modelo/Template reutilizável de tabela de preços para fornecedores"""
+    __tablename__ = 'modelos_tabela_preco'
+    __table_args__ = (
+        db.Index('idx_modelo_tabela_nome', 'nome'),
+        db.Index('idx_modelo_tabela_ativo', 'ativo'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(200), unique=True, nullable=False)
+    descricao = db.Column(db.Text, nullable=True)
+    ativo = db.Column(db.Boolean, default=True, nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
+    updated_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    itens = db.relationship('ModeloTabelaPrecoItem', backref='modelo', lazy=True, cascade='all, delete-orphan')
+    criador = db.relationship('Usuario', foreign_keys=[created_by], backref='modelos_tabela_criados')
+    atualizador = db.relationship('Usuario', foreign_keys=[updated_by], backref='modelos_tabela_atualizados')
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'descricao': self.descricao,
+            'ativo': self.ativo,
+            'total_itens': len(self.itens) if self.itens else 0,
+            'created_by': self.created_by,
+            'criador_nome': self.criador.nome if self.criador else None,
+            'updated_by': self.updated_by,
+            'atualizador_nome': self.atualizador.nome if self.atualizador else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+    def to_dict_com_itens(self):
+        data = self.to_dict()
+        data['itens'] = [item.to_dict() for item in self.itens] if self.itens else []
+        return data
+
+
+class ModeloTabelaPrecoItem(db.Model):  # type: ignore
+    """Item individual de um modelo de tabela de preços"""
+    __tablename__ = 'modelos_tabela_preco_itens'
+    __table_args__ = (
+        db.UniqueConstraint('modelo_id', 'material_id', name='uq_modelo_material'),
+        db.Index('idx_modelo_item_modelo', 'modelo_id'),
+        db.Index('idx_modelo_item_material', 'material_id'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    modelo_id = db.Column(db.Integer, db.ForeignKey('modelos_tabela_preco.id', ondelete='CASCADE'), nullable=False)
+    material_id = db.Column(db.Integer, db.ForeignKey('materiais_base.id'), nullable=False)
+    preco_por_kg = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    material = db.relationship('MaterialBase', backref='modelos_itens')
+
+    def __init__(self, **kwargs: Any) -> None:
+        if 'preco_por_kg' in kwargs and kwargs['preco_por_kg'] is not None and float(kwargs['preco_por_kg']) < 0:
+            raise ValueError('Preço por kg deve ser maior ou igual a zero')
+        super().__init__(**kwargs)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'modelo_id': self.modelo_id,
+            'material_id': self.material_id,
+            'material_nome': self.material.nome if self.material else None,
+            'material_codigo': self.material.codigo if self.material else None,
+            'material_classificacao': self.material.classificacao if self.material else None,
+            'preco_por_kg': float(self.preco_por_kg) if self.preco_por_kg else 0.00,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

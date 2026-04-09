@@ -21,9 +21,6 @@ def create_app():
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 
     database_url = os.getenv('DATABASE_URL')
-    # Forçar URL do Railway explicitamente
-    if not database_url or 'helium' in database_url or 'localhost' in database_url:
-        database_url = "postgresql://postgres:JLNFuhSFMbRaQlBAxuFynwIOMtLyalqt@centerbeam.proxy.rlwy.net:35419/railway"
     
     if database_url and database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
@@ -75,7 +72,7 @@ def create_app():
                                 ordens_servico, conferencias, estoque, separacao, wms, pages,
                                 materiais_base, tabelas_preco, autorizacoes_preco, compras,
                                 fornecedor_tabela_precos, metais, conquistas, assistente, scanner, rh, visitas,
-                                producao, estoque_ativo)
+                                producao, estoque_ativo, modelos_tabela_preco)
         from app.routes import solicitacoes_new as solicitacoes
         from app.routes import lotes_new as lotes
         from app.routes import entradas_new as entradas
@@ -117,6 +114,9 @@ def create_app():
         app.register_blueprint(visitas.bp)
         app.register_blueprint(producao.bp)
         app.register_blueprint(estoque_ativo.bp)
+        app.register_blueprint(modelos_tabela_preco.bp)
+
+        db.create_all()
 
         def run_hr_migration():
             try:
@@ -289,7 +289,6 @@ def create_app():
                 print(f"Producao refactor migration: {e}")
         
         run_producao_refactor_migration()
-        db.create_all()
 
         # Inicializar tabelas de preço
         from app.models import TabelaPreco, Perfil, TipoLote
