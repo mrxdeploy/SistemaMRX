@@ -336,7 +336,7 @@ def duplicar_modelo(modelo_id):
         if not modelo_original:
             return jsonify({'erro': 'Modelo original não encontrado'}), 404
 
-        dados = request.get_json() or {}
+        dados = request.get_json(silent=True) or {}
         novo_nome = dados.get('nome', f'{modelo_original.nome} (Cópia)')
 
         # Verificar nome duplicado

@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <style>
         body { padding-top: 60px; padding-bottom: 95px; }
         main.container { padding-top: 20px !important; padding-bottom: 100px !important; }
@@ -159,6 +161,8 @@
         .modelo-card-actions .btn-sm.btn-del:hover { background: #fef2f2; }
         .modelo-card-actions .btn-sm.btn-activate { border-color: #059669; color: #059669; }
         .modelo-card-actions .btn-sm.btn-activate:hover { background: #ecfdf5; }
+        .modelo-card-actions .btn-sm.btn-pdf { border-color: #f59e0b; color: #f59e0b; }
+        .modelo-card-actions .btn-sm.btn-pdf:hover { background: #fffbeb; }
 
         .badge-status {
             display: inline-flex; align-items: center; padding: 3px 10px;
@@ -351,7 +355,15 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+                <button class="btn btn-secondary" onclick="fecharModal()">Fechar</button>
+                <div style="flex: 1; display:flex; gap: 8px;">
+                    <button class="btn" style="background: #f59e0b; color: white;" onclick="exportarPDFModelo(document.getElementById('modeloEditId').value)" id="btnPdfModal" style="display:none;">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </button>
+                    <button class="btn" style="background: #64748b; color: white;" onclick="imprimirModelo()" id="btnPrintModal" style="display:none;">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
+                </div>
                 <button class="btn btn-primary" id="btnSalvarModelo" onclick="salvarModelo()">
                     <i class="fas fa-save"></i> Salvar Modelo
                 </button>
@@ -462,7 +474,10 @@
                     </div>
                     <div class="modelo-card-actions">
                         <button class="btn-sm btn-edit" onclick="event.stopPropagation(); abrirModalEditar(${m.id})" title="Editar">
-                            <i class="fas fa-edit"></i> Editar
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-sm btn-pdf" onclick="event.stopPropagation(); exportarPDFModelo(${m.id})" title="Baixar PDF">
+                            <i class="fas fa-file-pdf"></i>
                         </button>
                         <button class="btn-sm btn-copy" onclick="event.stopPropagation(); duplicarModelo(${m.id})" title="Duplicar">
                             <i class="fas fa-copy"></i>
@@ -516,6 +531,8 @@
                 });
 
                 renderizarItensModal();
+                document.getElementById('btnPdfModal').style.display = 'flex';
+                document.getElementById('btnPrintModal').style.display = 'flex';
                 document.getElementById('modalModelo').classList.add('show');
             } catch (error) {
                 console.error('Erro:', error);
@@ -524,6 +541,8 @@
         }
 
         function fecharModal() {
+            document.getElementById('btnPdfModal').style.display = 'none';
+            document.getElementById('btnPrintModal').style.display = 'none';
             document.getElementById('modalModelo').classList.remove('show');
         }
 
@@ -637,7 +656,10 @@
         async function duplicarModelo(id) {
             if (!confirm('Deseja duplicar este modelo?')) return;
             try {
-                const response = await fetchAPI(`/modelos-tabela-preco/${id}/duplicar`, { method: 'POST' });
+                const response = await fetchAPI(`/modelos-tabela-preco/${id}/duplicar`, { 
+                    method: 'POST',
+                    body: JSON.stringify({}) 
+                });
                 const result = await response.json();
                 if (response.ok) {
                     alert(result.mensagem || 'Modelo duplicado!');
@@ -681,6 +703,78 @@
             } catch (error) {
                 console.error('Erro:', error);
             }
+        }
+
+        async function exportarPDFModelo(id) {
+            if (!id) return;
+            try {
+                const response = await fetchAPI(`/modelos-tabela-preco/${id}`);
+                if (!response.ok) throw new Error('Erro ao carregar dados');
+                const m = await response.json();
+                
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Cabeçalho Estilizado
+                doc.setFillColor(99, 102, 241); // Indigo #6366f1
+                doc.rect(0, 0, 210, 25, 'F');
+                
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(18);
+                doc.setFont(undefined, 'bold');
+                doc.text('MRX SYSTEMS - MODELO DE TABELA', 14, 16);
+                
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, 195, 15, { align: 'right' });
+                
+                // Info do Modelo
+                doc.setTextColor(31, 41, 55);
+                doc.setFontSize(14);
+                doc.setFont(undefined, 'bold');
+                doc.text(m.nome, 14, 40);
+                
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(107, 114, 128);
+                doc.text(m.descricao || 'Sem descrição', 14, 46);
+                
+                // Tabela de Itens
+                const tableData = (m.itens || []).map(item => [
+                    item.material_codigo || '-',
+                    item.material_nome || '-',
+                    (item.material_classificacao || '-').toUpperCase(),
+                    `R$ ${parseFloat(item.preco_por_kg || 0).toFixed(2)}`
+                ]);
+                
+                doc.autoTable({
+                    startY: 55,
+                    head: [['CÓDIGO', 'MATERIAL', 'CLASSIFICAÇÃO', 'PREÇO R$/KG']],
+                    body: tableData,
+                    theme: 'striped',
+                    headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
+                    columnStyles: {
+                        3: { halign: 'right', fontStyle: 'bold', textColor: [5, 150, 105] } // Verde Sucesso
+                    },
+                    styles: { fontSize: 9 }
+                });
+                
+                // Footer
+                const finalY = doc.lastAutoTable.finalY + 15;
+                doc.setFontSize(8);
+                doc.setTextColor(156, 163, 175);
+                doc.text('Documento gerado automaticamente pelo sistema MRX.', 105, 285, { align: 'center' });
+                
+                doc.save(`Modelo_${m.nome.replace(/\s+/g, '_')}.pdf`);
+                
+            } catch (error) {
+                console.error('Erro PDF:', error);
+                alert('Erro ao gerar PDF: ' + error.message);
+            }
+        }
+
+        function imprimirModelo() {
+            window.print();
         }
 
         carregarPagina();
