@@ -1442,6 +1442,50 @@ def reabrir_bag(bag_id):
         return jsonify({'erro': str(e)}), 500
 
 
+@bp.route('/bags/<int:bag_id>', methods=['DELETE'])
+@jwt_required()
+def excluir_bag(bag_id):
+    """Exclui um bag e devolve todos os seus materiais ao estoque original"""
+    try:
+        bag = BagProducao.query.get_or_404(bag_id)
+        
+        # Buscar itens do bag
+        itens = ItemSeparadoProducao.query.filter_by(bag_id=bag_id).all()
+        
+        for item in itens:
+            # Devolver peso ao Lote de origem
+            if item.entrada_estoque_id:
+                sublote = Lote.query.get(item.entrada_estoque_id)
+                if sublote:
+                    peso_kg = float(item.peso_kg or 0)
+                    peso_atual_sublote = float(sublote.peso_liquido or sublote.peso_total_kg or 0)
+                    novo_peso = peso_atual_sublote + peso_kg
+                    
+                    if sublote.status == 'processado':
+                        sublote.status = 'em_estoque'
+                        
+                    sublote.peso_liquido = novo_peso
+                    sublote.peso_total_kg = novo_peso
+                    
+                    preco_kg_item = float(item.valor_estimado or 0) / peso_kg if peso_kg > 0 else 0
+                    valor_adicionado = preco_kg_item * peso_kg
+                    sublote.valor_total = float(sublote.valor_total or 0) + valor_adicionado
+
+            db.session.delete(item)
+            
+        db.session.delete(bag)
+        db.session.commit()
+        
+        return jsonify({
+            'sucesso': True,
+            'mensagem': 'Bag excluído com sucesso e materiais devolvidos ao estoque original.'
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Erro ao excluir bag {bag_id}: {str(e)}')
+        return jsonify({'erro': str(e)}), 500
+
+
 @bp.route('/bags/<int:bag_id>/remover-item/<int:item_id>', methods=['DELETE'])
 @jwt_required()
 def remover_item_bag(bag_id, item_id):

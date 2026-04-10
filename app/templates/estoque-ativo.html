@@ -1060,6 +1060,9 @@
                             Criado em ${formatarData(bag.data_criacao)}
                         </span>
                         <div style="display: flex; gap: 0.5rem;">
+                            <button onclick="excluirBagAction(${bag.id})" class="btn btn-sm" style="background: #ef4444; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Excluir Bag">
+                                <i class="fas fa-trash"></i> Excluir
+                            </button>
                             ${bag.status === 'aberto' ? `
                                 <button onclick="fecharBagAction(${bag.id})" class="btn btn-sm" style="background: #f59e0b; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;">
                                     <i class="fas fa-lock"></i> Fechar Bag
@@ -1885,6 +1888,23 @@
                 } else { showNotification(data.erro, 'error'); }
             } catch(e) { showNotification('Erro', 'error'); }
             finally { setActionBusy('reabrirBag_' + bagId, false); }
+        }
+
+        async function excluirBagAction(bagId) {
+            if (isActionBusy('excluirBag_' + bagId)) return;
+            if (!confirm('ATENÇÃO: Tem certeza que deseja excluir completamente este bag? Todos os materiais dentro dele serão devolvidos ao estoque original.')) return;
+            setActionBusy('excluirBag_' + bagId, true);
+            try {
+                const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}`, {method: 'DELETE'});
+                const data = await resp.json();
+                if (data.sucesso) {
+                    showNotification(data.mensagem, 'success');
+                    await carregarBagsEstoque();
+                    await carregarLotesAtivos();
+                    await carregarDashboardEstoque();
+                } else { showNotification(data.erro, 'error'); }
+            } catch(e) { showNotification('Erro', 'error'); }
+            finally { setActionBusy('excluirBag_' + bagId, false); }
         }
 
         async function removerItemBagAction(bagId, itemId) {
