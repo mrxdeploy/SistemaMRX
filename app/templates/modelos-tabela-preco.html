@@ -705,6 +705,62 @@
             }
         }
 
+        function prepararDocumentoModelo(m) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Cabeçalho Estilizado
+            doc.setFillColor(99, 102, 241); // Indigo #6366f1
+            doc.rect(0, 0, 210, 25, 'F');
+            
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('MRX SYSTEMS - MODELO DE TABELA', 14, 16);
+            
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, 195, 15, { align: 'right' });
+            
+            // Info do Modelo
+            doc.setTextColor(31, 41, 55);
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text(m.nome, 14, 40);
+            
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(107, 114, 128);
+            doc.text(m.descricao || 'Sem descrição', 14, 46);
+            
+            // Tabela de Itens
+            const tableData = (m.itens || []).map(item => [
+                item.material_codigo || '-',
+                item.material_nome || '-',
+                (item.material_classificacao || '-').toUpperCase(),
+                `R$ ${parseFloat(item.preco_por_kg || 0).toFixed(2)}`
+            ]);
+            
+            doc.autoTable({
+                startY: 55,
+                head: [['CÓDIGO', 'MATERIAL', 'CLASSIFICAÇÃO', 'PREÇO R$/KG']],
+                body: tableData,
+                theme: 'striped',
+                headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
+                columnStyles: {
+                    3: { halign: 'right', fontStyle: 'bold', textColor: [5, 150, 105] } // Verde Sucesso
+                },
+                styles: { fontSize: 9 }
+            });
+            
+            // Footer
+            doc.setFontSize(8);
+            doc.setTextColor(156, 163, 175);
+            doc.text('Documento gerado automaticamente pelo sistema MRX.', 105, 285, { align: 'center' });
+            
+            return doc;
+        }
+
         async function exportarPDFModelo(id) {
             if (!id) return;
             try {
@@ -712,59 +768,7 @@
                 if (!response.ok) throw new Error('Erro ao carregar dados');
                 const m = await response.json();
                 
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                // Cabeçalho Estilizado
-                doc.setFillColor(99, 102, 241); // Indigo #6366f1
-                doc.rect(0, 0, 210, 25, 'F');
-                
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(18);
-                doc.setFont(undefined, 'bold');
-                doc.text('MRX SYSTEMS - MODELO DE TABELA', 14, 16);
-                
-                doc.setFontSize(10);
-                doc.setFont(undefined, 'normal');
-                doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, 195, 15, { align: 'right' });
-                
-                // Info do Modelo
-                doc.setTextColor(31, 41, 55);
-                doc.setFontSize(14);
-                doc.setFont(undefined, 'bold');
-                doc.text(m.nome, 14, 40);
-                
-                doc.setFontSize(10);
-                doc.setFont(undefined, 'normal');
-                doc.setTextColor(107, 114, 128);
-                doc.text(m.descricao || 'Sem descrição', 14, 46);
-                
-                // Tabela de Itens
-                const tableData = (m.itens || []).map(item => [
-                    item.material_codigo || '-',
-                    item.material_nome || '-',
-                    (item.material_classificacao || '-').toUpperCase(),
-                    `R$ ${parseFloat(item.preco_por_kg || 0).toFixed(2)}`
-                ]);
-                
-                doc.autoTable({
-                    startY: 55,
-                    head: [['CÓDIGO', 'MATERIAL', 'CLASSIFICAÇÃO', 'PREÇO R$/KG']],
-                    body: tableData,
-                    theme: 'striped',
-                    headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
-                    columnStyles: {
-                        3: { halign: 'right', fontStyle: 'bold', textColor: [5, 150, 105] } // Verde Sucesso
-                    },
-                    styles: { fontSize: 9 }
-                });
-                
-                // Footer
-                const finalY = doc.lastAutoTable.finalY + 15;
-                doc.setFontSize(8);
-                doc.setTextColor(156, 163, 175);
-                doc.text('Documento gerado automaticamente pelo sistema MRX.', 105, 285, { align: 'center' });
-                
+                const doc = prepararDocumentoModelo(m);
                 doc.save(`Modelo_${m.nome.replace(/\s+/g, '_')}.pdf`);
                 
             } catch (error) {
@@ -773,8 +777,28 @@
             }
         }
 
-        function imprimirModelo() {
-            window.print();
+        async function imprimirModelo() {
+            const id = document.getElementById('modeloEditId').value;
+            if (!id) {
+                alert('Selecione ou salve um modelo primeiro');
+                return;
+            }
+            try {
+                const response = await fetchAPI(`/modelos-tabela-preco/${id}`);
+                if (!response.ok) throw new Error('Erro ao carregar dados');
+                const m = await response.json();
+                
+                const doc = prepararDocumentoModelo(m);
+                
+                // Para impressão organizada, abrimos o blob em nova aba
+                // O usuário verá o PDF pronto para ser impresso pelo navegador
+                const blobUrl = doc.output('bloburl');
+                window.open(blobUrl, '_blank');
+                
+            } catch (error) {
+                console.error('Erro Impressão:', error);
+                alert('Erro ao preparar impressão: ' + error.message);
+            }
         }
 
         carregarPagina();
