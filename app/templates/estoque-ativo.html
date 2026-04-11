@@ -281,7 +281,46 @@
         .btn-export:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
         .btn-pdf { background: linear-gradient(135deg, #10b981, #059669); }
         .btn-excel { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-        .btn-print { background: linear-gradient(135deg, #6b7280, #4b5563); }
+        .btn-export-print { background: linear-gradient(135deg, #6b7280, #4b5563); }
+
+        /* === NOVO BANNER VIBRANTE === */
+        .banner-vibrante {
+            width: 100%; 
+            min-height: 75px; 
+            margin-bottom: 1.5rem;
+            border-radius: 20px; 
+            border: 3px dashed transparent;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-size: 1.4rem; 
+            font-weight: 800; 
+            text-align: center;
+            padding: 1rem 1.5rem; 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            gap: 1rem;
+        }
+        .banner-aberto {
+            border-color: #059669;
+            background: linear-gradient(135deg, #ecfdf5, #a7f3d0);
+            color: #047857;
+        }
+        .banner-cheio {
+            border-color: #d97706;
+            background: linear-gradient(135deg, #fffbeb, #fde68a);
+            color: #b45309;
+        }
+        .banner-vibrante i {
+            font-size: 1.8rem;
+            animation: bounce-icon 2s infinite ease-in-out;
+        }
+        @keyframes bounce-icon {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
     </style>
 </head>
 <body>
@@ -311,6 +350,11 @@
             <button class="btn btn-secondary" onclick="window.location.href='/administracao.html'">
                 <i class="fas fa-arrow-left"></i> Voltar
             </button>
+        </div>
+
+        <div class="banner-vibrante" id="bannerStatusBag" style="display: none;">
+            <i class="fas fa-info-circle"></i>
+            <span id="bannerStatusBagText">Visualizando Bags</span>
         </div>
 
         <div class="stats-grid" id="dashboardStats">
@@ -378,7 +422,7 @@
                         <label>Status</label>
                         <select id="filtroStatusBag" onchange="carregarBagsEstoque()">
                             <option value="">Todos</option>
-                            <option value="aberto">Abertos</option>
+                            <option value="aberto" selected>Abertos</option>
                             <option value="cheio">Cheios</option>
                         </select>
                     </div>
@@ -540,12 +584,19 @@
                 });
             }
             
+            // Definir filtro de bag padrão como 'aberto'
+            const filtroBag = document.getElementById('filtroStatusBag');
+            if (filtroBag) {
+                filtroBag.value = 'aberto';
+            }
+            
             await Promise.all([
                 carregarDashboardEstoque(),
                 carregarLotesAtivos(),
                 carregarBagsEstoque(),
                 carregarTotalBags()
             ]);
+            
             await atualizarNotificacoes();
         }
 
@@ -712,6 +763,9 @@
                 let url = '/estoque-ativo/bags?';
                 if (status) url += `status=${status}&`;
                 if (categoria) url += `categoria=${categoria}`;
+                
+                atualizarBannerStatusBag(status);
+                
                 const response = await fetchAPI(url);
                 if (response.ok) {
                     bagsEstoque = await response.json();
@@ -1106,15 +1160,38 @@
             }
             
             if (tabName === 'bags') {
+                document.getElementById('bannerStatusBag').style.display = 'flex';
                 carregarBagsEstoque();
             } else if (tabName === 'compra') {
+                document.getElementById('bannerStatusBag').style.display = 'none';
                 carregarTotalCompra();
             } else if (tabName === 'total') {
+                document.getElementById('bannerStatusBag').style.display = 'none';
                 carregarTotalBags();
             } else if (tabName === 'separacao') {
+                document.getElementById('bannerStatusBag').style.display = 'none';
                 carregarEmSeparacao();
             } else {
+                document.getElementById('bannerStatusBag').style.display = 'none';
                 carregarLotesAtivos();
+            }
+        }
+
+        function atualizarBannerStatusBag(status) {
+            const banner = document.getElementById('bannerStatusBag');
+            const bannerText = document.getElementById('bannerStatusBagText');
+            if (!banner || !bannerText) return;
+
+            banner.className = 'banner-vibrante'; // Reset
+            
+            if (status === 'aberto') {
+                banner.classList.add('banner-aberto');
+                bannerText.innerHTML = '<i class="fas fa-lock-open"></i> Visualizando Bags em Aberto';
+            } else if (status === 'cheio') {
+                banner.classList.add('banner-cheio');
+                bannerText.innerHTML = '<i class="fas fa-lock"></i> Visualizando Bags Cheios';
+            } else {
+                banner.style.display = 'none';
             }
         }
 
