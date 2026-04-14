@@ -620,6 +620,7 @@ class Solicitacao(db.Model):  # type: ignore
             'funcionario_nome': self.funcionario.nome if self.funcionario else None,
             'fornecedor_id': self.fornecedor_id,
             'fornecedor_nome': self.fornecedor.nome if self.fornecedor else None,
+            'fornecedor_dados': self.fornecedor.to_dict() if self.fornecedor else None,
             'tipo_retirada': self.tipo_retirada,
             'modalidade_frete': self.modalidade_frete,
             'status': self.status,
