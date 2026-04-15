@@ -1170,7 +1170,7 @@
                             preco_customizado: itemOriginal.preco_customizado || false,
                             preco_oferecido: itemOriginal.preco_oferecido || null,
                             valor_calculado: itemOriginal.valor_calculado || 0,
-                            preco_por_kg_snapshot: precoOriginal // Armazenar preço original para cálculos posteriores
+                            preco_por_kg_snapshot: null // Forçar recálculo com preço atual da tabela
                         };
 
                         itensSolicitacao.push(novoItem);
@@ -1431,8 +1431,9 @@
             document.getElementById(`val_material_${itemId}`).value = materialId;
             document.getElementById(`dropdown_material_${itemId}`).classList.remove('active');
 
-            // Atualizar estado e calcular
+            // Forçar recálculo
             item.material_id = materialId;
+            item.preco_por_kg_snapshot = null; // Limpa snapshot para buscar preço atual
             calcularValorItem(item);
 
             // Forçar re-renderização para mostrar o preço da tabela e o cálculo final

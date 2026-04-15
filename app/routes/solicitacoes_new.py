@@ -741,11 +741,8 @@ def editar_solicitacao(id):
             preco_customizado = item_data.get('preco_customizado', False)
             preco_oferecido = item_data.get('preco_oferecido')
 
-            # Prioridade para o preço original enviado pelo frontend (snapshot do pedido)
-            preco_por_kg_original = item_data.get('preco_por_kg_snapshot')
-
-            # Calcular preço da tabela atual para comparação e fallback
-            _, preco_tabela, tabela_estrelas = calcular_valor_item_novo(
+            # Calcular preço da tabela atual (sempre buscar o mais recente na edição)
+            _, preco_final, tabela_estrelas = calcular_valor_item_novo(
                 fornecedor_id,
                 material_id,
                 peso_kg
@@ -756,14 +753,14 @@ def editar_solicitacao(id):
                     db.session.rollback()
                     return jsonify({'erro': f'Preço oferecido inválido. O preço deve ser maior que zero.'}), 400
 
-                if preco_tabela <= 0:
+                if preco_final <= 0:
                     requer_aprovacao_manual = True
-                    preco_tabela = 0
+                    preco_final = 0
                     tabela_estrelas = 3
 
                 valor = float(preco_oferecido) * float(peso_kg)
 
-                if preco_tabela > 0 and float(preco_oferecido) > float(preco_tabela):
+                if preco_final > 0 and float(preco_oferecido) > float(preco_final):
                     requer_aprovacao_manual = True
 
                 item = ItemSolicitacao(
@@ -780,12 +777,6 @@ def editar_solicitacao(id):
                     observacoes=item_data.get('observacoes', '')
                 )
             else:
-                # Se não for customizado, verifica se temos um snapshot original para manter
-                if preco_por_kg_original is not None:
-                    preco_final = float(preco_por_kg_original)
-                else:
-                    preco_final = preco_tabela
-
                 if preco_final <= 0:
                     requer_aprovacao_manual = True
                     preco_final = 0
