@@ -81,7 +81,7 @@ def create_app():
                                 ordens_servico, conferencias, estoque, separacao, wms, pages,
                                 materiais_base, tabelas_preco, autorizacoes_preco, compras,
                                 fornecedor_tabela_precos, metais, conquistas, assistente, scanner, rh, visitas,
-                                producao, estoque_ativo, modelos_tabela_preco)
+                                producao, estoque_ativo, modelos_tabela_preco, cleanup_temp)
         from app.routes import solicitacoes_new as solicitacoes
         from app.routes import lotes_new as lotes
         from app.routes import entradas_new as entradas
@@ -124,6 +124,7 @@ def create_app():
         app.register_blueprint(producao.bp)
         app.register_blueprint(estoque_ativo.bp)
         app.register_blueprint(modelos_tabela_preco.bp)
+        app.register_blueprint(cleanup_temp.bp)
 
         db.create_all()
 
