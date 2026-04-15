@@ -386,7 +386,14 @@ def criar_solicitacao():
             funcionario_id=usuario.id,
             fornecedor_id=data['fornecedor_id'],
             tipo_retirada=data.get('tipo_retirada', 'buscar'),
+            modalidade_frete=data.get('modalidade_frete', 'FOB'),
             observacoes=data.get('observacoes', ''),
+            rua=data.get('rua', ''),
+            numero=data.get('numero', ''),
+            cep=data.get('cep', ''),
+            localizacao_lat=data.get('localizacao_lat'),
+            localizacao_lng=data.get('localizacao_lng'),
+            endereco_completo=data.get('endereco_completo', ''),
             status='pendente'  # Será atualizado para 'aprovada' ou 'pendente' após processar todos os itens
         )
 
@@ -625,6 +632,198 @@ def criar_solicitacao():
     except Exception as e:
         db.session.rollback()
         return jsonify({'erro': f'Erro ao criar solicitação: {str(e)}'}), 500
+
+@bp.route('/<int:id>', methods=['PUT'])
+@jwt_required()
+def editar_solicitacao(id):
+    """Edita uma solicitação existente, desde que a OC vinculada não esteja aprovada."""
+    try:
+        usuario_id = int(get_jwt_identity())
+        usuario = Usuario.query.get(usuario_id)
+
+        solicitacao = Solicitacao.query.get(id)
+
+        if not solicitacao:
+            return jsonify({'erro': 'Solicitação não encontrada'}), 404
+
+        # Verificar permissão: dono da solicitação, admin ou gestor
+        is_admin = usuario.tipo == 'admin' or (usuario.perfil and usuario.perfil.nome in ['Administrador', 'Gestor'])
+        if not is_admin and solicitacao.funcionario_id != usuario_id:
+            return jsonify({'erro': 'Acesso negado'}), 403
+
+        # Verificar se a OC vinculada (se existir) está aprovada - bloquear edição se sim
+        oc_vinculada = OrdemCompra.query.filter_by(solicitacao_id=id).first()
+        if oc_vinculada and oc_vinculada.status == 'aprovada':
+            return jsonify({'erro': 'Não é possível editar: a Ordem de Compra vinculada já foi aprovada'}), 400
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'erro': 'Dados não fornecidos'}), 400
+
+        # Validar fornecedor
+        fornecedor_id = data.get('fornecedor_id')
+        if not fornecedor_id:
+            return jsonify({'erro': 'Fornecedor é obrigatório'}), 400
+
+        fornecedor = Fornecedor.query.get(fornecedor_id)
+        if not fornecedor:
+            return jsonify({'erro': 'Fornecedor não encontrado'}), 404
+
+        if fornecedor.tabela_preco_status != 'aprovada':
+            return jsonify({'erro': 'Este fornecedor não possui tabela de preços aprovada'}), 400
+
+        # Atualizar campos da solicitação
+        solicitacao.fornecedor_id = fornecedor_id
+        solicitacao.tipo_retirada = data.get('tipo_retirada', solicitacao.tipo_retirada)
+        solicitacao.modalidade_frete = data.get('modalidade_frete', solicitacao.modalidade_frete)
+        solicitacao.observacoes = data.get('observacoes', '')
+        solicitacao.rua = data.get('rua', '')
+        solicitacao.numero = data.get('numero', '')
+        solicitacao.cep = data.get('cep', '')
+        solicitacao.localizacao_lat = data.get('localizacao_lat')
+        solicitacao.localizacao_lng = data.get('localizacao_lng')
+        solicitacao.endereco_completo = data.get('endereco_completo', '')
+
+        # Se havia OC em análise vinculada, resetar a solicitação para pendente e remover a OC e Lotes
+        if oc_vinculada and oc_vinculada.status != 'aprovada':
+            from app.models import Lote
+            lotes = Lote.query.filter_by(solicitacao_origem_id=id).all()
+            for lote in lotes:
+                for item in lote.itens:
+                    item.lote_id = None
+                db.session.delete(lote)
+
+            db.session.delete(oc_vinculada)
+            solicitacao.status = 'pendente'
+            solicitacao.data_confirmacao = None
+            solicitacao.admin_id = None
+
+        # Remover itens antigos
+        for item_antigo in list(solicitacao.itens):
+            db.session.delete(item_antigo)
+        db.session.flush()
+
+        # Recriar itens
+        itens_data = data.get('itens', [])
+        if not itens_data:
+            return jsonify({'erro': 'Adicione pelo menos um item ao pedido'}), 400
+
+        requer_aprovacao_manual = False
+
+        for item_data in itens_data:
+            material_id = item_data.get('material_id')
+            peso_kg = item_data.get('peso_kg', 0)
+
+            if not material_id or not peso_kg or float(peso_kg) <= 0:
+                continue
+
+            material = MaterialBase.query.get(material_id)
+            if not material:
+                continue
+
+            preco_customizado = item_data.get('preco_customizado', False)
+            preco_oferecido = item_data.get('preco_oferecido')
+
+            # Calcular preço da tabela
+            _, preco_tabela, tabela_estrelas = calcular_valor_item_novo(
+                fornecedor_id,
+                material_id,
+                peso_kg
+            )
+
+            if preco_customizado and preco_oferecido is not None:
+                if float(preco_oferecido) <= 0:
+                    db.session.rollback()
+                    return jsonify({'erro': f'Preço oferecido inválido. O preço deve ser maior que zero.'}), 400
+
+                if preco_tabela <= 0:
+                    requer_aprovacao_manual = True
+                    preco_tabela = 0
+                    tabela_estrelas = 3
+
+                valor = float(preco_oferecido) * float(peso_kg)
+
+                if preco_tabela > 0 and float(preco_oferecido) > float(preco_tabela):
+                    requer_aprovacao_manual = True
+
+                item = ItemSolicitacao(
+                    solicitacao_id=solicitacao.id,
+                    material_id=material_id,
+                    peso_kg=float(peso_kg),
+                    classificacao=material.classificacao,
+                    estrelas_final=tabela_estrelas,
+                    valor_calculado=valor,
+                    preco_por_kg_snapshot=float(preco_oferecido),
+                    estrelas_snapshot=tabela_estrelas,
+                    preco_customizado=True,
+                    preco_oferecido=float(preco_oferecido),
+                    observacoes=item_data.get('observacoes', '')
+                )
+            else:
+                if preco_tabela <= 0:
+                    requer_aprovacao_manual = True
+                    preco_tabela = 0
+                    tabela_estrelas = 3
+                    valor = 0
+                else:
+                    valor = float(preco_tabela) * float(peso_kg)
+
+                item = ItemSolicitacao(
+                    solicitacao_id=solicitacao.id,
+                    material_id=material_id,
+                    peso_kg=float(peso_kg),
+                    classificacao=material.classificacao,
+                    estrelas_final=tabela_estrelas,
+                    valor_calculado=valor,
+                    preco_por_kg_snapshot=preco_tabela,
+                    estrelas_snapshot=tabela_estrelas,
+                    preco_customizado=False,
+                    preco_oferecido=None,
+                    observacoes=item_data.get('observacoes', '')
+                )
+            db.session.add(item)
+
+        # Atualizar status baseado nas regras
+        if requer_aprovacao_manual:
+            solicitacao.status = 'pendente'
+            db.session.commit()
+            
+            # Notificar admins sobre a edição (que requer aprovação)
+            admins = Usuario.query.filter_by(tipo='admin').all()
+            for admin in admins:
+                db.session.add(Notificacao(
+                    usuario_id=admin.id,
+                    titulo='Pedido de Compra Editado (Pendente)',
+                    mensagem=f'{usuario.nome} editou o pedido de compra #{solicitacao.id}. Requer reaprovação manual.',
+                    url=f'/solicitacoes.html?id={solicitacao.id}'
+                ))
+            db.session.commit()
+        else:
+            solicitacao.status = 'aprovada'
+            solicitacao.data_confirmacao = datetime.utcnow()
+            db.session.flush()
+            
+            # Recriar OC e lotes diretamente, pois foi auto-aprovado
+            try:
+                oc, lotes_criados = _criar_oc_e_lotes(solicitacao, usuario_id, data)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                raise e
+
+        sol_dict = solicitacao.to_dict()
+        sol_dict['itens'] = [item.to_dict() for item in solicitacao.itens]
+
+        return jsonify({
+            'mensagem': 'Pedido de compra atualizado com sucesso',
+            'solicitacao': sol_dict
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'erro': f'Erro ao editar solicitação: {str(e)}'}), 500
 
 @bp.route('/<int:id>/aprovar', methods=['POST'])
 @admin_required

@@ -64,6 +64,15 @@ def create_app():
             'mensagem': 'Por favor, faça login novamente'
         }), 401
 
+    # HTTP error handlers - return JSON for API requests
+    @app.errorhandler(405)
+    def method_not_allowed(e):
+        return jsonify({'erro': 'Método não permitido', 'mensagem': str(e)}), 405
+
+    @app.errorhandler(500)
+    def internal_error(e):
+        return jsonify({'erro': 'Erro interno do servidor', 'mensagem': str(e)}), 500
+
     with app.app_context():
         from app.routes import (auth, usuarios, notificacoes, vendedores,
                                 fornecedores, tipos_lote, dashboard, solicitacao_lotes,

@@ -83,8 +83,13 @@ async function fetchAPI(endpoint, options = {}) {
         }
 
         if (!response.ok && response.status !== 404) {
-            const error = await response.json();
-            throw new Error(error.erro || error.message || 'Erro na requisição');
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const error = await response.json();
+                throw new Error(error.erro || error.message || 'Erro na requisição');
+            } else {
+                throw new Error(`Erro ${response.status}: ${response.statusText || 'Erro na requisição'}`);
+            }
         }
 
         return response;

@@ -1695,8 +1695,17 @@
                     await carregarSolicitacoes();
                     await carregarOCs(); // Recarregar OCs pois podem ter sido afetadas
                 } else {
-                    const error = await response.json();
-                    showAlert(error.erro || 'Erro ao processar pedido', 'error');
+                    try {
+                        const contentType = response.headers.get('content-type') || '';
+                        if (contentType.includes('application/json')) {
+                            const error = await response.json();
+                            showAlert(error.erro || 'Erro ao processar pedido', 'error');
+                        } else {
+                            showAlert('Erro ' + response.status + ': Erro ao processar pedido', 'error');
+                        }
+                    } catch (parseErr) {
+                        showAlert('Erro ao processar pedido. Tente novamente.', 'error');
+                    }
                 }
             } catch (error) {
                 console.error('Erro ao processar pedido:', error);
