@@ -2225,8 +2225,10 @@
         async function carregarOCs(status = '') {
             try {
                 console.log(' Carregando OCs...');
+                // Timestamp para evitar cache do navegador e garantir dados atualizados
                 let url = '/ordens-compra';
-                if (status) url += `?status=${status}`;
+                if (status) url += `?status=${status}&_t=${Date.now()}`;
+                else url += `?_t=${Date.now()}`;
 
                 const response = await fetchAPI(url);
                 const container = document.getElementById('listaOCs');
@@ -2367,9 +2369,22 @@
 
         async function abrirModalAprovarOC(ocId) {
             try {
-                const response = await fetchAPI(`/ordens-compra/${ocId}`);
+                // Limpar dados anteriores ANTES do fetch para evitar exibição de valores antigos
+                ocAtual = null;
+                gpsAtual = null;
+                document.getElementById('conteudoOC').innerHTML = `
+                    <div style="text-align: center; padding: 1.5rem; color: #6b7280;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                        <p>Carregando dados da ordem de compra...</p>
+                    </div>
+                `;
+                document.getElementById('modalAprovarOC').classList.add('active');
+
+                // Buscar dados frescos da OC (timestamp para evitar cache)
+                const response = await fetchAPI(`/ordens-compra/${ocId}?_t=${Date.now()}`);
                 if (!response || !response.ok) {
                     showAlert('Erro ao carregar ordem de compra', 'error');
+                    document.getElementById('modalAprovarOC').classList.remove('active');
                     return;
                 }
 
@@ -2389,7 +2404,6 @@
 
                 document.getElementById('dispositivoOC').textContent = navigator.userAgent;
 
-                gpsAtual = null;
                 document.getElementById('gpsOC').textContent = 'Capturando...';
 
                 if (navigator.geolocation) {
@@ -2409,9 +2423,9 @@
 
                 document.getElementById('ipOC').textContent = 'Detectado automaticamente';
 
-                document.getElementById('modalAprovarOC').classList.add('active');
             } catch (error) {
                 console.error('Erro ao abrir modal:', error);
+                document.getElementById('modalAprovarOC').classList.remove('active');
                 showAlert('Erro ao carregar dados da ordem de compra', 'error');
             }
         }

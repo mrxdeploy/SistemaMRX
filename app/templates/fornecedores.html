@@ -1490,12 +1490,25 @@
                 }
                 document.getElementById('cnpj').value = fornecedorAtual.cpf || fornecedorAtual.cnpj || '';
 
+                // ========== LOCALIZAÇÃO: Garantir campos editáveis e preenchidos ==========
+                // Remover readonly dos campos de endereço para edição
+                ['nome', 'rua', 'numero', 'cidade', 'estado', 'cep', 'bairro'].forEach(fieldId => {
+                    const el = document.getElementById(fieldId);
+                    if (el) el.removeAttribute('readonly');
+                });
+
+                // Preencher campos de endereço com dados do fornecedor
                 document.getElementById('rua').value = fornecedorAtual.rua || '';
                 document.getElementById('numero').value = fornecedorAtual.numero || '';
                 document.getElementById('cidade').value = fornecedorAtual.cidade || '';
                 document.getElementById('estado').value = fornecedorAtual.estado || '';
                 document.getElementById('cep').value = fornecedorAtual.cep || '';
                 document.getElementById('bairro').value = fornecedorAtual.bairro || '';
+                // Preencher o campo de busca de CEP com o CEP atual para referência
+                const cepBuscaEl = document.getElementById('cepBusca');
+                if (cepBuscaEl) cepBuscaEl.value = fornecedorAtual.cep || '';
+                // =========================================================================
+
                 document.getElementById('telefone').value = fornecedorAtual.telefone || '';
                 document.getElementById('email').value = fornecedorAtual.email || '';
                 document.getElementById('observacoes').value = fornecedorAtual.observacoes || '';
