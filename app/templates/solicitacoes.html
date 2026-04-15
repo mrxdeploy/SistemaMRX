@@ -1133,9 +1133,12 @@
                 document.getElementById('tipoRetirada').value = sol.tipo_retirada || 'buscar';
                 document.getElementById('modalidadeFrete').value = sol.modalidade_frete || 'FOB';
                 document.getElementById('observacoes').value = sol.observacoes || '';
-                document.getElementById('rua').value = sol.rua || '';
-                document.getElementById('numero').value = sol.numero || '';
-                document.getElementById('cep').value = sol.cep || '';
+
+                // Localização: só sobrescrever se a solicitação tiver dados próprios,
+                // caso contrário manter os dados do fornecedor já preenchidos por carregarPrecosFornecedor()
+                if (sol.rua) document.getElementById('rua').value = sol.rua;
+                if (sol.numero) document.getElementById('numero').value = sol.numero;
+                if (sol.cep) document.getElementById('cep').value = sol.cep;
 
                 // GPS
                 const gpsInfo = document.getElementById('gpsInfo');
