@@ -552,6 +552,153 @@ def deletar_solicitacao(id):
         db.session.rollback()
         return jsonify({'erro': f'Erro ao deletar solicitação: {str(e)}'}), 500
 
+@bp.route('/<int:id>', methods=['PUT'])
+@jwt_required()
+def editar_solicitacao(id):
+    """Edita uma solicitação existente, desde que a OC vinculada não esteja aprovada."""
+    try:
+        usuario_id = get_jwt_identity()
+        usuario = Usuario.query.get(usuario_id)
+
+        solicitacao = Solicitacao.query.get(id)
+
+        if not solicitacao:
+            return jsonify({'erro': 'Solicitação não encontrada'}), 404
+
+        # Verificar permissão: dono da solicitação, admin ou gestor
+        is_admin = usuario.tipo == 'admin' or (usuario.perfil and usuario.perfil.nome in ['Administrador', 'Gestor'])
+        if not is_admin and solicitacao.funcionario_id != usuario_id:
+            return jsonify({'erro': 'Acesso negado'}), 403
+
+        # Verificar se a OC vinculada (se existir) está aprovada - bloquear edição se sim
+        oc_vinculada = OrdemCompra.query.filter_by(solicitacao_id=id).first()
+        if oc_vinculada and oc_vinculada.status == 'aprovada':
+            return jsonify({'erro': 'Não é possível editar: a Ordem de Compra vinculada já foi aprovada'}), 400
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'erro': 'Dados não fornecidos'}), 400
+
+        # Validar fornecedor
+        fornecedor_id = data.get('fornecedor_id')
+        if not fornecedor_id:
+            return jsonify({'erro': 'Fornecedor é obrigatório'}), 400
+
+        fornecedor = Fornecedor.query.get(fornecedor_id)
+        if not fornecedor:
+            return jsonify({'erro': 'Fornecedor não encontrado'}), 404
+
+        if fornecedor.tabela_preco_status != 'aprovada':
+            return jsonify({'erro': 'Este fornecedor não possui tabela de preços aprovada'}), 400
+
+        # Atualizar campos da solicitação
+        solicitacao.fornecedor_id = fornecedor_id
+        solicitacao.tipo_retirada = data.get('tipo_retirada', solicitacao.tipo_retirada)
+        solicitacao.modalidade_frete = data.get('modalidade_frete', solicitacao.modalidade_frete)
+        solicitacao.observacoes = data.get('observacoes', '')
+        solicitacao.rua = data.get('rua', '')
+        solicitacao.numero = data.get('numero', '')
+        solicitacao.cep = data.get('cep', '')
+        solicitacao.localizacao_lat = data.get('localizacao_lat')
+        solicitacao.localizacao_lng = data.get('localizacao_lng')
+        solicitacao.endereco_completo = data.get('endereco_completo', '')
+
+        # Se havia OC em análise vinculada, resetar a solicitação para pendente e remover a OC
+        # (pois o pedido foi alterado, a OC precisa ser recriada)
+        if oc_vinculada and oc_vinculada.status != 'aprovada':
+            # Remover todos os lotes gerados por essa OC e resetar itens
+            from app.models import Lote
+            lotes = Lote.query.filter_by(solicitacao_origem_id=id).all()
+            for lote in lotes:
+                # Desassociar itens do lote
+                for item in lote.itens:
+                    item.lote_id = None
+                db.session.delete(lote)
+
+            db.session.delete(oc_vinculada)
+            solicitacao.status = 'pendente'
+            solicitacao.data_confirmacao = None
+            solicitacao.admin_id = None
+
+        # Remover todos os itens existentes e recriar
+        for item_antigo in list(solicitacao.itens):
+            db.session.delete(item_antigo)
+        db.session.flush()
+
+        # Recriar itens
+        itens_data = data.get('itens', [])
+        if not itens_data:
+            return jsonify({'erro': 'Adicione pelo menos um item ao pedido'}), 400
+
+        for item_data in itens_data:
+            material_id = item_data.get('material_id')
+            peso_kg = item_data.get('peso_kg', 0)
+
+            if not material_id or not peso_kg or peso_kg <= 0:
+                continue
+
+            preco_customizado = item_data.get('preco_customizado', False)
+            preco_oferecido = item_data.get('preco_oferecido') if preco_customizado else None
+
+            # Buscar preço da tabela do fornecedor
+            from app.models import FornecedorTabelaPrecos
+            preco_config = FornecedorTabelaPrecos.query.filter_by(
+                fornecedor_id=fornecedor_id,
+                material_id=material_id,
+                status='ativo'
+            ).first()
+
+            preco_por_kg = float(preco_config.preco_fornecedor) if preco_config else 0.0
+
+            if preco_customizado and preco_oferecido:
+                valor_calculado = float(peso_kg) * float(preco_oferecido)
+                preco_snapshot = float(preco_oferecido)
+            else:
+                valor_calculado = float(peso_kg) * preco_por_kg
+                preco_snapshot = preco_por_kg
+
+            novo_item = ItemSolicitacao(
+                solicitacao_id=solicitacao.id,
+                material_id=material_id,
+                peso_kg=float(peso_kg),
+                estrelas_final=3,
+                valor_calculado=valor_calculado,
+                preco_por_kg_snapshot=preco_snapshot,
+                preco_customizado=preco_customizado,
+                preco_oferecido=float(preco_oferecido) if preco_oferecido else None,
+                observacoes=item_data.get('observacoes', '')
+            )
+            db.session.add(novo_item)
+
+        db.session.commit()
+
+        # Notificar admins sobre a edição
+        admins = Usuario.query.filter_by(tipo='admin').all()
+        for admin in admins:
+            notificacao = Notificacao(
+                usuario_id=admin.id,
+                titulo='Pedido de Compra Editado',
+                mensagem=f'{usuario.nome} editou o pedido de compra #{solicitacao.id} do fornecedor {fornecedor.nome}.',
+                url=f'/solicitacoes.html?id={solicitacao.id}'
+            )
+            db.session.add(notificacao)
+        db.session.commit()
+
+        solicitacao_dict = solicitacao.to_dict()
+        solicitacao_dict['itens'] = [item.to_dict() for item in solicitacao.itens]
+
+        return jsonify({
+            'mensagem': 'Pedido de compra atualizado com sucesso',
+            'solicitacao': solicitacao_dict
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'erro': f'Erro ao editar solicitação: {str(e)}'}), 500
+
+
 @bp.route('/debug/<int:id>', methods=['GET'])
 @admin_required
 def diagnostico_solicitacao(id):

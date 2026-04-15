@@ -614,6 +614,13 @@ class Solicitacao(db.Model):  # type: ignore
         total_peso = sum(item.peso_kg for item in itens_list)
         total_valor = sum(item.valor_calculado for item in itens_list)
 
+        # Buscar status da OC vinculada (se existir)
+        oc_status = None
+        oc_id = None
+        if self.ordem_compra:
+            oc_status = self.ordem_compra.status
+            oc_id = self.ordem_compra.id
+
         return {
             'id': self.id,
             'funcionario_id': self.funcionario_id,
@@ -637,7 +644,9 @@ class Solicitacao(db.Model):  # type: ignore
             'admin_nome': self.admin.nome if self.admin else None,
             'total_itens': len(itens_list),
             'total_peso_kg': round(total_peso, 2),
-            'total_valor': round(total_valor, 2)
+            'total_valor': round(total_valor, 2),
+            'oc_id': oc_id,
+            'oc_status': oc_status
         }
 
 class ItemSolicitacao(db.Model):  # type: ignore

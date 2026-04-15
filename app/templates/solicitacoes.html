@@ -507,7 +507,7 @@
     <div class="modal" id="modalNovaSolicitacao">
         <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
             <div class="modal-header">
-                <h2>Nova Compra</h2>
+                <h2 id="tituloModalSolicitacao">Nova Compra</h2>
                 <button class="modal-close" onclick="fecharModalSolicitacao()">&times;</button>
             </div>
             <form id="formSolicitacao">
@@ -602,8 +602,9 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-full mt-3" id="btnEnviarSolicitacao"> Enviar
-                    Pedido</button>
+                <button type="submit" class="btn btn-primary w-full mt-3" id="btnEnviarSolicitacao">
+                    <i class="fas fa-paper-plane"></i> <span id="btnEnviarSolicitacaoTexto">Enviar Pedido</span>
+                </button>
             </form>
         </div>
     </div>
@@ -677,6 +678,9 @@
         let todosFornecedores = [];
         let todosTiposLote = [];
         let precosFornecedorSelecionado = {};
+        // Controle do modo de edição
+        let modoEdicao = false;
+        let solicitacaoEditandoId = null;
 
         // Função para alternar entre abas
         function changeTab(tabName) {
@@ -957,6 +961,15 @@
                             'badge-pendente';
                     const statusLabel = s.status.toUpperCase();
 
+                    // Lógica do botão Editar:
+                    // Aparece sempre que a OC vinculada NÃO estiver aprovada
+                    // s.oc_status vem do backend; se não há OC, oc_status é null
+                    const ocAprovada = s.oc_status === 'aprovada';
+                    const podeEditar = !ocAprovada;
+
+                    // Badge de aviso quando há OC em análise
+                    const temOCEmAnalise = s.oc_status === 'em_analise';
+
                     return `
                         <div class="solicitacao-card">
                             <div class="card-header-section">
@@ -993,10 +1006,21 @@
                                 <span class="valor-destaque">R$ ${s.total_valor ? s.total_valor.toFixed(2) : '0.00'}</span>
                             </div>
 
+                            ${temOCEmAnalise ? `
+                            <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-size: 12px; color: #92400e; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-clock"></i>
+                                <span>OC em análise — editar vai recriar o pedido</span>
+                            </div>` : ''}
+
                             <div class="card-actions">
                                 <button class="btn btn-primary" onclick="verDetalhes(${s.id})">
                                     <i class="fas fa-eye"></i> Ver Detalhes
                                 </button>
+                                ${podeEditar ? `
+                                    <button class="btn btn-warning" onclick="editarSolicitacao(${s.id})" style="background: linear-gradient(135deg, #f59e0b, #d97706); border-color: #d97706; color: white;">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </button>
+                                ` : ''}
                                 ${(usuarioAtual && (usuarioAtual.tipo === 'admin' || usuarioAtual.perfil_nome === 'Gestor' || usuarioAtual.perfil_nome === 'Administrador')) ? `
                                     <button class="btn btn-danger" onclick="deletarSolicitacao(${s.id})">
                                         <i class="fas fa-trash"></i> Excluir
@@ -1053,12 +1077,136 @@
         }
 
         function abrirModalNovaSolicitacao() {
+            modoEdicao = false;
+            solicitacaoEditandoId = null;
             itensSolicitacao = [];
             document.getElementById('formSolicitacao').reset();
             document.getElementById('listaItens').innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">Nenhum item adicionado ainda</p>';
             precosFornecedorSelecionado = {};
             atualizarResumo();
+            document.getElementById('tituloModalSolicitacao').textContent = 'Nova Compra';
+            document.getElementById('btnEnviarSolicitacaoTexto').textContent = 'Enviar Pedido';
+            const gpsInfo = document.getElementById('gpsInfo');
+            gpsInfo.style.display = 'none';
+            gpsInfo.dataset.lat = '';
+            gpsInfo.dataset.lng = '';
             document.getElementById('modalNovaSolicitacao').classList.add('active');
+        }
+
+        async function editarSolicitacao(id) {
+            try {
+                showAlert('Carregando dados do pedido...', 'info');
+
+                const response = await fetchAPI(`/solicitacoes/${id}`);
+                if (!response || !response.ok) {
+                    showAlert('Erro ao carregar dados do pedido', 'error');
+                    return;
+                }
+
+                const sol = await response.json();
+
+                // Verificação de segurança: OC aprovada?
+                const ocResp = await fetchAPI(`/ordens-compra?solicitacao_id=${id}`);
+                // Mesmo que a checagem falhe, o backend vai barrar – aqui é UI apenas
+
+                modoEdicao = true;
+                solicitacaoEditandoId = id;
+                itensSolicitacao = [];
+                itemIdCounter = 0;
+
+                // Atualizar título e botão
+                document.getElementById('tituloModalSolicitacao').innerHTML =
+                    `<i class="fas fa-edit" style="color: #f59e0b; margin-right: 8px;"></i> Editar Pedido #${id}`;
+                document.getElementById('btnEnviarSolicitacaoTexto').textContent = 'Salvar Alterações';
+
+                // Reset form
+                document.getElementById('formSolicitacao').reset();
+
+                // Preencher fornecedor
+                const selectForn = document.getElementById('fornecedorSolicitacao');
+                selectForn.value = sol.fornecedor_id;
+
+                // Aguardar carregamento dos preços do fornecedor
+                await carregarPrecosFornecedorParaEdicao(sol.fornecedor_id);
+
+                // Preencher campos básicos
+                document.getElementById('tipoRetirada').value = sol.tipo_retirada || 'buscar';
+                document.getElementById('modalidadeFrete').value = sol.modalidade_frete || 'FOB';
+                document.getElementById('observacoes').value = sol.observacoes || '';
+                document.getElementById('rua').value = sol.rua || '';
+                document.getElementById('numero').value = sol.numero || '';
+                document.getElementById('cep').value = sol.cep || '';
+
+                // GPS
+                const gpsInfo = document.getElementById('gpsInfo');
+                if (sol.localizacao_lat && sol.localizacao_lng) {
+                    gpsInfo.dataset.lat = sol.localizacao_lat;
+                    gpsInfo.dataset.lng = sol.localizacao_lng;
+                    gpsInfo.style.display = 'block';
+                    gpsInfo.innerHTML = `<i class="fas fa-check-circle"></i> GPS do pedido original: ${sol.localizacao_lat.toFixed(6)}, ${sol.localizacao_lng.toFixed(6)}`;
+                } else {
+                    gpsInfo.style.display = 'none';
+                    gpsInfo.dataset.lat = '';
+                    gpsInfo.dataset.lng = '';
+                }
+
+                // Carregar itens existentes
+                if (sol.itens && sol.itens.length > 0) {
+                    for (const itemOriginal of sol.itens) {
+                        const itemId = ++itemIdCounter;
+                        const materialId = itemOriginal.material_id;
+                        const preco = precosFornecedorSelecionado[materialId] ? precosFornecedorSelecionado[materialId].preco_por_kg : 0;
+
+                        const novoItem = {
+                            id: itemId,
+                            material_id: materialId,
+                            peso_kg: itemOriginal.peso_kg,
+                            observacoes: itemOriginal.observacoes || '',
+                            preco_customizado: itemOriginal.preco_customizado || false,
+                            preco_oferecido: itemOriginal.preco_oferecido || null,
+                            valor_calculado: itemOriginal.valor_calculado || 0
+                        };
+
+                        itensSolicitacao.push(novoItem);
+
+                        // Recalcular valor com preços atuais
+                        calcularValorItem(novoItem);
+                    }
+                }
+
+                renderizarItens();
+
+                // Atualizar o texto do material nos inputs de busca
+                setTimeout(() => {
+                    sol.itens.forEach((itemOriginal, index) => {
+                        const itemId = index + 1;
+                        const searchInput = document.getElementById(`search_material_${itemId}`);
+                        if (searchInput && itemOriginal.material_id) {
+                            const material = todosTiposLote.find(m => m.id === itemOriginal.material_id);
+                            if (material) {
+                                searchInput.value = `${material.codigo} - ${material.nome}`;
+                            } else if (itemOriginal.material_codigo && itemOriginal.material_nome) {
+                                searchInput.value = `${itemOriginal.material_codigo} - ${itemOriginal.material_nome}`;
+                            }
+                        }
+                    });
+                }, 100);
+
+                atualizarResumo();
+                document.getElementById('modalNovaSolicitacao').classList.add('active');
+
+            } catch (error) {
+                console.error('Erro ao carregar pedido para edição:', error);
+                showAlert('Erro ao carregar dados do pedido para edição', 'error');
+            }
+        }
+
+        async function carregarPrecosFornecedorParaEdicao(fornecedorId) {
+            // Selecionar o fornecedor no select
+            const selectForn = document.getElementById('fornecedorSolicitacao');
+            selectForn.value = fornecedorId;
+            // Chamar carregarPrecosFornecedor para atualizar precosFornecedorSelecionado e todosTiposLote
+            await carregarPrecosFornecedor();
         }
 
         function fecharModalSolicitacao() {
@@ -1498,9 +1646,6 @@
                 preco_oferecido: item.preco_customizado && item.preco_oferecido ? parseFloat(item.preco_oferecido) : null
             }));
 
-            console.log(' DEBUG - Enviando itens:', itensParaEnvio);
-            console.log(' DEBUG - Itens originais:', itensSolicitacao);
-
             const data = {
                 fornecedor_id: parseInt(document.getElementById('fornecedorSolicitacao').value),
                 tipo_retirada: document.getElementById('tipoRetirada').value,
@@ -1519,31 +1664,46 @@
                 data.endereco_completo = `${data.rua}, ${data.numero}${data.cep ? ' - CEP: ' + data.cep : ''}`;
             }
 
-            try {
-                const btn = document.getElementById('btnEnviarSolicitacao');
-                btn.disabled = true;
-                btn.textContent = '⏳ Enviando...';
+            const btn = document.getElementById('btnEnviarSolicitacao');
+            const btnTexto = document.getElementById('btnEnviarSolicitacaoTexto');
 
-                const response = await fetchAPI('/solicitacoes', {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                });
+            try {
+                btn.disabled = true;
+                btnTexto.textContent = modoEdicao ? '⏳ Salvando...' : '⏳ Enviando...';
+
+                let response;
+                if (modoEdicao && solicitacaoEditandoId) {
+                    // MODO EDIÇÃO: PUT
+                    response = await fetchAPI(`/solicitacoes/${solicitacaoEditandoId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(data)
+                    });
+                } else {
+                    // MODO CRIAÇÃO: POST
+                    response = await fetchAPI('/solicitacoes', {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                }
 
                 if (response && response.ok) {
-                    showAlert('Pedido de Compra enviado com sucesso!', 'success');
+                    const msg = modoEdicao
+                        ? 'Pedido de Compra atualizado com sucesso!'
+                        : 'Pedido de Compra enviado com sucesso!';
+                    showAlert(msg, 'success');
                     fecharModalSolicitacao();
                     await carregarSolicitacoes();
+                    await carregarOCs(); // Recarregar OCs pois podem ter sido afetadas
                 } else {
                     const error = await response.json();
-                    showAlert(error.erro || 'Erro ao enviar pedido', 'error');
+                    showAlert(error.erro || 'Erro ao processar pedido', 'error');
                 }
             } catch (error) {
-                console.error('Erro ao enviar pedido:', error);
-                showAlert('Erro ao enviar pedido', 'error');
+                console.error('Erro ao processar pedido:', error);
+                showAlert('Erro ao processar pedido', 'error');
             } finally {
-                const btn = document.getElementById('btnEnviarSolicitacao');
                 btn.disabled = false;
-                btn.textContent = ' Enviar Pedido';
+                btnTexto.textContent = modoEdicao ? 'Salvar Alterações' : 'Enviar Pedido';
             }
         });
 
