@@ -1159,9 +1159,6 @@
                         const itemId = ++itemIdCounter;
                         const materialId = itemOriginal.material_id;
                         
-                        // Determinar o preço a ser usado (estritamente o original do pedido)
-                        const precoOriginal = itemOriginal.preco_por_kg_snapshot || 0;
-
                         const novoItem = {
                             id: itemId,
                             material_id: materialId,
@@ -1169,14 +1166,14 @@
                             observacoes: itemOriginal.observacoes || '',
                             preco_customizado: itemOriginal.preco_customizado || false,
                             preco_oferecido: itemOriginal.preco_oferecido || null,
-                            valor_calculado: itemOriginal.valor_calculado || 0,
+                            valor_calculado: 0, // Será recalculado abaixo
                             preco_por_kg_snapshot: null // Forçar recálculo com preço atual da tabela
                         };
 
+                        // Forçar recálculo imediato com o preço atual da tabela do fornecedor
+                        calcularValorItem(novoItem);
+
                         itensSolicitacao.push(novoItem);
-                        
-                        // NÃO chamamos calcularValorItem aqui pois queremos preservar exatamente o valor_calculado do servidor
-                        // apenas se o item for novo ou alterado ele deve ser recalculado
                     }
                 }
 
