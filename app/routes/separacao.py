@@ -18,10 +18,9 @@ def registrar_auditoria_separacao(separacao, acao, usuario_id, detalhes=None, gp
         'gps': gps,
         'device_id': device_id
     }
-
-    if separacao.auditoria is None:
-        separacao.auditoria = []
-    separacao.auditoria.append(entrada_auditoria)
+    auditoria_atual = list(separacao.auditoria) if separacao.auditoria else []
+    auditoria_atual.append(entrada_auditoria)
+    separacao.auditoria = auditoria_atual
 
 @bp.route('/fila', methods=['GET'])
 @jwt_required()
@@ -454,6 +453,18 @@ def finalizar_separacao(id):
 
         if residuos_pendentes > 0:
             return jsonify({'erro': f'Existem {residuos_pendentes} resíduos aguardando aprovação. Finalize todos antes de concluir a separação'}), 400
+
+        # Validar que ao menos um sublote foi criado antes de finalizar
+        sublotes_count = Lote.query.filter_by(lote_pai_id=lote_pai.id).count()
+        peso_sublotes = separacao.peso_total_sublotes or 0
+        peso_residuos = separacao.peso_total_residuos or 0
+        confirmar_sem_sublotes = data.get('confirmar_sem_sublotes', False)
+
+        if sublotes_count == 0 and peso_residuos == 0 and not confirmar_sem_sublotes:
+            return jsonify({
+                'erro': 'Nenhum material foi separado ainda. Adicione pelo menos um item ou resíduo antes de finalizar, ou confirme a finalização sem itens.',
+                'requer_confirmacao': True
+            }), 400
 
         peso_total_processado = (separacao.peso_total_sublotes or 0) + (separacao.peso_total_residuos or 0)
         peso_lote = lote_pai.peso_total_kg or lote_pai.peso_liquido or 0

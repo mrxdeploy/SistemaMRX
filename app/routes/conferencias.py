@@ -85,6 +85,13 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
                 'motivo': motivo
             })
         
+        # Calcular valor_total do lote proporcionalmente ao peso conferido vs peso da OC
+        valor_total_oc = float(oc.valor_total or 0)
+        if decisao == 'ACEITAR_COM_DESCONTO' and percentual_desconto and valor_total_oc > 0:
+            valor_total_lote = valor_total_oc * (1 - percentual_desconto / 100)
+        else:
+            valor_total_lote = valor_total_oc
+
         lote = Lote(
             numero_lote=numero_lote,
             fornecedor_id=oc.fornecedor_id,
@@ -96,6 +103,7 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
             peso_bruto_recebido=peso_final,
             peso_liquido=peso_liquido,
             peso_total_kg=peso_liquido,
+            valor_total=valor_total_lote,
             qualidade_recebida=conferencia.qualidade,
             status='AGUARDANDO_SEPARACAO',
             conferente_id=conferencia.conferente_id,

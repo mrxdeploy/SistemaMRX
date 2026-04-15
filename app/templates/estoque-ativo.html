@@ -734,6 +734,11 @@
                                 <i class="fas fa-calculator"></i> <strong>Total separado:</strong> ${pesoSublotes.toFixed(2)} kg de ${lote.sublotes.length} tipo(s) de material
                             </div>
                         </div>
+                    ` : (lote.status || '').toUpperCase() === 'PROCESSADO' ? `
+                        <div style="margin-top: 0.75rem; padding: 0.5rem; background: #f0fdf4; border-left: 3px solid #16a34a; border-radius: 0.25rem; font-size: 0.8rem;">
+                            <i class="fas fa-check-circle" style="color: #16a34a;"></i>
+                            <span style="color: var(--gray-700);">Lote processado — separação concluída sem itens registrados</span>
+                        </div>
                     ` : `
                         <div style="margin-top: 0.75rem; padding: 0.5rem; background: var(--warning-bg); border-left: 3px solid var(--warning-color); border-radius: 0.25rem; font-size: 0.8rem;">
                             <i class="fas fa-exclamation-triangle" style="color: var(--warning-color);"></i> 

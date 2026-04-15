@@ -778,7 +778,7 @@
             document.getElementById('percentualProcessado').textContent = `${percentual.toFixed(1)}%`;
         }
 
-        async function finalizarSeparacao() {
+        async function finalizarSeparacao(confirmarSemSublotes = false) {
             try {
                 const pesoProcessado = (separacao.peso_total_sublotes || 0) + (separacao.peso_total_residuos || 0);
                 const pesoLote = lote.peso_total_kg || 0;
@@ -804,12 +804,23 @@
                     },
                     body: JSON.stringify({
                         gps: gps,
-                        observacoes: document.getElementById('observacoesFinais').value
+                        observacoes: document.getElementById('observacoesFinais').value,
+                        confirmar_sem_sublotes: confirmarSemSublotes
                     })
                 });
 
                 if (!response.ok) {
                     const error = await response.json();
+                    if (error.requer_confirmacao) {
+                        const confirmar = confirm(
+                            `⚠️ ATENÇÃO: ${error.erro}\n\n` +
+                            `Deseja finalizar mesmo assim sem nenhum material separado?`
+                        );
+                        if (confirmar) {
+                            return finalizarSeparacao(true);
+                        }
+                        return;
+                    }
                     throw new Error(error.erro || 'Erro ao finalizar separação');
                 }
 
