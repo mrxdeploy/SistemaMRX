@@ -228,12 +228,12 @@ def calcular_valor_item_novo(fornecedor_id, material_id, peso_kg):
         print(f"       Fornecedor não encontrado")
         return (0.0, 0.0, 3)
     
-    # Buscar preço na tabela personalizada do fornecedor
+    # Buscar preço na tabela personalizada do fornecedor (pegar sempre a VERSÃO MAIS RECENTE ATIVA)
     preco_fornecedor = FornecedorTabelaPrecos.query.filter_by(
         fornecedor_id=fornecedor_id,
         material_id=material_id,
         status='ativo'
-    ).first()
+    ).order_by(FornecedorTabelaPrecos.versao.desc()).first()
     
     if not preco_fornecedor:
         print(f"       Preço não encontrado para material {material_id} na tabela do fornecedor {fornecedor_id}")
@@ -798,6 +798,9 @@ def editar_solicitacao(id):
                     preco_oferecido=None,
                     observacoes=item_data.get('observacoes', '')
                 )
+            
+            # Adicionar explicitamente ao relacionamento e ao banco
+            solicitacao.itens.append(item)
             db.session.add(item)
 
         # Atualizar status baseado nas regras
@@ -818,7 +821,10 @@ def editar_solicitacao(id):
         else:
             solicitacao.status = 'aprovada'
             solicitacao.data_confirmacao = datetime.utcnow()
+            
+            # Sincronizar itens e status antes de criar a OC
             db.session.flush()
+            db.session.refresh(solicitacao) # Garantir que sol.itens esteja limpo e atualizado
             
             # Recriar OC e lotes diretamente, pois foi auto-aprovado
             try:
