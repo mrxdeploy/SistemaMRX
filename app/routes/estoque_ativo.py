@@ -1633,3 +1633,84 @@ def detalhes_bag(bag_id):
         return jsonify({'erro': str(e)}), 500
 
 
+# ============================
+# APAGAR LOTE COMPLETO (lote + sublotes)
+# ============================
+
+@bp.route('/lotes/<int:lote_id>', methods=['DELETE'])
+@jwt_required()
+def apagar_lote_completo(lote_id):
+    """Apaga completamente um lote e todos os seus sublotes do sistema."""
+    try:
+        current_user_id = get_jwt_identity()
+        usuario = Usuario.query.get(current_user_id)
+
+        # Apenas admin pode apagar lotes
+        is_admin = usuario and usuario.tipo in ['admin', 'gestor']
+        if not is_admin:
+            return jsonify({'erro': 'Apenas administradores podem apagar lotes'}), 403
+
+        lote = Lote.query.get(lote_id)
+        if not lote:
+            return jsonify({'erro': 'Lote não encontrado'}), 404
+
+        numero_lote = lote.numero_lote
+
+        # Coletar todos os sublotes deste lote
+        sublotes = Lote.query.filter_by(lote_pai_id=lote_id).all()
+        sublote_ids = [s.id for s in sublotes]
+
+        logger.info(f'🗑️ Apagando lote {numero_lote} (id={lote_id}) com {len(sublote_ids)} sublotes. Usuário: {current_user_id}')
+
+        # Para cada sublote e para o lote principal, apagar itens separados e atualizar Bags
+        all_ids = [lote_id] + sublote_ids
+        
+        itens_para_apagar = ItemSeparadoProducao.query.filter(
+            ItemSeparadoProducao.entrada_estoque_id.in_(all_ids)
+        ).all()
+        
+        bags_afetados = set()
+        for item in itens_para_apagar:
+            if item.bag_id:
+                bag = BagProducao.query.get(item.bag_id)
+                if bag:
+                    bag.peso_acumulado = max(0, float(bag.peso_acumulado or 0) - float(item.peso_kg or 0))
+                    bag.quantidade_itens = max(0, (bag.quantidade_itens or 0) - (item.quantidade or 1))
+                    bags_afetados.add(bag.id)
+            
+            db.session.delete(item)
+        
+        db.session.flush()
+
+
+        # Desassociar itens de solicitação (não apagar, apenas remover referência)
+        from app.models import ItemSolicitacao
+        ItemSolicitacao.query.filter_by(lote_id=lote_id).update({'lote_id': None})
+        for sid in sublote_ids:
+            ItemSolicitacao.query.filter_by(lote_id=sid).update({'lote_id': None})
+        db.session.flush()
+
+        # Apagar sublotes (o cascade cuida de movimentações, separação, entrada_estoque, etc.)
+        for sublote in sublotes:
+            db.session.delete(sublote)
+        db.session.flush()
+
+        # Apagar o lote principal
+        db.session.delete(lote)
+        db.session.commit()
+
+        logger.info(f'✅ Lote {numero_lote} e {len(sublote_ids)} sublote(s) apagados com sucesso.')
+        return jsonify({
+            'sucesso': True,
+            'mensagem': f'Lote {numero_lote} e {len(sublote_ids)} sublote(s) apagados com sucesso.'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'❌ Erro ao apagar lote {lote_id}: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'erro': str(e)}), 500
+        return jsonify({'erro': str(e)}), 500
+
+
