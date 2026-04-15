@@ -692,26 +692,32 @@ def editar_solicitacao(id):
         solicitacao.localizacao_lng = data.get('localizacao_lng')
         solicitacao.endereco_completo = data.get('endereco_completo', '')
 
-        # Se havia OC em análise vinculada, resetar a solicitação para pendente e remover a OC e Lotes
+        # 1. REMOVER OC VINCULADA (SE EXISTIR E NÃO ESTIVER APROVADA)
         if oc_vinculada and oc_vinculada.status != 'aprovada':
-            from app.models import Lote
-            lotes = Lote.query.filter_by(solicitacao_origem_id=id).all()
-            for lote in lotes:
-                for item in lote.itens:
-                    item.lote_id = None
-                db.session.delete(lote)
-
             db.session.delete(oc_vinculada)
             solicitacao.status = 'pendente'
             solicitacao.data_confirmacao = None
             solicitacao.admin_id = None
 
-        # Remover itens antigos
+        # 2. REMOVER TODOS OS LOTES VINCULADOS (INDISPENSÁVEL PARA EVITAR UniqueViolation)
+        from app.models import Lote
+        lotes_existentes = Lote.query.filter_by(solicitacao_origem_id=id).all()
+        if lotes_existentes:
+            print(f" DEBUG: Removendo {len(lotes_existentes)} lote(s) existente(s) da solicitação #{id}")
+            for lote in lotes_existentes:
+                # Desassociar itens para evitar restrições de chave estrangeira antes da deleção
+                for item in lote.itens:
+                    item.lote_id = None
+                db.session.delete(lote)
+
+        # 3. REMOVER ITENS ANTIGOS
         for item_antigo in list(solicitacao.itens):
             db.session.delete(item_antigo)
+        
+        # 4. SINCRONIZAR DELEÇÕES NO BANCO (CRÍTICO)
         db.session.flush()
-        # CRÍTICO: limpar o cache de identity map do SQLAlchemy para que
-        # _criar_oc_e_lotes não encontre a OC deletada ainda em memória
+        
+        # Limpar cache do identity map para garantir leitura limpa posteriomente
         db.session.expire_all()
 
         # Recriar itens
@@ -735,7 +741,10 @@ def editar_solicitacao(id):
             preco_customizado = item_data.get('preco_customizado', False)
             preco_oferecido = item_data.get('preco_oferecido')
 
-            # Calcular preço da tabela
+            # Prioridade para o preço original enviado pelo frontend (snapshot do pedido)
+            preco_por_kg_original = item_data.get('preco_por_kg_snapshot')
+
+            # Calcular preço da tabela atual para comparação e fallback
             _, preco_tabela, tabela_estrelas = calcular_valor_item_novo(
                 fornecedor_id,
                 material_id,
@@ -771,13 +780,19 @@ def editar_solicitacao(id):
                     observacoes=item_data.get('observacoes', '')
                 )
             else:
-                if preco_tabela <= 0:
+                # Se não for customizado, verifica se temos um snapshot original para manter
+                if preco_por_kg_original is not None:
+                    preco_final = float(preco_por_kg_original)
+                else:
+                    preco_final = preco_tabela
+
+                if preco_final <= 0:
                     requer_aprovacao_manual = True
-                    preco_tabela = 0
+                    preco_final = 0
                     tabela_estrelas = 3
                     valor = 0
                 else:
-                    valor = float(preco_tabela) * float(peso_kg)
+                    valor = float(preco_final) * float(peso_kg)
 
                 item = ItemSolicitacao(
                     solicitacao_id=solicitacao.id,
@@ -786,7 +801,7 @@ def editar_solicitacao(id):
                     classificacao=material.classificacao,
                     estrelas_final=tabela_estrelas,
                     valor_calculado=valor,
-                    preco_por_kg_snapshot=preco_tabela,
+                    preco_por_kg_snapshot=preco_final,
                     estrelas_snapshot=tabela_estrelas,
                     preco_customizado=False,
                     preco_oferecido=None,
