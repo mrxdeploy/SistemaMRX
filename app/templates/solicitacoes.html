@@ -1158,7 +1158,9 @@
                     for (const itemOriginal of sol.itens) {
                         const itemId = ++itemIdCounter;
                         const materialId = itemOriginal.material_id;
-                        const preco = precosFornecedorSelecionado[materialId] ? precosFornecedorSelecionado[materialId].preco_por_kg : 0;
+                        
+                        // Determinar o preço a ser usado (estritamente o original do pedido)
+                        const precoOriginal = itemOriginal.preco_por_kg_snapshot || 0;
 
                         const novoItem = {
                             id: itemId,
@@ -1167,13 +1169,14 @@
                             observacoes: itemOriginal.observacoes || '',
                             preco_customizado: itemOriginal.preco_customizado || false,
                             preco_oferecido: itemOriginal.preco_oferecido || null,
-                            valor_calculado: itemOriginal.valor_calculado || 0
+                            valor_calculado: itemOriginal.valor_calculado || 0,
+                            preco_por_kg_snapshot: precoOriginal // Armazenar preço original para cálculos posteriores
                         };
 
                         itensSolicitacao.push(novoItem);
-
-                        // Recalcular valor com preços atuais
-                        calcularValorItem(novoItem);
+                        
+                        // NÃO chamamos calcularValorItem aqui pois queremos preservar exatamente o valor_calculado do servidor
+                        // apenas se o item for novo ou alterado ele deve ser recalculado
                     }
                 }
 
@@ -1443,20 +1446,25 @@
                 return;
             }
 
-            const precoInfo = precosFornecedorSelecionado[item.material_id];
-
-            if (!precoInfo || !precoInfo.preco_por_kg) {
-                item.valor_calculado = 0;
-                console.warn(`Preço não encontrado para material ID ${item.material_id}`);
+            // PRIORIDADE 1: Preço Customizado (Preço Oferecido)
+            if (item.preco_customizado && item.preco_oferecido && item.preco_oferecido > 0) {
+                item.valor_calculado = item.peso_kg * item.preco_oferecido;
                 return;
             }
 
-            // Se usar preço customizado e tiver preço oferecido, usar ele
-            if (item.preco_customizado && item.preco_oferecido && item.preco_oferecido > 0) {
-                item.valor_calculado = item.peso_kg * item.preco_oferecido;
-            } else {
-                // Usar preço da tabela do fornecedor
+            // PRIORIDADE 2: Preço original do pedido (Snapshot)
+            if (item.preco_por_kg_snapshot !== undefined && item.preco_por_kg_snapshot !== null) {
+                item.valor_calculado = item.peso_kg * item.preco_por_kg_snapshot;
+                return;
+            }
+
+            // PRIORIDADE 3: Preço atual da tabela do fornecedor (para novos itens)
+            const precoInfo = precosFornecedorSelecionado[item.material_id];
+            if (precoInfo && precoInfo.preco_por_kg) {
                 item.valor_calculado = item.peso_kg * precoInfo.preco_por_kg;
+            } else {
+                item.valor_calculado = 0;
+                console.warn(`Preço não encontrado para material ID ${item.material_id}`);
             }
         }
 
@@ -1646,7 +1654,8 @@
                 peso_kg: parseFloat(item.peso_kg),
                 observacoes: item.observacoes || '',
                 preco_customizado: item.preco_customizado || false,
-                preco_oferecido: item.preco_customizado && item.preco_oferecido ? parseFloat(item.preco_oferecido) : null
+                preco_oferecido: item.preco_customizado && item.preco_oferecido ? parseFloat(item.preco_oferecido) : null,
+                preco_por_kg_snapshot: item.preco_por_kg_snapshot // Enviar o snapshot para o backend manter o preço original
             }));
 
             const data = {

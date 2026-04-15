@@ -640,15 +640,20 @@ def editar_solicitacao(id):
             preco_customizado = item_data.get('preco_customizado', False)
             preco_oferecido = item_data.get('preco_oferecido') if preco_customizado else None
 
-            # Buscar preço da tabela do fornecedor
-            from app.models import FornecedorTabelaPrecos
-            preco_config = FornecedorTabelaPrecos.query.filter_by(
-                fornecedor_id=fornecedor_id,
-                material_id=material_id,
-                status='ativo'
-            ).first()
-
-            preco_por_kg = float(preco_config.preco_fornecedor) if preco_config else 0.0
+            # Prioridade para o preço original enviado pelo frontend (snapshot do pedido)
+            preco_por_kg_original = item_data.get('preco_por_kg_snapshot')
+            
+            if preco_por_kg_original is not None:
+                preco_por_kg = float(preco_por_kg_original)
+            else:
+                # Se não houver snapshot (item novo adicionado na edição), busca preço atual
+                from app.models import FornecedorTabelaPrecos
+                preco_config = FornecedorTabelaPrecos.query.filter_by(
+                    fornecedor_id=fornecedor_id,
+                    material_id=material_id,
+                    status='ativo'
+                ).first()
+                preco_por_kg = float(preco_config.preco_fornecedor) if preco_config else 0.0
 
             if preco_customizado and preco_oferecido:
                 valor_calculado = float(peso_kg) * float(preco_oferecido)
