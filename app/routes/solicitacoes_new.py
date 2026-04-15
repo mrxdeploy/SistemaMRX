@@ -5,6 +5,7 @@ from app.auth import admin_required
 from app.utils.auditoria import registrar_auditoria_oc
 from app import socketio
 from datetime import datetime
+from sqlalchemy import inspect as sa_inspect
 import os
 
 bp = Blueprint('solicitacoes', __name__, url_prefix='/api/solicitacoes')
@@ -36,8 +37,15 @@ def _criar_oc_e_lotes(solicitacao, usuario_id, data_request=None):
     if itens_sem_preco:
         raise ValueError(f'Existem {len(itens_sem_preco)} itens sem preço configurado ou com valor inválido')
     
-    oc_existente = OrdemCompra.query.filter_by(solicitacao_id=solicitacao.id).first()
-    if oc_existente:
+    # Verificar se já existe OC ativa para esta solicitação
+    # IMPORTANTE: populate_existing=True força leitura do banco, evitando
+    # retornar um objeto que foi marcado para deleção ainda na identity map
+    oc_existente = db.session.query(OrdemCompra).filter(
+        OrdemCompra.solicitacao_id == solicitacao.id
+    ).execution_options(populate_existing=True).first()
+    
+    # Checar se o objeto encontrado está marcado como deletado na sessão atual
+    if oc_existente and not sa_inspect(oc_existente).deleted:
         print(f" ⚠️ OC já existe: #{oc_existente.id} - pulando criação")
         return oc_existente, []
     
@@ -702,6 +710,9 @@ def editar_solicitacao(id):
         for item_antigo in list(solicitacao.itens):
             db.session.delete(item_antigo)
         db.session.flush()
+        # CRÍTICO: limpar o cache de identity map do SQLAlchemy para que
+        # _criar_oc_e_lotes não encontre a OC deletada ainda em memória
+        db.session.expire_all()
 
         # Recriar itens
         itens_data = data.get('itens', [])
