@@ -2116,6 +2116,9 @@
                 grupo.itens.forEach(m => {
                     const subCatCor = verBagCores[m.categoria] || 'var(--gray-400)';
                     const subCatNome = verBagNomes[m.categoria] || getCategoriaLabel(m.categoria) || m.classificacao || 'N/A';
+                    // Usar preço da tabela do fornecedor se disponível, senão fallback para média calculada
+                    const precoExibir = m.preco_tabela_fornecedor != null ? m.preco_tabela_fornecedor : m.preco_kg;
+                    const valorTotalExibir = m.preco_tabela_fornecedor != null ? (m.preco_tabela_fornecedor * m.peso_kg) : m.valor_total;
                     html += `
                     <tr style="border-bottom:1px dashed var(--gray-200); font-size: 0.9em; background-color: #fafafa;">
                         <td style="padding:0.5rem 0.75rem 0.5rem 2.5rem; color: var(--gray-600); border-left: 3px solid ${subCatCor}50;">
@@ -2126,8 +2129,8 @@
                         </td>
                         <td style="padding:0.5rem 0.75rem;text-align:center; color: var(--gray-600);">${m.fornecedor || 'N/A'}</td>
                         <td style="padding:0.5rem 0.75rem;text-align:right;color:var(--success-color); opacity: 0.9;">${m.peso_kg.toFixed(3)} kg</td>
-                        <td style="padding:0.5rem 0.75rem;text-align:right;color:#8b5cf6; opacity: 0.9;">R$ ${m.preco_kg.toFixed(2)}</td>
-                        <td style="padding:0.5rem 0.75rem;text-align:right;color:#059669; opacity: 0.9;">R$ ${m.valor_total.toFixed(2)}</td>
+                        <td style="padding:0.5rem 0.75rem;text-align:right;color:#8b5cf6; opacity: 0.9;" title="${m.preco_tabela_fornecedor != null ? 'Preço da tabela do fornecedor' : 'Média calculada'}">R$ ${precoExibir.toFixed(2)}</td>
+                        <td style="padding:0.5rem 0.75rem;text-align:right;color:#059669; opacity: 0.9;">R$ ${valorTotalExibir.toFixed(2)}</td>
                     </tr>`;
                 });
                 

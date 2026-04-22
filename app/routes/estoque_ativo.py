@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import db, Lote, BagProducao, ItemSeparadoProducao, ClassificacaoGrade, ItemSolicitacao, MaterialBase, Usuario, Fornecedor, Solicitacao, OrdemCompra
+from app.models import db, Lote, BagProducao, ItemSeparadoProducao, ClassificacaoGrade, ItemSolicitacao, MaterialBase, Usuario, Fornecedor, Solicitacao, OrdemCompra, FornecedorTabelaPrecos
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func
 from datetime import datetime, timedelta
@@ -1582,6 +1582,7 @@ def detalhes_bag(bag_id):
             
             # Buscar fornecedor do lote de origem
             fornecedor_nome = 'N/A'
+            fornecedor_id_origem = None
             if item.entrada_estoque_id:
                 sublote_origem = Lote.query.options(
                     joinedload(Lote.fornecedor),
@@ -1590,18 +1591,36 @@ def detalhes_bag(bag_id):
                 if sublote_origem:
                     if sublote_origem.fornecedor:
                         fornecedor_nome = sublote_origem.fornecedor.nome
+                        fornecedor_id_origem = sublote_origem.fornecedor_id
                     elif sublote_origem.lote_pai and sublote_origem.lote_pai.fornecedor:
                         fornecedor_nome = sublote_origem.lote_pai.fornecedor.nome
+                        fornecedor_id_origem = sublote_origem.lote_pai.fornecedor_id
             
             # Fallback: observações do item
             if fornecedor_nome == 'N/A' and item.observacoes and item.observacoes.startswith('Fornecedor:'):
                 fornecedor_nome = item.observacoes.replace('Fornecedor: ', '')
+            
+            # Buscar preço real da tabela do fornecedor para este material específico
+            preco_tabela_fornecedor = None
+            if fornecedor_id_origem and item.nome_item:
+                material_base = MaterialBase.query.filter(
+                    func.lower(MaterialBase.nome) == func.lower(item.nome_item)
+                ).first()
+                if material_base:
+                    preco_tabela = FornecedorTabelaPrecos.query.filter_by(
+                        fornecedor_id=fornecedor_id_origem,
+                        material_id=material_base.id,
+                        status='ativo'
+                    ).order_by(FornecedorTabelaPrecos.versao.desc()).first()
+                    if preco_tabela and preco_tabela.preco_fornecedor:
+                        preco_tabela_fornecedor = float(preco_tabela.preco_fornecedor)
             
             materiais.append({
                 'id': item.id,
                 'nome': item.nome_item,
                 'peso_kg': round(peso, 3),
                 'preco_kg': preco_kg,
+                'preco_tabela_fornecedor': preco_tabela_fornecedor,
                 'valor_total': round(valor, 2),
                 'classificacao': item.classificacao_grade.nome if item.classificacao_grade else 'N/A',
                 'categoria': item.classificacao_grade.categoria if item.classificacao_grade else 'N/A',
