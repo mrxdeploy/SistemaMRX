@@ -2071,7 +2071,13 @@
             };
 
             const materiaisAgrupados = {};
+            let totalValorReal = 0;
+            let totalPesoReal = 0;
             (bag.materiais || []).forEach(m => {
+                // Calcular valor real do item: usar preço da tabela do fornecedor se disponível
+                const precoEfetivo = m.preco_tabela_fornecedor != null ? m.preco_tabela_fornecedor : m.preco_kg;
+                const valorEfetivo = precoEfetivo * m.peso_kg;
+                
                 if (!materiaisAgrupados[m.nome]) {
                     materiaisAgrupados[m.nome] = {
                         nome: m.nome,
@@ -2083,8 +2089,11 @@
                     };
                 }
                 materiaisAgrupados[m.nome].peso_kg += m.peso_kg;
-                materiaisAgrupados[m.nome].valor_total += m.valor_total;
+                materiaisAgrupados[m.nome].valor_total += valorEfetivo;
                 materiaisAgrupados[m.nome].itens.push(m);
+                
+                totalPesoReal += m.peso_kg;
+                totalValorReal += valorEfetivo;
             });
 
             const matRows = Object.values(materiaisAgrupados).map((grupo, idx) => {
@@ -2138,7 +2147,7 @@
                 return html;
             }).join('');
 
-            const realMedia = bag.total_peso > 0 ? (bag.total_valor / bag.total_peso) : 0;
+            const realMedia = totalPesoReal > 0 ? (totalValorReal / totalPesoReal) : 0;
 
             document.getElementById('verBagBody').innerHTML = `
                 <h4 style="margin-bottom:1rem; color:var(--primary-color); text-align: center;"><i class="fas fa-box"></i> Bag: ${bag.codigo}</h4>
@@ -2151,7 +2160,7 @@
 
                 <div class="producao-stat">
                     <div class="producao-stat-item"><div class="value" style="color:var(--success-color);">${(bag.total_peso || 0).toFixed(2)}</div><div class="label">Quantidade kg</div></div>
-                    <div class="producao-stat-item"><div class="value" style="color:#059669;">R$ ${(bag.total_valor || 0).toFixed(2)}</div><div class="label">Total Comprado</div></div>
+                    <div class="producao-stat-item"><div class="value" style="color:#059669;">R$ ${totalValorReal.toFixed(2)}</div><div class="label">Total Comprado</div></div>
                     <div class="producao-stat-item"><div class="value" style="color:#8b5cf6;">R$ ${realMedia.toFixed(2)}</div><div class="label">Valor Média R$/kg</div></div>
                 </div>
                 <div style="margin:1rem 0;">
@@ -2176,7 +2185,7 @@
                                 <td colspan="3" style="padding:0.75rem;">TOTAL</td>
                                 <td style="padding:0.75rem;text-align:right;color:var(--success-color);">${(bag.total_peso || 0).toFixed(3)} kg</td>
                                 <td style="padding:0.75rem;text-align:right;color:#8b5cf6;">R$ ${realMedia.toFixed(2)}</td>
-                                <td style="padding:0.75rem;text-align:right;color:#059669;">R$ ${(bag.total_valor || 0).toFixed(2)}</td>
+                                <td style="padding:0.75rem;text-align:right;color:#059669;">R$ ${totalValorReal.toFixed(2)}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -2189,6 +2198,8 @@
         function getGroupedMaterials(bag) {
             const materiaisAgrupados = {};
             (bag.materiais || []).forEach(m => {
+                const precoEfetivo = m.preco_tabela_fornecedor != null ? m.preco_tabela_fornecedor : m.preco_kg;
+                const valorEfetivo = precoEfetivo * m.peso_kg;
                 if (!materiaisAgrupados[m.nome]) {
                     materiaisAgrupados[m.nome] = {
                         nome: m.nome,
@@ -2199,7 +2210,7 @@
                     };
                 }
                 materiaisAgrupados[m.nome].peso_kg += m.peso_kg;
-                materiaisAgrupados[m.nome].valor_total += m.valor_total;
+                materiaisAgrupados[m.nome].valor_total += valorEfetivo;
             });
             return Object.values(materiaisAgrupados);
         }
