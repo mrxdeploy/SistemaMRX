@@ -737,18 +737,17 @@
             const tableData = (m.itens || []).map(item => [
                 item.material_codigo || '-',
                 item.material_nome || '-',
-                (item.material_classificacao || '-').toUpperCase(),
                 `R$ ${parseFloat(item.preco_por_kg || 0).toFixed(2)}`
             ]);
             
             doc.autoTable({
                 startY: 55,
-                head: [['CÓDIGO', 'MATERIAL', 'CLASSIFICAÇÃO', 'PREÇO R$/KG']],
+                head: [['CÓDIGO', 'MATERIAL', 'PREÇO R$/KG']],
                 body: tableData,
                 theme: 'striped',
                 headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
                 columnStyles: {
-                    3: { halign: 'right', fontStyle: 'bold', textColor: [5, 150, 105] } // Verde Sucesso
+                    2: { halign: 'right', fontStyle: 'bold', textColor: [5, 150, 105] } // Verde Sucesso
                 },
                 styles: { fontSize: 9 }
             });
