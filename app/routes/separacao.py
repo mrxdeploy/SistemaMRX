@@ -192,10 +192,19 @@ def criar_sublote(id):
         # LOG DE DEBUG - MUITO IMPORTANTE
         print(f"DEBUG VALOR SUBLOTE: peso_sublote={peso_sublote}, peso_pai={peso_lote_pai}, valor_pai={valor_total_pai}, RESULTADO={valor_sublote}")
 
+        from sqlalchemy import func
         ano = datetime.now().year
-        numero_sequencial = Lote.query.filter(
+        ultimo_lote = db.session.query(func.max(Lote.numero_lote)).filter(
             Lote.numero_lote.like(f"{ano}-%")  # type: ignore
-        ).count() + 1
+        ).scalar()
+        if ultimo_lote:
+            try:
+                numero_sequencial = int(ultimo_lote.split('-')[1]) + 1
+            except (IndexError, ValueError):
+                numero_sequencial = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count() + 1
+        else:
+            numero_sequencial = 1
+            
         numero_lote = f"{ano}-{str(numero_sequencial).zfill(5)}"
 
         tipo_lote_id = data.get('tipo_lote_id')
@@ -703,10 +712,21 @@ def sincronizar_sublotes(id):
         novos_sublotes = []
         peso_total_criado = 0.0
 
+        from sqlalchemy import func
         ano = datetime.now().year
         
-        # Para sequencia do numero do lote, vamos pegar o count atual
-        count_lotes = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count()
+        # Para sequencia do numero do lote, vamos buscar o maior numero existente
+        ultimo_lote = db.session.query(func.max(Lote.numero_lote)).filter(
+            Lote.numero_lote.like(f"{ano}-%")
+        ).scalar()
+        
+        if ultimo_lote:
+            try:
+                count_lotes = int(ultimo_lote.split('-')[1])
+            except (IndexError, ValueError):
+                count_lotes = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count()
+        else:
+            count_lotes = 0
 
         for i, item in enumerate(itens):
             count_lotes += 1

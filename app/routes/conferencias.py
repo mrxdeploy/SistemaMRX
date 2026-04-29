@@ -58,10 +58,19 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
         
         # WARNING: Race condition - count()+1 pode gerar números duplicados em alta concorrência
         # TODO: Migrar para sequence do PostgreSQL ou usar UUID para número de lote
+        from sqlalchemy import func
         ano = datetime.now().year
-        numero_sequencial = Lote.query.filter(
+        ultimo_lote = db.session.query(func.max(Lote.numero_lote)).filter(
             Lote.numero_lote.like(f"{ano}-%")  # type: ignore
-        ).count() + 1
+        ).scalar()
+        if ultimo_lote:
+            try:
+                numero_sequencial = int(ultimo_lote.split('-')[1]) + 1
+            except (IndexError, ValueError):
+                numero_sequencial = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count() + 1
+        else:
+            numero_sequencial = 1
+            
         numero_lote = f"{ano}-{str(numero_sequencial).zfill(5)}"
         
         # Sistema migrado para materiais - usar tipo_lote genérico (ID 1)
