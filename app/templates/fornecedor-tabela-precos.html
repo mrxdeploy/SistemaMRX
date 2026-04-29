@@ -1438,7 +1438,7 @@
         // ========== FUNÇÕES DE MODELOS DE TABELA ==========
         async function carregarModelosTabela() {
             try {
-                const response = await fetchAPI('/modelos-tabela-preco?apenas_ativos=true');
+                const response = await fetchAPI('/modelos-tabela-preco?apenas_ativos=true&apenas_aprovados=true');
                 if (response.ok) {
                     modelosDisponiveis = await response.json();
                     renderizarSelectModelos();

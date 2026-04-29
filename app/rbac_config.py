@@ -343,6 +343,8 @@ PERMISSOES_CATALOGO = {
             'modelo_tabela_excluir': 'Excluir modelo de tabela',
             'modelo_tabela_visualizar': 'Visualizar modelos de tabela',
             'modelo_tabela_aplicar': 'Aplicar modelo ao fornecedor',
+            'modelo_tabela_aprovar': 'Aprovar modelos de tabela',
+            'modelo_tabela_ver_todos': 'Visualizar modelos de todos os usuários',
         },
         'paginas': ['/modelos-tabela-preco.html'],
         'apis': ['/api/modelos-tabela-preco'],

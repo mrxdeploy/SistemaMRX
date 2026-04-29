@@ -170,6 +170,10 @@
         }
         .badge-ativo { background: #dcfce7; color: #166534; }
         .badge-inativo { background: #fee2e2; color: #991b1b; }
+        
+        .badge-aprovado { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .badge-pendente { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+        .badge-rejeitado { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
         /* Modal */
         .modal-overlay {
@@ -434,6 +438,9 @@
         function renderizarModelos() {
             const container = document.getElementById('modelosGrid');
             const busca = document.getElementById('buscaModelo').value.toLowerCase();
+            
+            const podeAprovar = currentUser.tipo === 'admin' || 
+                               (currentUser.perfil && currentUser.perfil.permissoes && currentUser.perfil.permissoes.modelo_tabela_aprovar);
 
             const filtrados = modelos.filter(m =>
                 !busca || m.nome.toLowerCase().includes(busca) || (m.descricao || '').toLowerCase().includes(busca)
@@ -450,29 +457,33 @@
                 return;
             }
 
-            container.innerHTML = filtrados.map(m => `
-                <div class="modelo-card">
-                    <div class="modelo-card-header">
-                        <h3><i class="fas fa-layer-group"></i> ${m.nome}</h3>
-                        <span class="badge-status ${m.ativo ? 'badge-ativo' : 'badge-inativo'}">
-                            ${m.ativo ? 'Ativo' : 'Inativo'}
+            container.innerHTML = filtrados.map(m => {
+                let statusBadge = '';
+                if (m.status === 'APROVADO') statusBadge = '<span class="badge-status badge-aprovado"><i class="fas fa-check-circle" style="margin-right:4px"></i> Aprovado</span>';
+                else if (m.status === 'PENDENTE_APROVACAO') statusBadge = '<span class="badge-status badge-pendente"><i class="fas fa-clock" style="margin-right:4px"></i> Pendente</span>';
+                else if (m.status === 'REJEITADO') statusBadge = '<span class="badge-status badge-rejeitado"><i class="fas fa-times-circle" style="margin-right:4px"></i> Rejeitado</span>';
+                
+                let botoes = '';
+                
+                if (m.status === 'PENDENTE_APROVACAO' && podeAprovar) {
+                    botoes += `
+                        <button class="btn-sm btn-activate" onclick="event.stopPropagation(); aprovarModelo(${m.id})" title="Aprovar">
+                            <i class="fas fa-check"></i> Aprovar
+                        </button>
+                        <button class="btn-sm btn-del" onclick="event.stopPropagation(); rejeitarModelo(${m.id})" title="Rejeitar">
+                            <i class="fas fa-times"></i> Rejeitar
+                        </button>
+                    `;
+                } else if (m.status === 'PENDENTE_APROVACAO') {
+                    // Usuário comum vendo pendente
+                    botoes += `
+                        <span style="font-size: 0.8rem; color: #6b7280; display:flex; align-items:center;">
+                            Aguardando Aprovação...
                         </span>
-                    </div>
-                    <div class="modelo-card-body" onclick="abrirModalEditar(${m.id})">
-                        <p class="desc">${m.descricao || '<em style=\"color:#d1d5db\">Sem descrição</em>'}</p>
-                        <div class="modelo-meta">
-                            <div class="modelo-meta-item">
-                                <i class="fas fa-boxes-stacked"></i> ${m.total_itens} materiais
-                            </div>
-                            <div class="modelo-meta-item">
-                                <i class="fas fa-user"></i> ${m.criador_nome || 'Sistema'}
-                            </div>
-                            <div class="modelo-meta-item">
-                                <i class="fas fa-calendar"></i> ${formatarData(m.created_at)}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modelo-card-actions">
+                    `;
+                } else {
+                    // Aprovado ou rejeitado (ou admin/owner vendo)
+                    botoes += `
                         <button class="btn-sm btn-edit" onclick="event.stopPropagation(); abrirModalEditar(${m.id})" title="Editar">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -491,9 +502,35 @@
                                 <i class="fas fa-check-circle"></i>
                             </button>
                         `}
+                    `;
+                }
+
+                return `
+                <div class="modelo-card">
+                    <div class="modelo-card-header">
+                        <h3><i class="fas fa-layer-group"></i> ${m.nome}</h3>
+                        ${statusBadge}
+                    </div>
+                    <div class="modelo-card-body" onclick="abrirModalEditar(${m.id})">
+                        <p class="desc">${m.descricao || '<em style=\"color:#d1d5db\">Sem descrição</em>'}</p>
+                        <div class="modelo-meta">
+                            <div class="modelo-meta-item">
+                                <i class="fas fa-boxes-stacked"></i> ${m.total_itens} materiais
+                            </div>
+                            <div class="modelo-meta-item">
+                                <i class="fas fa-user"></i> ${m.criador_nome || 'Sistema'}
+                            </div>
+                            <div class="modelo-meta-item">
+                                <i class="fas fa-calendar"></i> ${formatarData(m.created_at)}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modelo-card-actions">
+                        ${botoes}
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function formatarData(isoStr) {
@@ -699,6 +736,38 @@
                     await carregarModelos();
                 } else {
                     alert(result.erro || 'Erro ao ativar');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+            }
+        }
+
+        async function aprovarModelo(id) {
+            if (!confirm('Deseja aprovar este modelo? Ele ficará disponível para vínculo aos fornecedores.')) return;
+            try {
+                const response = await fetchAPI(`/modelos-tabela-preco/${id}/aprovar`, { method: 'PUT' });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.mensagem || 'Modelo aprovado!');
+                    await carregarModelos();
+                } else {
+                    alert(result.erro || 'Erro ao aprovar');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+            }
+        }
+
+        async function rejeitarModelo(id) {
+            if (!confirm('Deseja rejeitar este modelo?')) return;
+            try {
+                const response = await fetchAPI(`/modelos-tabela-preco/${id}/rejeitar`, { method: 'PUT' });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.mensagem || 'Modelo rejeitado!');
+                    await carregarModelos();
+                } else {
+                    alert(result.erro || 'Erro ao rejeitar');
                 }
             } catch (error) {
                 console.error('Erro:', error);

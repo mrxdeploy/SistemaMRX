@@ -30,6 +30,10 @@ def verificar_permissao_modelos(usuario, acao='visualizar'):
             return permissoes.get('modelo_tabela_excluir', False)
         elif acao == 'aplicar':
             return permissoes.get('modelo_tabela_aplicar', False) or permissoes.get('modulo_modelos_tabela', False)
+        elif acao == 'aprovar':
+            return permissoes.get('modelo_tabela_aprovar', False)
+        elif acao == 'ver_todos':
+            return permissoes.get('modelo_tabela_ver_todos', False)
     return False
 
 
@@ -47,10 +51,22 @@ def listar_modelos():
         # Para listagem na tela de fornecedor (aplicar modelo), qualquer usuário autenticado pode ver
         # Para a tela de gerenciamento, a permissão é verificada no frontend
         apenas_ativos = request.args.get('apenas_ativos', 'true').lower() == 'true'
+        apenas_aprovados = request.args.get('apenas_aprovados', 'false').lower() == 'true'
 
         query = ModeloTabelaPreco.query
         if apenas_ativos:
             query = query.filter_by(ativo=True)
+            
+        if apenas_aprovados:
+            query = query.filter_by(status='APROVADO')
+
+        # Regra de visibilidade
+        if usuario.tipo != 'admin' and not verificar_permissao_modelos(usuario, 'ver_todos'):
+            # Usuário comum só vê os próprios modelos (se não estiver na tela de fornecedores pegando apenas aprovados onde pode usar os próprios)
+            # Na verdade, o requisito diz "perfis comuns veem somente as proprias tabelas". 
+            # No entanto, se o admin cria uma tabela e aprova, ela deve estar disponível para todos?
+            # A regra do usuário diz: "perfil admin ve a tabela criada por todo mundo, mas perfis comuns veem somente as proprias tabelas"
+            query = query.filter_by(created_by=usuario_id)
 
         modelos = query.order_by(ModeloTabelaPreco.nome).all()
 
@@ -108,11 +124,15 @@ def criar_modelo():
         if not itens:
             return jsonify({'erro': 'O modelo deve ter pelo menos um material com preço'}), 400
 
+        # Determinar status baseado na permissão
+        status = 'APROVADO' if verificar_permissao_modelos(usuario, 'aprovar') else 'PENDENTE_APROVACAO'
+
         # Criar modelo
         modelo = ModeloTabelaPreco(
             nome=dados['nome'],
             descricao=dados.get('descricao', ''),
             ativo=True,
+            status=status,
             created_by=usuario_id
         )
         db.session.add(modelo)
@@ -203,6 +223,10 @@ def atualizar_modelo(modelo_id):
 
         if 'ativo' in dados:
             modelo.ativo = dados['ativo']
+
+        # Se for usuário comum editando, volta para pendente
+        if not verificar_permissao_modelos(usuario, 'aprovar'):
+            modelo.status = 'PENDENTE_APROVACAO'
 
         # Atualizar itens se enviados
         if 'itens' in dados:
@@ -383,3 +407,64 @@ def duplicar_modelo(modelo_id):
         db.session.rollback()
         logger.error(f'Erro ao duplicar modelo: {str(e)}')
         return jsonify({'erro': f'Erro ao duplicar modelo: {str(e)}'}), 500
+
+
+@bp.route('/<int:modelo_id>/aprovar', methods=['PUT'])
+@jwt_required()
+def aprovar_modelo(modelo_id):
+    """Aprova um modelo de tabela"""
+    try:
+        usuario_id = get_jwt_identity()
+        usuario = Usuario.query.get(usuario_id)
+
+        if not verificar_permissao_modelos(usuario, 'aprovar'):
+            return jsonify({'erro': 'Sem permissão para aprovar modelos'}), 403
+
+        modelo = ModeloTabelaPreco.query.get(modelo_id)
+        if not modelo:
+            return jsonify({'erro': 'Modelo não encontrado'}), 404
+
+        modelo.status = 'APROVADO'
+        modelo.updated_by = usuario_id
+        modelo.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        logger.info(f'Modelo de tabela "{modelo.nome}" aprovado por {usuario.nome}')
+
+        return jsonify({'mensagem': f'Modelo "{modelo.nome}" aprovado com sucesso'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Erro ao aprovar modelo: {str(e)}')
+        return jsonify({'erro': f'Erro ao aprovar modelo: {str(e)}'}), 500
+
+
+@bp.route('/<int:modelo_id>/rejeitar', methods=['PUT'])
+@jwt_required()
+def rejeitar_modelo(modelo_id):
+    """Rejeita um modelo de tabela"""
+    try:
+        usuario_id = get_jwt_identity()
+        usuario = Usuario.query.get(usuario_id)
+
+        if not verificar_permissao_modelos(usuario, 'aprovar'):
+            return jsonify({'erro': 'Sem permissão para rejeitar modelos'}), 403
+
+        modelo = ModeloTabelaPreco.query.get(modelo_id)
+        if not modelo:
+            return jsonify({'erro': 'Modelo não encontrado'}), 404
+
+        modelo.status = 'REJEITADO'
+        modelo.updated_by = usuario_id
+        modelo.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        logger.info(f'Modelo de tabela "{modelo.nome}" rejeitado por {usuario.nome}')
+
+        return jsonify({'mensagem': f'Modelo "{modelo.nome}" rejeitado com sucesso'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Erro ao rejeitar modelo: {str(e)}')
+        return jsonify({'erro': f'Erro ao rejeitar modelo: {str(e)}'}), 500
+

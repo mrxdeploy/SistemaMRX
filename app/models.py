@@ -2384,6 +2384,7 @@ class ModeloTabelaPreco(db.Model):  # type: ignore
     nome = db.Column(db.String(200), unique=True, nullable=False)
     descricao = db.Column(db.Text, nullable=True)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
+    status = db.Column(db.String(50), default='PENDENTE_APROVACAO', nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
     updated_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -2402,6 +2403,7 @@ class ModeloTabelaPreco(db.Model):  # type: ignore
             'nome': self.nome,
             'descricao': self.descricao,
             'ativo': self.ativo,
+            'status': self.status,
             'total_itens': len(self.itens) if self.itens else 0,
             'created_by': self.created_by,
             'criador_nome': self.criador.nome if self.criador else None,
