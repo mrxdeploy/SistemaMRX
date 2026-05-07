@@ -4,6 +4,9 @@ from app.models import db, Lote, LoteSeparacao, Residuo, Usuario, Notificacao, M
 from app.auth import admin_required
 from datetime import datetime
 from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('separacao', __name__, url_prefix='/api/separacao')
 
@@ -194,16 +197,18 @@ def criar_sublote(id):
 
         from sqlalchemy import func
         ano = datetime.now().year
-        ultimo_lote = db.session.query(func.max(Lote.numero_lote)).filter(
-            Lote.numero_lote.like(f"{ano}-%")  # type: ignore
+        # Buscar apenas lotes com sequencial numérico (excluir formatos hex como 2026-FFE81)
+        ultimo_lote_numerico = db.session.query(func.max(Lote.numero_lote)).filter(
+            Lote.numero_lote.op('~')(f'^{ano}-[0-9]+$')  # type: ignore
         ).scalar()
-        if ultimo_lote:
+        if ultimo_lote_numerico:
             try:
-                numero_sequencial = int(ultimo_lote.split('-')[1]) + 1
+                numero_sequencial = int(ultimo_lote_numerico.split('-')[1]) + 1
             except (IndexError, ValueError):
                 numero_sequencial = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count() + 1
         else:
-            numero_sequencial = 1
+            # Contar todos os lotes do ano para ter uma base segura
+            numero_sequencial = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count() + 1
             
         numero_lote = f"{ano}-{str(numero_sequencial).zfill(5)}"
 
@@ -715,18 +720,18 @@ def sincronizar_sublotes(id):
         from sqlalchemy import func
         ano = datetime.now().year
         
-        # Para sequencia do numero do lote, vamos buscar o maior numero existente
-        ultimo_lote = db.session.query(func.max(Lote.numero_lote)).filter(
-            Lote.numero_lote.like(f"{ano}-%")
+        # Buscar apenas lotes com sequencial numérico (excluir formatos hex como 2026-FFE81)
+        ultimo_lote_numerico = db.session.query(func.max(Lote.numero_lote)).filter(
+            Lote.numero_lote.op('~')(f'^{ano}-[0-9]+$')
         ).scalar()
         
-        if ultimo_lote:
+        if ultimo_lote_numerico:
             try:
-                count_lotes = int(ultimo_lote.split('-')[1])
+                count_lotes = int(ultimo_lote_numerico.split('-')[1])
             except (IndexError, ValueError):
                 count_lotes = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count()
         else:
-            count_lotes = 0
+            count_lotes = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count()
 
         for i, item in enumerate(itens):
             count_lotes += 1
@@ -786,6 +791,9 @@ def sincronizar_sublotes(id):
 
     except Exception as e:
         db.session.rollback()
+        import traceback
+        logger.error(f'Erro ao sincronizar sublotes (sep_id={id}): {str(e)}')
+        traceback.print_exc()
         return jsonify({'erro': f'Erro ao sincronizar sublotes: {str(e)}'}), 500
 
 @bp.route('/sublotes/<int:id>', methods=['PUT'])
