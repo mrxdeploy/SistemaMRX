@@ -1615,13 +1615,18 @@ def detalhes_bag(bag_id):
                     if preco_tabela and preco_tabela.preco_fornecedor:
                         preco_tabela_fornecedor = float(preco_tabela.preco_fornecedor)
             
+            # Calcular o valor real do item com base na tabela do fornecedor, se houver
+            valor_efetivo = round(preco_tabela_fornecedor * peso, 2) if preco_tabela_fornecedor is not None else valor
+            # Ajustar o preco_kg de acordo com o valor efetivo
+            preco_kg_efetivo = round(valor_efetivo / peso, 2) if peso > 0 else 0
+
             materiais.append({
                 'id': item.id,
                 'nome': item.nome_item,
                 'peso_kg': round(peso, 3),
-                'preco_kg': preco_kg,
+                'preco_kg': preco_kg_efetivo,
                 'preco_tabela_fornecedor': preco_tabela_fornecedor,
-                'valor_total': round(valor, 2),
+                'valor_total': valor_efetivo,
                 'classificacao': item.classificacao_grade.nome if item.classificacao_grade else 'N/A',
                 'categoria': item.classificacao_grade.categoria if item.classificacao_grade else 'N/A',
                 'fornecedor': fornecedor_nome,
@@ -1629,7 +1634,7 @@ def detalhes_bag(bag_id):
             })
             
             total_peso += peso
-            total_valor += valor
+            total_valor += valor_efetivo
         
         # Salvar atualizações de valor (se algum foi recalculado)
         try:

@@ -2159,9 +2159,18 @@
                 </div>
 
                 <div class="producao-stat">
-                    <div class="producao-stat-item"><div class="value" style="color:var(--success-color);">${(bag.total_peso || 0).toFixed(2)}</div><div class="label">Quantidade kg</div></div>
-                    <div class="producao-stat-item"><div class="value" style="color:#059669;">R$ ${totalValorReal.toFixed(2)}</div><div class="label">Total Comprado</div></div>
-                    <div class="producao-stat-item"><div class="value" style="color:#8b5cf6;">R$ ${realMedia.toFixed(2)}</div><div class="label">Valor Média R$/kg</div></div>
+                    <div class="producao-stat-item">
+                        <div class="value" style="color:var(--success-color);">${(bag.total_peso || 0).toFixed(2)}</div>
+                        <div class="label">Quantidade kg <i class="fas fa-info-circle" style="cursor: pointer; color: var(--gray-400); margin-left: 4px;" title="Soma do peso líquido de todos os itens contidos neste bag."></i></div>
+                    </div>
+                    <div class="producao-stat-item">
+                        <div class="value" style="color:#059669;">R$ ${totalValorReal.toFixed(2)}</div>
+                        <div class="label">Total Comprado <i class="fas fa-info-circle" style="cursor: pointer; color: var(--gray-400); margin-left: 4px;" title="Soma dos valores de todos os itens. Para cada item: Peso (kg) x Preço Unitário (R$/kg). É dada prioridade ao preço da tabela de preços ativa do fornecedor para o respectivo material. Se não houver preço de tabela cadastrado, é utilizado o preço de custo médio do lote original."></i></div>
+                    </div>
+                    <div class="producao-stat-item">
+                        <div class="value" style="color:#8b5cf6;">R$ ${realMedia.toFixed(2)}</div>
+                        <div class="label">Valor Média R$/kg <i class="fas fa-info-circle" style="cursor: pointer; color: var(--gray-400); margin-left: 4px;" title="Média ponderada do preço por kg do bag: Total Comprado (R$) / Quantidade total (kg)."></i></div>
+                    </div>
                 </div>
                 <div style="margin:1rem 0;">
                     <span class="badge ${getBagBadgeClass(bag.status)}">${getBagStatusLabel(bag.status)}</span>
@@ -2235,6 +2244,17 @@
             const dataStr = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR');
             doc.text(`Gerado em: ${dataStr}`, 195, 13, { align: 'right' });
 
+            // Recalcular valores reais
+            let totalValorReal = 0;
+            let totalPesoReal = 0;
+            (bag.materiais || []).forEach(m => {
+                const precoEfetivo = m.preco_tabela_fornecedor != null ? m.preco_tabela_fornecedor : m.preco_kg;
+                const valorEfetivo = precoEfetivo * m.peso_kg;
+                totalPesoReal += m.peso_kg;
+                totalValorReal += valorEfetivo;
+            });
+            const mediaReal = totalPesoReal > 0 ? (totalValorReal / totalPesoReal) : 0;
+
             // Stats Section
             doc.setTextColor(0, 0, 0);
             doc.setFontSize(12);
@@ -2243,10 +2263,9 @@
             
             doc.setFont(undefined, 'normal');
             doc.setFontSize(10);
-            doc.text(`Quantidade total: ${bag.total_peso.toFixed(2)} kg`, 14, 37);
-            doc.text(`Total comprado: R$ ${bag.total_valor.toFixed(2)}`, 14, 42);
-            const media = bag.total_peso > 0 ? (bag.total_valor / bag.total_peso) : 0;
-            doc.text(`Valor Média R$/kg: R$ ${media.toFixed(2)}`, 14, 47);
+            doc.text(`Quantidade total: ${totalPesoReal.toFixed(2)} kg`, 14, 37);
+            doc.text(`Total comprado: R$ ${totalValorReal.toFixed(2)}`, 14, 42);
+            doc.text(`Valor Média R$/kg: R$ ${mediaReal.toFixed(2)}`, 14, 47);
             doc.text(`Status: ${getBagStatusLabel(bag.status)}`, 14, 52);
 
             // Table Data (Summary Grouped)
@@ -2265,7 +2284,7 @@
                 body: body,
                 theme: 'striped',
                 headStyles: { fillColor: emeraldColor, textColor: 255 },
-                foot: [['TOTAL', '', `${bag.total_peso.toFixed(3)} kg`, `R$ ${media.toFixed(2)}`, `R$ ${bag.total_valor.toFixed(2)}`]],
+                foot: [['TOTAL', '', `${totalPesoReal.toFixed(3)} kg`, `R$ ${mediaReal.toFixed(2)}`, `R$ ${totalValorReal.toFixed(2)}`]],
                 footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' }
             });
 
@@ -2277,7 +2296,17 @@
             if (!bag) return;
 
             const grouped = getGroupedMaterials(bag);
-            const media = bag.total_peso > 0 ? (bag.total_valor / bag.total_peso) : 0;
+            
+            // Recalcular valores reais
+            let totalValorReal = 0;
+            let totalPesoReal = 0;
+            (bag.materiais || []).forEach(m => {
+                const precoEfetivo = m.preco_tabela_fornecedor != null ? m.preco_tabela_fornecedor : m.preco_kg;
+                const valorEfetivo = precoEfetivo * m.peso_kg;
+                totalPesoReal += m.peso_kg;
+                totalValorReal += valorEfetivo;
+            });
+            const mediaReal = totalPesoReal > 0 ? (totalValorReal / totalPesoReal) : 0;
             
             const data = [
                 ["RELATÓRIO DE BAG", bag.codigo],
@@ -2298,7 +2327,7 @@
             });
 
             data.push([]);
-            data.push(["TOTAL", "", bag.total_peso, media, bag.total_valor]);
+            data.push(["TOTAL", "", totalPesoReal, mediaReal, totalValorReal]);
 
             const ws = XLSX.utils.aoa_to_sheet(data);
             const wb = XLSX.utils.book_new();
