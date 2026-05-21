@@ -1008,13 +1008,10 @@ def devolver_sublote_estoque(sublote_id):
         lote_pai = sublote.lote_pai or sublote
         novos_sublotes = []
         
+        from app.utils.sequence import gerar_numero_lote_uuid_com_lock
+
         for item in itens_separados:
-            # Gerar novo número de lote
-            ano = datetime.now().year
-            novo_numero = f"{ano}-{str(uuid.uuid4().hex[:5]).upper()}"
-            
             novo_sublote = Lote(
-                numero_lote=novo_numero,
                 fornecedor_id=sublote.fornecedor_id,
                 tipo_lote_id=sublote.tipo_lote_id,
                 solicitacao_origem_id=sublote.solicitacao_origem_id or (lote_pai.solicitacao_origem_id if lote_pai != sublote else None),
@@ -1030,7 +1027,7 @@ def devolver_sublote_estoque(sublote_id):
                 classificacao_predominante=item.classificacao_grade.categoria if item.classificacao_grade else None,
                 data_criacao=datetime.utcnow()
             )
-            db.session.add(novo_sublote)
+            gerar_numero_lote_uuid_com_lock(novo_sublote)
             novos_sublotes.append(novo_sublote)
             
             # Remover o item temporário da separação pois ele agora se tornou um Lote real no estoque

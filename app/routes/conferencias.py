@@ -56,22 +56,7 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
         if decisao == 'ACEITAR_COM_DESCONTO' and percentual_desconto:
             peso_liquido = peso_final * (1 - percentual_desconto / 100)
         
-        # WARNING: Race condition - count()+1 pode gerar números duplicados em alta concorrência
-        # TODO: Migrar para sequence do PostgreSQL ou usar UUID para número de lote
-        from sqlalchemy import func
-        ano = datetime.now().year
-        ultimo_lote = db.session.query(func.max(Lote.numero_lote)).filter(
-            Lote.numero_lote.like(f"{ano}-%")  # type: ignore
-        ).scalar()
-        if ultimo_lote:
-            try:
-                numero_sequencial = int(ultimo_lote.split('-')[1]) + 1
-            except (IndexError, ValueError):
-                numero_sequencial = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count() + 1
-        else:
-            numero_sequencial = 1
-            
-        numero_lote = f"{ano}-{str(numero_sequencial).zfill(5)}"
+        from app.utils.sequence import gerar_numero_lote_ano_com_lock
         
         # Sistema migrado para materiais - usar tipo_lote genérico (ID 1)
         # Tipo de lote genérico criado na migração 017
@@ -102,7 +87,6 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
             valor_total_lote = valor_total_oc
 
         lote = Lote(
-            numero_lote=numero_lote,
             fornecedor_id=oc.fornecedor_id,
             tipo_lote_id=tipo_lote_id,
             solicitacao_origem_id=oc.solicitacao_id if oc.solicitacao else None,
@@ -136,8 +120,9 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
             }],
             data_criacao=datetime.utcnow()
         )
-        db.session.add(lote)
-        db.session.flush()
+        
+        # Gera o número do lote com proteção de concorrência (já faz o db.session.add e flush do lote)
+        gerar_numero_lote_ano_com_lock(lote)
         
         if oc.solicitacao and oc.solicitacao.itens:
             for item in oc.solicitacao.itens:
@@ -162,8 +147,7 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
             observacoes=f'Entrada inicial após conferência. OS: {os.numero_os}',
             dados_before={},
             dados_after={
-                'lote_id': lote.id,
-                'numero_lote': numero_lote,
+                'numero_lote': lote.numero_lote,
                 'localizacao': 'PATIO_RECEBIMENTO',
                 'peso': peso_liquido
             },

@@ -231,6 +231,12 @@ document.getElementById('decisao').addEventListener('change', (e) => {
 document.getElementById('form-decisao').addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    const btnSubmit = e.target.querySelector('button[type="submit"]');
+    if (btnSubmit.disabled) return;
+    btnSubmit.disabled = true;
+    const btnOriginalText = btnSubmit.innerHTML;
+    btnSubmit.innerHTML = 'Processando...';
+    
     const decisao = document.getElementById('decisao').value;
     const motivo = document.getElementById('motivo').value;
     const percentualDesconto = document.getElementById('percentual-desconto').value;
@@ -245,7 +251,11 @@ document.getElementById('form-decisao').addEventListener('submit', async (e) => 
     }
     
     const confirmacao = confirm(`Confirma a decisão: ${decisao}?\n\nEsta ação não poderá ser desfeita.`);
-    if (!confirmacao) return;
+    if (!confirmacao) {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = btnOriginalText;
+        return;
+    }
     
     try {
         const token = localStorage.getItem('token');
@@ -265,10 +275,14 @@ document.getElementById('form-decisao').addEventListener('submit', async (e) => 
             window.location.href = '/conferencias';
         } else {
             alert('Erro: ' + result.erro);
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = btnOriginalText;
         }
     } catch (error) {
         console.error('Erro:', error);
         alert('Erro ao registrar decisão');
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = btnOriginalText;
     }
 });
 

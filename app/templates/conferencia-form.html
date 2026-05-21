@@ -189,6 +189,12 @@ function getStatusBadge(status) {
 document.getElementById('form-conferencia').addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    const btnSalvar = document.getElementById('btn-salvar');
+    if (btnSalvar.disabled) return;
+    btnSalvar.disabled = true;
+    const textoOriginal = btnSalvar.innerHTML;
+    btnSalvar.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processando...';
+    
     const pesoReal = parseFloat(document.getElementById('peso-real').value);
     const quantidadeReal = document.getElementById('quantidade-real').value ? 
         parseInt(document.getElementById('quantidade-real').value) : null;
@@ -229,14 +235,24 @@ document.getElementById('form-conferencia').addEventListener('submit', async (e)
             }
         } else {
             alert('Erro: ' + result.erro);
+            btnSalvar.disabled = false;
+            btnSalvar.innerHTML = textoOriginal;
         }
     } catch (error) {
         console.error('Erro:', error);
         alert('Erro ao registrar conferência');
+        btnSalvar.disabled = false;
+        btnSalvar.innerHTML = textoOriginal;
     }
 });
 
 async function enviarParaAdm() {
+    const btnEnviar = document.querySelector('.btn-warning');
+    if (btnEnviar) {
+        if (btnEnviar.disabled) return;
+        btnEnviar.disabled = true;
+        btnEnviar.innerHTML = 'Enviando...';
+    }
     try {
         const token = localStorage.getItem('token');
         const response = await fetch(`/api/conferencia/${conferencia_id}/enviar-para-adm`, {
@@ -253,10 +269,12 @@ async function enviarParaAdm() {
             window.location.href = '/conferencias';
         } else {
             alert('Erro ao enviar para ADM');
+            if (btnEnviar) { btnEnviar.disabled = false; btnEnviar.innerHTML = 'Enviar para Análise Administrativa'; }
         }
     } catch (error) {
         console.error('Erro:', error);
         alert('Erro ao enviar para ADM');
+        if (btnEnviar) { btnEnviar.disabled = false; btnEnviar.innerHTML = 'Enviar para Análise Administrativa'; }
     }
 }
 

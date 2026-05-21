@@ -5,25 +5,7 @@ from datetime import datetime
 
 bp = Blueprint('compras', __name__, url_prefix='/api/compras')
 
-def gerar_codigo_lote():
-    """Gera código de lote no formato AAAAMMDD-SEQ (ex: 20251117-001)"""
-    hoje = datetime.now()
-    data_str = hoje.strftime('%Y%m%d')
-    
-    ultimo_lote = db.session.query(Lote).filter(
-        Lote.numero_lote.like(f'{data_str}-%')
-    ).order_by(Lote.numero_lote.desc()).first()
-    
-    if ultimo_lote:
-        try:
-            ultima_seq = int(ultimo_lote.numero_lote.split('-')[1])
-            proxima_seq = ultima_seq + 1
-        except (IndexError, ValueError):
-            proxima_seq = 1
-    else:
-        proxima_seq = 1
-    
-    return f"{data_str}-{proxima_seq:03d}"
+from app.utils.sequence import gerar_codigo_compra_com_lock
 
 @bp.route('', methods=['POST'])
 @jwt_required()
@@ -147,10 +129,7 @@ def criar_compra():
             db.session.add(item)
             itens_criados.append(item)
         
-        codigo_lote = gerar_codigo_lote()
-        
         lote = Lote(
-            numero_lote=codigo_lote,
             fornecedor_id=fornecedor_id,
             tipo_lote_id=tipo_lote_id_padrao,
             solicitacao_origem_id=solicitacao.id,
@@ -162,8 +141,7 @@ def criar_compra():
             observacoes=observacoes
         )
         
-        db.session.add(lote)
-        db.session.flush()
+        codigo_lote = gerar_codigo_compra_com_lock(lote)
         
         for item in itens_criados:
             item.lote_id = lote.id

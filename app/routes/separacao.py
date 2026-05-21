@@ -195,22 +195,7 @@ def criar_sublote(id):
         # LOG DE DEBUG - MUITO IMPORTANTE
         print(f"DEBUG VALOR SUBLOTE: peso_sublote={peso_sublote}, peso_pai={peso_lote_pai}, valor_pai={valor_total_pai}, RESULTADO={valor_sublote}")
 
-        from sqlalchemy import func
-        ano = datetime.now().year
-        # Buscar apenas lotes com sequencial numérico (excluir formatos hex como 2026-FFE81)
-        ultimo_lote_numerico = db.session.query(func.max(Lote.numero_lote)).filter(
-            Lote.numero_lote.op('~')(f'^{ano}-[0-9]+$')  # type: ignore
-        ).scalar()
-        if ultimo_lote_numerico:
-            try:
-                numero_sequencial = int(ultimo_lote_numerico.split('-')[1]) + 1
-            except (IndexError, ValueError):
-                numero_sequencial = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count() + 1
-        else:
-            # Contar todos os lotes do ano para ter uma base segura
-            numero_sequencial = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count() + 1
-            
-        numero_lote = f"{ano}-{str(numero_sequencial).zfill(5)}"
+        from app.utils.sequence import gerar_numero_lote_ano_com_lock
 
         tipo_lote_id = data.get('tipo_lote_id')
         tipo_lote_nome = data.get('tipo_lote_nome')
@@ -275,7 +260,6 @@ def criar_sublote(id):
             return jsonify({'erro': 'Não foi possível determinar o tipo do lote (tipo_lote_id ausente)'}), 400
 
         sublote = Lote(
-            numero_lote=numero_lote,
             fornecedor_id=lote_pai.fornecedor_id,
             tipo_lote_id=tipo_lote_id,
             peso_total_kg=float(peso_sublote),
@@ -302,8 +286,7 @@ def criar_sublote(id):
             data_criacao=datetime.utcnow()
         )
 
-        db.session.add(sublote)
-        db.session.flush()  # Garantir que o sublote seja criado antes de continuar
+        gerar_numero_lote_ano_com_lock(sublote)
         
         print(f'\n✅ Sublote criado: {sublote.numero_lote} (ID: {sublote.id})')
         print(f'   Lote pai: {lote_pai.numero_lote} (ID: {lote_pai.id})')
@@ -316,7 +299,7 @@ def criar_sublote(id):
             'SUBLOTE_CRIADO', 
             usuario_id, 
             detalhes={
-                'sublote_numero': numero_lote,
+                'sublote_numero': sublote.numero_lote,
                 'peso': data['peso'],
                 'tipo_lote_id': tipo_lote_id,
                 'tipo_lote_nome': data.get('tipo_lote_nome')
@@ -717,25 +700,10 @@ def sincronizar_sublotes(id):
         novos_sublotes = []
         peso_total_criado = 0.0
 
-        from sqlalchemy import func
-        ano = datetime.now().year
-        
-        # Buscar apenas lotes com sequencial numérico (excluir formatos hex como 2026-FFE81)
-        ultimo_lote_numerico = db.session.query(func.max(Lote.numero_lote)).filter(
-            Lote.numero_lote.op('~')(f'^{ano}-[0-9]+$')
-        ).scalar()
-        
-        if ultimo_lote_numerico:
-            try:
-                count_lotes = int(ultimo_lote_numerico.split('-')[1])
-            except (IndexError, ValueError):
-                count_lotes = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count()
-        else:
-            count_lotes = Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count()
+        from app.utils.sequence import gerar_numero_lote_ano_com_lock
+        seq = None
 
         for i, item in enumerate(itens):
-            count_lotes += 1
-            numero_lote = f"{ano}-{str(count_lotes).zfill(5)}"
             
             # Tenta determinar o tipo de lote
             tipo_lote_id = item.tipo_lote_id
@@ -756,7 +724,6 @@ def sincronizar_sublotes(id):
             valor_proporcional = (peso_item / peso_pai) * valor_pai if peso_pai > 0 else Decimal(0)
             
             sublote = Lote(
-                numero_lote=numero_lote,
                 fornecedor_id=lote_pai.fornecedor_id,
                 tipo_lote_id=tipo_lote_id,
                 peso_total_kg=float(peso_item),
@@ -775,7 +742,7 @@ def sincronizar_sublotes(id):
                 data_criacao=datetime.utcnow()
             )
             
-            db.session.add(sublote)
+            seq = gerar_numero_lote_ano_com_lock(sublote, base_seq=seq)
             novos_sublotes.append(sublote)
             peso_total_criado += float(peso_item)
 
