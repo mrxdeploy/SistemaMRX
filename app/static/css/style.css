@@ -767,6 +767,12 @@ table th {
 
 /* ========== UTILITY CLASSES ========== */
 
+/* RBAC Anti-FOUC (Ocultar elementos restritos antes de carregar permissões) */
+[data-permission]:not(.rbac-checked), 
+[data-perfil]:not(.rbac-checked) {
+    display: none !important;
+}
+
 .hidden {
     display: none !important;
 }

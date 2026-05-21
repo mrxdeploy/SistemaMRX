@@ -201,7 +201,10 @@ function ocultarElementosPorPermissao() {
         const permissaoNecessaria = elemento.dataset.permission;
         if (!verificarPermissao(permissaoNecessaria)) {
             elemento.style.display = 'none';
+        } else {
+            elemento.style.display = '';
         }
+        elemento.classList.add('rbac-checked');
     });
 }
 
@@ -210,7 +213,10 @@ function ocultarElementosPorPerfil() {
         const perfisPermitidos = elemento.dataset.perfil.split(',').map(p => p.trim());
         if (!verificarPerfil(...perfisPermitidos)) {
             elemento.style.display = 'none';
+        } else {
+            elemento.style.display = '';
         }
+        elemento.classList.add('rbac-checked');
     });
 }
 
