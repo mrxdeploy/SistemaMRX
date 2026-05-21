@@ -377,7 +377,7 @@
         </div>
 
         <div class="tabs">
-            <button class="tab-btn active" onclick="abrirTab('lotes')">
+            <button class="tab-btn" onclick="abrirTab('lotes')">
                 <i class="fas fa-boxes"></i> Lotes
             </button>
             <button class="tab-btn" onclick="abrirTab('bags')">
@@ -386,15 +386,15 @@
             <button class="tab-btn" onclick="abrirTab('separacao')">
                 <i class="fas fa-cogs"></i> Em Separação
             </button>
-            <button class="tab-btn" onclick="abrirTab('total')">
+            <button class="tab-btn" onclick="abrirTab('total')" data-perfil="Administrador, Gestor, Conferente / Estoque, Separação, Financeiro, Auditoria / BI, Comprador (PJ)">
                 <i class="fas fa-calculator"></i> Total Bags
             </button>
-            <button class="tab-btn admin-only" onclick="abrirTab('compra')" id="tabBtnCompra" style="display: none;">
+            <button class="tab-btn" onclick="abrirTab('compra')" id="tabBtnCompra" data-perfil="Administrador, Gestor">
                 <i class="fas fa-shopping-cart"></i> Total Compra
             </button>
         </div>
 
-        <div id="tabLotes" class="tab-content active">
+        <div id="tabLotes" class="tab-content">
             <!-- Botão Selecionar para Bag -->
             <button class="btn-selecionar-bag" id="btnSelecionarBag" onclick="toggleModoSelecao()">
                 <i class="fas fa-hand-pointer"></i> Selecionar para Bag
@@ -564,25 +564,17 @@
             const user = await verificarAuth();
             if (!user) return;
             
-            // Verificar se é admin ou gestor para mostrar aba Total Compra
+            // Determinar a tab inicial imediatamente para evitar FOUC/flashing
+            let initialTab = 'lotes';
+            if (window.location.hash === '#separacao') {
+                initialTab = 'separacao';
+            }
+            abrirTab(initialTab);
+            
+            // Verificar se é admin ou gestor para controle interno de compras
             const tipoOk = user.tipo === 'admin' || user.tipo === 'gestor';
             const perfilOk = user.perfil_nome && user.perfil_nome.toLowerCase().includes('gestor');
             isAdminOrGestor = tipoOk || perfilOk;
-            if (isAdminOrGestor) {
-                document.getElementById('tabBtnCompra').style.display = 'inline-flex';
-            }
-            
-            // Detectar perfil Producao - ocultar Total Bags e Total Compra
-            const isProducao = user.perfil_nome && 
-                (user.perfil_nome === 'Producao' || user.perfil_nome === 'Produção');
-            if (isProducao) {
-                document.querySelectorAll('.tabs .tab-btn').forEach(btn => {
-                    const text = btn.textContent.trim();
-                    if (text.includes('Total Bags') || text.includes('Total Compra')) {
-                        btn.style.display = 'none';
-                    }
-                });
-            }
             
             // Definir filtro de bag padrão como 'aberto'
             const filtroBag = document.getElementById('filtroStatusBag');
@@ -590,12 +582,22 @@
                 filtroBag.value = 'aberto';
             }
             
-            await Promise.all([
-                carregarDashboardEstoque(),
-                carregarLotesAtivos(),
-                carregarBagsEstoque(),
-                carregarTotalBags()
-            ]);
+            // Carregar as APIs correspondentes baseadas na aba inicial
+            const promises = [
+                carregarDashboardEstoque()
+            ];
+            
+            if (initialTab === 'separacao') {
+                promises.push(carregarEmSeparacao());
+            } else {
+                promises.push(carregarLotesAtivos());
+            }
+            
+            await Promise.all(promises);
+            
+            // Carregar outros dados em segundo plano
+            carregarBagsEstoque();
+            carregarTotalBags();
             
             await atualizarNotificacoes();
         }
@@ -1187,14 +1189,26 @@
             indicator.classList.toggle('expanded');
         }
 
-        function abrirTab(tabName) {
+        function abrirTab(tabName, element = null) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
                 content.style.display = 'none';
             });
             
-            event.target.closest('.tab-btn').classList.add('active');
+            let btnToActivate = element;
+            if (!btnToActivate) {
+                if (typeof event !== 'undefined' && event && event.target) {
+                    btnToActivate = event.target.closest('.tab-btn');
+                } else {
+                    btnToActivate = document.querySelector(`.tab-btn[onclick*="'${tabName}'"]`);
+                }
+            }
+            
+            if (btnToActivate) {
+                btnToActivate.classList.add('active');
+            }
+            
             const targetTab = document.getElementById(`tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
             if (targetTab) {
                 targetTab.classList.add('active');
@@ -2389,19 +2403,6 @@
             } catch(e) {
                 document.getElementById('listaSeparacao').innerHTML = '<div class="card" style="color:red;text-align:center;">Erro ao carregar</div>';
             }
-        }
-
-        // Handle hash navigation (from admin card)
-        if (window.location.hash === '#separacao') {
-            setTimeout(() => {
-                const tabBtns = document.querySelectorAll('.tab-btn');
-                tabBtns.forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => { c.classList.remove('active'); c.style.display = 'none'; });
-                const sepTab = document.getElementById('tabSeparacao');
-                if (sepTab) { sepTab.classList.add('active'); sepTab.style.display = 'block'; }
-                tabBtns.forEach(b => { if (b.textContent.includes('Separação')) b.classList.add('active'); });
-                carregarEmSeparacao();
-            }, 500);
         }
 
         carregarPagina();

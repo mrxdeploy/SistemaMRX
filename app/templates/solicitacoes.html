@@ -38,16 +38,16 @@
     <main class="container" style="padding-top: 80px; padding-bottom: 100px;">
         <!-- Tab Selector -->
         <div class="tab-selector">
-            <button class="tab-btn active" onclick="changeTab('solicitacoes')" data-tab="solicitacoes">
+            <button class="tab-btn" onclick="changeTab('solicitacoes')" data-tab="solicitacoes">
                 <i class="fas fa-file-alt"></i> Pedidos de Compra
             </button>
-            <button class="tab-btn" onclick="changeTab('ordens-compra')" data-tab="ordens-compra">
+            <button class="tab-btn" onclick="changeTab('ordens-compra')" data-tab="ordens-compra" data-perfil="Administrador">
                 <i class="fas fa-shopping-cart"></i> Ordens de Compra
             </button>
         </div>
 
         <!-- Seção de Solicitações -->
-        <div id="secaoSolicitacoes" class="tab-content active">
+        <div id="secaoSolicitacoes" class="tab-content">
             <div class="flex justify-between items-center mb-3" style="flex-wrap: wrap; gap: var(--spacing-md);">
                 <h1 style="font-size: clamp(1.5rem, 6vw, 2rem);">Gerenciar Pedidos de Compra</h1>
             </div>
@@ -728,6 +728,14 @@
 
             usuarioAtual = user;
 
+            // Definir a aba inicial imediatamente para evitar FOUC/flashing
+            const tabParam = getUrlParam('tab');
+            let initialTab = 'solicitacoes';
+            if (tabParam === 'ordens-compra' && usuarioAtual.tipo === 'admin') {
+                initialTab = 'ordens-compra';
+            }
+            changeTab(initialTab);
+
             // Ocultar aba de Ordens de Compra para não-admins
             if (usuarioAtual.tipo !== 'admin') {
                 const btnOrdens = document.querySelector('[data-tab="ordens-compra"]');
@@ -744,11 +752,6 @@
             await carregarSolicitacoes();
             await carregarOCs();
             await atualizarNotificacoes();
-
-            const tabParam = getUrlParam('tab');
-            if (tabParam) {
-                changeTab(tabParam);
-            }
 
             const statusParam = getUrlParam('status');
             if (statusParam) {
