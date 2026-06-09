@@ -12,15 +12,19 @@ def obter_max_sequencial_ano(ano):
     Busca o maior número de lote numérico do ano atual, ignorando formatos UUID/Hex.
     Garante que não peguemos lotes de UUID que "ordenam maior" no regex (ex: 2026-FFE81).
     """
-    ultimo_lote_numerico = db.session.query(func.max(Lote.numero_lote)).filter(
+    lotes_numericos = db.session.query(Lote.numero_lote).filter(
         Lote.numero_lote.op('~')(f'^{ano}-[0-9]+$')
-    ).scalar()
+    ).all()
     
-    if ultimo_lote_numerico:
+    seqs = []
+    for (num,) in lotes_numericos:
         try:
-            return int(ultimo_lote_numerico.split('-')[1])
+            seqs.append(int(num.split('-')[1]))
         except (IndexError, ValueError):
             pass
+            
+    if seqs:
+        return max(seqs)
             
     # Fallback conservador
     return Lote.query.filter(Lote.numero_lote.like(f"{ano}-%")).count()
