@@ -1778,11 +1778,16 @@
                 doc.setDrawColor(229, 231, 235);
                 doc.line(14, 57, 196, 57);
 
+                const forn = solicitacaoAtual.fornecedor_dados || {};
+                const fornDocLabel = forn.tipo_documento === 'cpf' ? 'CPF:' : 'CNPJ:';
+                const fornDocValor = (forn.tipo_documento === 'cpf' ? forn.cpf : forn.cnpj) || '-';
+
                 const infoGeral = [
                     ["ID do Pedido:", `#${solicitacaoAtual.id}`, "Data de Envio:", formatDate(solicitacaoAtual.data_envio)],
                     ["Funcionário:", solicitacaoAtual.funcionario_nome || "-", "Retirada:", solicitacaoAtual.tipo_retirada === 'buscar' ? 'Buscar no fornecedor' : 'Fornecedor entrega'],
                     ["Fornecedor:", solicitacaoAtual.fornecedor_nome || "-", "Frete:", solicitacaoAtual.modalidade_frete || "FOB"],
-                    ["Endereço:", solicitacaoAtual.endereco_completo || "Não informado", "GPS:", solicitacaoAtual.localizacao_lat ? `${solicitacaoAtual.localizacao_lat.toFixed(6)}, ${solicitacaoAtual.localizacao_lng.toFixed(6)}` : "Não capturado"]
+                    [fornDocLabel, fornDocValor, "GPS:", solicitacaoAtual.localizacao_lat ? `${solicitacaoAtual.localizacao_lat.toFixed(6)}, ${solicitacaoAtual.localizacao_lng.toFixed(6)}` : "Não capturado"],
+                    ["Endereço:", solicitacaoAtual.endereco_completo || "Não informado", "", ""]
                 ];
 
                 doc.autoTable({
@@ -1806,7 +1811,6 @@
                 doc.setDrawColor(229, 231, 235);
                 doc.line(14, currentY + 2, 196, currentY + 2);
 
-                const forn = solicitacaoAtual.fornecedor_dados || {};
                 const dadosFinanceiros = [
                     ["Banco:", forn.banco || "-", "Agência:", forn.agencia || "-"],
                     ["Conta:", forn.conta_bancaria || "-", "Chave PIX:", forn.chave_pix || "-"],
@@ -2684,10 +2688,14 @@
                 doc.line(14, 57, 196, 57);
 
                 const dataFormatada = safeFormatDate(ocAtual.data_criacao || ocAtual.data_envio || ocAtual.data_atualizacao);
+                const ocDocLabel = ocAtual.fornecedor_tipo_documento === 'cpf' ? 'CPF:' : 'CNPJ:';
+                const ocDocValor = (ocAtual.fornecedor_tipo_documento === 'cpf' ? ocAtual.fornecedor_cpf : ocAtual.fornecedor_cnpj) || '-';
+
                 const body = [
                     ["OC ID:", `#${ocAtual.id}`, "Data:", dataFormatada],
                     ["Pedido Orig.:", `#${ocAtual.solicitacao_id}`, "Aprovador:", ocAtual.aprovador_nome || "-"],
-                    ["Fornecedor:", ocAtual.fornecedor_nome, "", ""]
+                    ["Fornecedor:", ocAtual.fornecedor_nome || "-", "", ""],
+                    [ocDocLabel, ocDocValor, "", ""]
                 ];
 
                 doc.autoTable({
