@@ -171,12 +171,14 @@ def dashboard_estoque_ativo():
             BagProducao.status.in_(['devolvido_estoque', 'cheio', 'aberto'])
         ).count()
 
-        # Somar peso de TODOS os lotes ativos (principais e sublotes)
+        # Somar peso apenas dos LOTES PRINCIPAIS (lote_pai_id IS NULL)
+        # Os sublotes são subdivisões do lote pai — somar ambos causaria duplicação
         peso_total_lotes = db.session.query(
             db.func.sum(db.func.coalesce(Lote.peso_liquido, Lote.peso_total_kg))
         ).filter(
             Lote.status.in_(LOTES_ATIVOS_STATUS),
-            Lote.bloqueado == False
+            Lote.bloqueado == False,
+            Lote.lote_pai_id.is_(None)  # APENAS lotes principais, sem sublotes
         ).scalar() or 0
 
         peso_total_bags = db.session.query(
