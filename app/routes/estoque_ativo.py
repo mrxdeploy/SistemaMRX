@@ -4,7 +4,6 @@ from app.models import db, Lote, BagProducao, ItemSeparadoProducao, Classificaca
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func
 from datetime import datetime, timedelta
-import uuid
 import logging
 
 logger = logging.getLogger(__name__)
@@ -573,7 +572,7 @@ def obter_resumo_compra():
         if not is_admin_or_gestor:
             return jsonify({'erro': 'Acesso não autorizado', 'show_tab': False}), 403
         
-        from app.models import OrdemCompra, Solicitacao, TabelaPreco, TabelaPrecoItem
+        from app.models import OrdemCompra, Solicitacao
         
         # Buscar itens de solicitações com OC aprovadas (ou qualquer status que indique compra efetivada)
         # Status de OC que indicam compra aprovada/efetivada

@@ -1,5 +1,5 @@
 from app.models import db, Notificacao, Usuario, Fornecedor, OrdemCompra
-from datetime import datetime, timedelta
+from datetime import datetime
 
 def obter_admins():
     return Usuario.query.filter(

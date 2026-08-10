@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import db, Lote, LoteSeparacao, Residuo, Usuario, Notificacao, MovimentacaoEstoque
+from app.models import db, Lote, LoteSeparacao, Residuo, Usuario, Notificacao
 from app.auth import admin_required
 from datetime import datetime
 from decimal import Decimal

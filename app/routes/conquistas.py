@@ -3,7 +3,6 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from app.models import db, Conquista, AporteConquista, Usuario
-from app.auth import admin_required
 
 bp = Blueprint('conquistas', __name__, url_prefix='/api/conquistas')
 

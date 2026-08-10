@@ -1,10 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import db, Lote, ItemSolicitacao, Fornecedor, TipoLote, MovimentacaoEstoque, MaterialBase, Usuario, Inventario, InventarioContagem
+from app.models import db, Lote, ItemSolicitacao, Fornecedor, MovimentacaoEstoque, MaterialBase, Usuario, Inventario, InventarioContagem
 from app.auth import admin_required
 from datetime import datetime
 from sqlalchemy.orm import joinedload, selectinload
-import json
 
 bp = Blueprint('wms', __name__, url_prefix='/api/wms')
 

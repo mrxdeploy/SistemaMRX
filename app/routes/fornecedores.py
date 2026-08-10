@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Fornecedor, FornecedorTipoLotePreco, FornecedorTipoLoteClassificacao, Vendedor, TipoLote, Usuario, FornecedorFuncionarioAtribuicao, db
+from app.models import Fornecedor, FornecedorTipoLotePreco, FornecedorTipoLoteClassificacao, TipoLote, Usuario, FornecedorFuncionarioAtribuicao, db
 from app.auth import admin_required
 import requests
 import re

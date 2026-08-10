@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Lote, ItemSolicitacao, Solicitacao, EntradaEstoque, Usuario, db
+from flask_jwt_extended import jwt_required
+from app.models import Lote, Solicitacao, EntradaEstoque, db
 from app.auth import admin_required
 from datetime import datetime
 import uuid

@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import OrdemCompra, AuditoriaOC, Solicitacao, Fornecedor, Usuario, ItemSolicitacao, OrdemServico, db
+from app.models import OrdemCompra, Solicitacao, Fornecedor, Usuario, OrdemServico, db
 from app.auth import admin_required
 from app.utils.auditoria import registrar_auditoria_oc
 from datetime import datetime

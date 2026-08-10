@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, Response
 from flask_jwt_extended import jwt_required
-from app.models import Fornecedor, Placa, Compra, Solicitacao, db
+from app.models import Fornecedor, Placa, Compra, db
 from datetime import datetime
 import csv
 import io

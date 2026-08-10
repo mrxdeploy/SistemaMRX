@@ -2,8 +2,6 @@ from app.models import (
     db, Usuario, Fornecedor, Solicitacao, Lote, TipoLote,
     Notificacao, EntradaEstoque, OrdemCompra, ItemSolicitacao
 )
-from datetime import datetime
-import json
 import re
 
 SYSTEM_ACTIONS = {

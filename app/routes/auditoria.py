@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, AuditoriaLog, Usuario
-from app.auth import permission_required, perfil_required
+from app.auth import permission_required
 from datetime import datetime, timedelta
 
 bp = Blueprint('auditoria', __name__, url_prefix='/api/auditoria')

@@ -1,18 +1,16 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
 import os
 import uuid
-import json
 
 from app.models import (
     db, Usuario, ConversaBot, Conquista, AporteConquista,
     Fornecedor, Solicitacao, Lote, EntradaEstoque, TipoLote,
     OrdemCompra, ItemSolicitacao
 )
-from app.routes.metais import fetch_metals_data, METAL_SYMBOLS
-from app.auth import admin_required
+from app.routes.metais import fetch_metals_data
 
 bp = Blueprint('assistente', __name__, url_prefix='/api/assistente')
 

@@ -1,12 +1,11 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Fornecedor, Usuario, Vendedor, Placa, db
+from app.models import Fornecedor, Usuario, Placa, db
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
 from google import genai
 from google.genai import types
-import io
 
 placas_bp = Blueprint('placas', __name__)
 

@@ -1,12 +1,11 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Solicitacao, ItemSolicitacao, Fornecedor, TipoLote, FornecedorTipoLotePreco, FornecedorTipoLoteClassificacao, db, Usuario, Lote, OrdemCompra, Notificacao, Perfil, MaterialBase, TabelaPreco, TabelaPrecoItem
+from app.models import Solicitacao, ItemSolicitacao, Fornecedor, TipoLote, FornecedorTipoLoteClassificacao, db, Usuario, Lote, OrdemCompra, Notificacao, Perfil, MaterialBase, TabelaPreco
 from app.auth import admin_required
 from app.utils.auditoria import registrar_auditoria_oc
 from app import socketio
 from datetime import datetime
 from sqlalchemy import inspect as sa_inspect
-import os
 
 bp = Blueprint('solicitacoes', __name__, url_prefix='/api/solicitacoes')
 

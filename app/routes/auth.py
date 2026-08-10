@@ -6,10 +6,10 @@ from flask_jwt_extended import (
     get_jwt_identity,
     get_jwt
 )
-from app.models import db, Usuario, Perfil
+from app.models import Usuario
 from app.auth import verificar_senha, get_user_jwt_claims
 from app.utils.auditoria import registrar_login
-from app.rbac_config import (get_menus_by_perfil, get_tela_inicial_by_perfil, get_paginas_permitidas,
+from app.rbac_config import (get_menus_by_perfil, 
                               get_ocultar_menu_inferior, get_ocultar_botao_adicionar, get_perfil_config,
                               perfil_tem_motorista, PERMISSOES_CATALOGO)
 

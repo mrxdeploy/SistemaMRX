@@ -5,9 +5,8 @@ from app.auth import admin_required, hash_senha
 from app.utils.auditoria import registrar_criacao, registrar_atualizacao, registrar_exclusao
 from app.rbac_config import perfil_tem_motorista, get_catalogo_completo, get_menus_disponiveis
 from datetime import datetime, timedelta
-from sqlalchemy import func, and_
+from sqlalchemy import func
 import os
-import io
 from werkzeug.utils import secure_filename
 
 bp = Blueprint('rh', __name__, url_prefix='/api/rh')

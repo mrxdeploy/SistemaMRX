@@ -10,10 +10,8 @@ from app.services.perplexity_formatter import (
     build_explanation_with_perplexity,
     is_perplexity_configured
 )
-from app.auth import admin_required
 from datetime import datetime
 import base64
-import os
 
 bp = Blueprint('scanner', __name__)
 

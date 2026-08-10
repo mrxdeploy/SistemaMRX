@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Solicitacao, ItemSolicitacao, Lote, Fornecedor, TipoLote, Usuario, db
-from datetime import datetime
 
 bp = Blueprint('compras', __name__, url_prefix='/api/compras')
 

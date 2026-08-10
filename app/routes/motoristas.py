@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, Motorista, Veiculo, Usuario
-from app.auth import permission_required, admin_required, perfil_required, hash_senha
-from app.utils.auditoria import registrar_criacao, registrar_atualizacao, registrar_exclusao
+from app.auth import permission_required, admin_required, hash_senha
+from app.utils.auditoria import registrar_criacao, registrar_atualizacao
 
 bp = Blueprint('motoristas', __name__)
 

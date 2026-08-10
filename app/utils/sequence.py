@@ -1,7 +1,6 @@
 import uuid
 import logging
 from datetime import datetime
-from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from app.models import db, Lote
 

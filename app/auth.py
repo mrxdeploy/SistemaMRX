@@ -3,7 +3,7 @@ from functools import wraps
 from flask import jsonify, request
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
 from app.models import db, Usuario, Perfil
-from app.rbac_config import check_rota_api_permitida, perfil_tem_motorista
+from app.rbac_config import check_rota_api_permitida
 
 def hash_senha(senha):
     return bcrypt.hashpw(senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -63,7 +63,6 @@ def perfil_required(*perfis_permitidos):
     return decorator
 
 PERFIL_AUDITORIA = 'Auditoria / BI'
-PERFIL_ADMIN = 'Administrador'
 
 def admin_ou_auditor_required(fn):
     """
@@ -102,13 +101,6 @@ def somente_leitura_ou_admin(fn):
 
         # Se for um usuário não-admin acessando métodos de escrita e estivermos limitando a leitura
         if request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
-            # Aqui no novo RBAC as permissões de edição garantem quem pode escrever,
-            # porém se um endpoint explícito demandar isso (como logs ou listagens amplas protegidas),
-            # bloqueamos de forma genérica para usuários que apenas "tem permissão de ler o dashboard"
-            # e queríamos prevenir modificações em massa.
-            if usuario.has_permission('modulo_dashboard') and not usuario.has_permission('configuracoes_gerenciar'):
-                pass # Por hora, a rota específica que devia validar vai gerenciar. Mas vamos manter um log de consistência.
-                # Como essa função foi depreciada por causa dos claims de RBAC mais granulares, vamos deixar passar se for admin, senão checar.
             
             # Para não quebrar a lógica original: se o usuário SÓ tinha leitura:
             if usuario.perfil and usuario.perfil.nome == PERFIL_AUDITORIA:

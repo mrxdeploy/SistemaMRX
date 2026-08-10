@@ -3,7 +3,6 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, ConferenciaRecebimento, OrdemServico, OrdemCompra, Usuario, Notificacao, EntradaEstoque, Lote
 from app.auth import admin_required
 from datetime import datetime
-import uuid
 import os
 from werkzeug.utils import secure_filename
 
