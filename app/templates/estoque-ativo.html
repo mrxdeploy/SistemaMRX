@@ -377,6 +377,9 @@
         </div>
 
         <div class="tabs">
+            <button class="tab-btn" onclick="abrirTab('geral')">
+                <i class="fas fa-cubes"></i> Estoque Geral
+            </button>
             <button class="tab-btn" onclick="abrirTab('lotes')">
                 <i class="fas fa-boxes"></i> Lotes
             </button>
@@ -392,6 +395,39 @@
             <button class="tab-btn" onclick="abrirTab('compra')" id="tabBtnCompra" data-perfil="Administrador, Gestor">
                 <i class="fas fa-shopping-cart"></i> Total Compra
             </button>
+        </div>
+
+        <!-- Tab Estoque Geral - Visão Consolidada com Preço Médio -->
+        <div id="tabGeral" class="tab-content">
+            <button class="btn-selecionar-bag" id="btnSelecionarBagGeral" onclick="toggleModoSelecaoGeral()">
+                <i class="fas fa-hand-pointer"></i> Montar Bag (Preço Médio)
+            </button>
+            <div class="card" style="margin-bottom: 1rem;">
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: end;">
+                    <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
+                        <label>Buscar Material</label>
+                        <input type="text" id="buscaEstoqueGeral" placeholder="Nome do material, categoria..." onkeyup="filtrarEstoqueGeral()">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
+                        <label>Categoria</label>
+                        <select id="filtroCategoriaGeral" onchange="filtrarEstoqueGeral()">
+                            <option value="">Todas</option>
+                            <option value="HIGH_GRADE">High Grade</option>
+                            <option value="MG1">MG1</option>
+                            <option value="MG2">MG2</option>
+                            <option value="LOW_GRADE">Low Grade</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div id="listaEstoqueGeral"><div class="card" style="text-align: center; color: var(--gray-500);">Carregando Estoque Geral...</div></div>
+        </div>
+
+        <!-- Barra fixa de seleção Estoque Geral -->
+        <div class="barra-selecao-fixa" id="barraSelecaoGeral">
+            <i class="fas fa-box"></i>
+            <span id="contagemSelecaoGeral">0 materiais selecionados</span>
+            <button class="btn-enviar-bag" onclick="abrirModalBagGeral()"><i class="fas fa-paper-plane"></i> Enviar para Bag</button>
         </div>
 
         <div id="tabLotes" class="tab-content">
@@ -534,6 +570,38 @@
         </div>
     </div>
 
+    <!-- Modal Bag Estoque Geral (Preço Médio) -->
+    <div class="modal-producao" id="modalBagGeral">
+        <div class="modal-producao-content">
+            <div class="modal-producao-header" style="background: linear-gradient(135deg, #059669, #047857);">
+                <h2><i class="fas fa-balance-scale"></i> Enviar para Bag (Preço Médio)</h2>
+                <button onclick="fecharModalBagGeral()" style="background:none;border:none;color:white;font-size:1.5rem;cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-producao-body" id="bagGeralBody">Carregando...</div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação Customizado (substitui confirm() nativo) -->
+    <div class="modal-producao" id="modalConfirmacao">
+        <div class="modal-producao-content" style="max-width: 480px;">
+            <div class="modal-producao-header" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">
+                <h2 id="confirmacaoTitulo"><i class="fas fa-exclamation-triangle"></i> Confirmação</h2>
+                <button onclick="fecharModalConfirmacao(false)" style="background:none;border:none;color:white;font-size:1.5rem;cursor:pointer;">&times;</button>
+            </div>
+            <div class="modal-producao-body">
+                <p id="confirmacaoMensagem" style="font-size: 1.05rem; line-height: 1.6; margin-bottom: 1.5rem;"></p>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button onclick="fecharModalConfirmacao(false)" class="btn" style="background: var(--gray-200); color: var(--gray-700); padding: 0.75rem 1.5rem; border-radius: 10px; font-weight: 600;">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button id="btnConfirmarAcao" onclick="fecharModalConfirmacao(true)" class="btn" style="background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; padding: 0.75rem 1.5rem; border-radius: 10px; font-weight: 600;">
+                        <i class="fas fa-check"></i> Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/rbac.js"></script>
@@ -546,6 +614,33 @@
         let dadosCompra = [];
         let modoSelecao = false;
         let materiaisSelecionados = new Set();
+
+        // ============================
+        // ESTOQUE GERAL - Variáveis globais
+        // ============================
+        let dadosEstoqueGeral = [];          // Dados consolidados do endpoint /geral
+        let modoSelecaoGeral = false;        // Modo seleção ativo na aba Estoque Geral
+        let materiaisGeralSelecionados = []; // [{material_nome, categoria, peso_disponivel, preco_medio_kg}]
+
+        // ============================
+        // MODAL DE CONFIRMAÇÃO CUSTOMIZADO
+        // Substitui confirm() nativo para atender requisito 2.3
+        // ============================
+        let _confirmacaoResolve = null;
+
+        function confirmarAcao(titulo, mensagem) {
+            return new Promise(resolve => {
+                _confirmacaoResolve = resolve;
+                document.getElementById('confirmacaoTitulo').innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${titulo}`;
+                document.getElementById('confirmacaoMensagem').textContent = mensagem;
+                document.getElementById('modalConfirmacao').classList.add('active');
+            });
+        }
+
+        function fecharModalConfirmacao(resultado) {
+            document.getElementById('modalConfirmacao').classList.remove('active');
+            if (_confirmacaoResolve) { _confirmacaoResolve(resultado); _confirmacaoResolve = null; }
+        }
 
         // Bridge function: showNotification -> showAlert/showSuccess from utils.js
         function showNotification(msg, type) {
@@ -565,9 +660,17 @@
             if (!user) return;
             
             // Determinar a tab inicial imediatamente para evitar FOUC/flashing
-            let initialTab = 'lotes';
+            let initialTab = 'geral';
             if (window.location.hash === '#separacao') {
                 initialTab = 'separacao';
+            } else if (window.location.hash === '#lotes') {
+                initialTab = 'lotes';
+            } else if (window.location.hash === '#bags') {
+                initialTab = 'bags';
+            } else if (window.location.hash === '#total') {
+                initialTab = 'total';
+            } else if (window.location.hash === '#compra') {
+                initialTab = 'compra';
             }
             abrirTab(initialTab);
             
@@ -587,7 +690,9 @@
                 carregarDashboardEstoque()
             ];
             
-            if (initialTab === 'separacao') {
+            if (initialTab === 'geral') {
+                promises.push(carregarEstoqueGeral());
+            } else if (initialTab === 'separacao') {
                 promises.push(carregarEmSeparacao());
             } else {
                 promises.push(carregarLotesAtivos());
@@ -598,6 +703,9 @@
             // Carregar outros dados em segundo plano
             carregarBagsEstoque();
             carregarTotalBags();
+            if (initialTab !== 'geral') {
+                carregarEstoqueGeral();
+            }
             
             await atualizarNotificacoes();
         }
@@ -632,9 +740,8 @@
         }
 
         async function excluirLoteTotal(loteId) {
-            if (!confirm('ATENÇÃO: Você está prestes a apagar este LOTE e todos os seus SUBLOTES permanentemente! Esta ação não pode ser desfeita.\n\nDeseja continuar?')) {
-                return;
-            }
+            const ok = await confirmarAcao('Apagar Lote', 'ATENÇÃO: Você está prestes a apagar este LOTE e todos os seus SUBLOTES permanentemente! Esta ação não pode ser desfeita. Deseja continuar?');
+            if (!ok) return;
 
             try {
                 const response = await fetchAPI(`/estoque-ativo/lotes/${loteId}`, {
@@ -1218,6 +1325,9 @@
             if (tabName === 'bags') {
                 document.getElementById('bannerStatusBag').style.display = 'flex';
                 carregarBagsEstoque();
+            } else if (tabName === 'geral') {
+                document.getElementById('bannerStatusBag').style.display = 'none';
+                carregarEstoqueGeral();
             } else if (tabName === 'compra') {
                 document.getElementById('bannerStatusBag').style.display = 'none';
                 carregarTotalCompra();
@@ -1991,11 +2101,12 @@
         function fecharModalBag() { document.getElementById('modalBag').classList.remove('active'); }
 
         // ============================
-        // BAGS - Fechar e Ver
+        // BAGS - Fechar e Ver (Modais de confirmação customizados - Req. 2.3)
         // ============================
         async function fecharBagAction(bagId) {
             if (isActionBusy('fecharBag_' + bagId)) return;
-            if (!confirm('Fechar este bag? Não será possível adicionar mais materiais.')) return;
+            const ok = await confirmarAcao('Fechar Bag', 'Fechar este bag? Não será possível adicionar mais materiais após o fechamento.');
+            if (!ok) return;
             setActionBusy('fecharBag_' + bagId, true);
             try {
                 const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}/fechar`, {method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}'});
@@ -2010,7 +2121,8 @@
 
         async function reabrirBagAction(bagId) {
             if (isActionBusy('reabrirBag_' + bagId)) return;
-            if (!confirm('Reabrir este bag? O código de rastreio e ordem de exportação serão removidos e você poderá modificá-lo novamente.')) return;
+            const ok = await confirmarAcao('Reabrir Bag', 'Reabrir este bag? O código de rastreio e ordem de exportação serão removidos e você poderá modificá-lo novamente.');
+            if (!ok) return;
             setActionBusy('reabrirBag_' + bagId, true);
             try {
                 const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}/reabrir`, {method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}'});
@@ -2025,7 +2137,8 @@
 
         async function excluirBagAction(bagId) {
             if (isActionBusy('excluirBag_' + bagId)) return;
-            if (!confirm('ATENÇÃO: Tem certeza que deseja excluir completamente este bag? Todos os materiais dentro dele serão devolvidos ao estoque original.')) return;
+            const ok = await confirmarAcao('Excluir Bag', 'ATENÇÃO: Tem certeza que deseja excluir completamente este bag? Todos os materiais dentro dele serão devolvidos ao estoque original (com estorno de preço médio quando aplicável).');
+            if (!ok) return;
             setActionBusy('excluirBag_' + bagId, true);
             try {
                 const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}`, {method: 'DELETE'});
@@ -2035,6 +2148,7 @@
                     await carregarBagsEstoque();
                     await carregarLotesAtivos();
                     await carregarDashboardEstoque();
+                    if (dadosEstoqueGeral.length > 0) await carregarEstoqueGeral();
                 } else { showNotification(data.erro, 'error'); }
             } catch(e) { showNotification('Erro', 'error'); }
             finally { setActionBusy('excluirBag_' + bagId, false); }
@@ -2042,7 +2156,8 @@
 
         async function removerItemBagAction(bagId, itemId) {
             if (isActionBusy('removerItemBag_' + itemId)) return;
-            if (!confirm('Tem certeza que deseja remover este item? O peso dele será devolvido ao lote original no estoque.')) return;
+            const ok = await confirmarAcao('Remover Item do Bag', 'Deseja realmente excluir este item do lote? O peso dele será devolvido ao estoque original com restauração exata de valores.');
+            if (!ok) return;
             setActionBusy('removerItemBag_' + itemId, true);
             try {
                 const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}/remover-item/${itemId}`, {method: 'DELETE'});
@@ -2052,6 +2167,7 @@
                     await carregarBagsEstoque();
                     await carregarLotesAtivos();
                     await carregarDashboardEstoque();
+                    if (dadosEstoqueGeral.length > 0) await carregarEstoqueGeral();
                 } else { showNotification(data.erro, 'error'); }
             } catch(e) { showNotification('Erro', 'error'); }
             finally { setActionBusy('removerItemBag_' + itemId, false); }
@@ -2402,6 +2518,448 @@
                 `).join('');
             } catch(e) {
                 document.getElementById('listaSeparacao').innerHTML = '<div class="card" style="color:red;text-align:center;">Erro ao carregar</div>';
+            }
+        }
+
+        // ============================================================
+        // ESTOQUE GERAL - Visão Consolidada e Seleção por Preço Médio
+        // Requisitos Atendidos:
+        // 2.1 - Unificação de saldo por categoria e cálculo de Preço Médio
+        // 2.2 - Interface de montagem direta, digitação de quantidade exata e dedução por PM
+        // 2.3 - Modais formais de confirmação e travas de segurança
+        // ============================================================
+
+        function escapeHtml(text) {
+            if (text == null) return '';
+            return String(text).replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
+
+        async function carregarEstoqueGeral() {
+            try {
+                const container = document.getElementById('listaEstoqueGeral');
+                if (!container) return;
+                container.innerHTML = '<div class="card" style="text-align:center;color:var(--gray-500);padding:2.5rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;margin-bottom:0.75rem;color:var(--primary-color);"></i><br><strong style="font-size:1.05rem;">Carregando Estoque Geral consolidado...</strong><br><small style="color:var(--gray-400);">Calculando médias ponderadas dos saldos ativos</small></div>';
+
+                const resp = await fetchAPI('/estoque-ativo/geral');
+                if (!resp.ok) {
+                    throw new Error('Falha ao obter estoque geral consolidado');
+                }
+                dadosEstoqueGeral = await resp.json();
+                filtrarEstoqueGeral();
+            } catch (err) {
+                console.error('Erro ao carregar estoque geral:', err);
+                const container = document.getElementById('listaEstoqueGeral');
+                if (container) {
+                    container.innerHTML = `<div class="card" style="text-align:center;color:var(--danger-color);padding:2rem;"><i class="fas fa-exclamation-circle" style="font-size:2rem;margin-bottom:0.5rem;"></i><br><strong>Erro ao carregar Estoque Geral:</strong> ${escapeHtml(err.message)}</div>`;
+                }
+            }
+        }
+
+        function filtrarEstoqueGeral() {
+            const buscaInput = document.getElementById('buscaEstoqueGeral');
+            const termo = (buscaInput ? buscaInput.value : '').toLowerCase().trim();
+            const catSelect = document.getElementById('filtroCategoriaGeral');
+            const catFiltro = (catSelect ? catSelect.value : '').toUpperCase();
+
+            const filtrados = (dadosEstoqueGeral || []).filter(item => {
+                const nomeMatch = (item.material_nome || '').toLowerCase().includes(termo);
+                const catMatch = (item.categoria || '').toLowerCase().includes(termo);
+                const fornMatch = (item.fornecedores || []).some(f => f.toLowerCase().includes(termo));
+                const textoMatch = !termo || nomeMatch || catMatch || fornMatch;
+
+                const catSelectMatch = !catFiltro || (item.categoria || '').toUpperCase() === catFiltro;
+
+                return textoMatch && catSelectMatch;
+            });
+
+            renderizarEstoqueGeral(filtrados);
+        }
+
+        function renderizarEstoqueGeral(lista) {
+            const container = document.getElementById('listaEstoqueGeral');
+            if (!container) return;
+
+            if (!lista || lista.length === 0) {
+                container.innerHTML = `
+                    <div class="card" style="text-align:center;color:var(--gray-500);padding:3rem;">
+                        <i class="fas fa-boxes" style="font-size:2.5rem;margin-bottom:0.75rem;opacity:0.4;"></i>
+                        <p style="font-size:1.1rem;margin:0;font-weight:600;">Nenhum material encontrado no Estoque Geral.</p>
+                        <small style="color:var(--gray-400);">Verifique os filtros de busca ou aguarde a separação de lotes.</small>
+                    </div>
+                `;
+                return;
+            }
+
+            const categoriaCores = {
+                'HIGH_GRADE': '#10b981', 'high': '#10b981',
+                'MG1': '#eab308', 'mg1': '#eab308', 'MID_GRADE_1': '#eab308',
+                'MG2': '#f97316', 'mg2': '#f97316', 'MID_GRADE_2': '#f97316',
+                'LOW_GRADE': '#ef4444', 'low': '#ef4444',
+                'RESIDUO': '#6b7280', 'DIVERSOS': '#8b5cf6'
+            };
+
+            container.innerHTML = lista.map((item, idx) => {
+                const chaveItem = `${item.material_nome}||${item.categoria}`;
+                const selecionado = materiaisGeralSelecionados.some(m => `${m.material_nome}||${m.categoria}` === chaveItem);
+                const corCat = categoriaCores[item.categoria] || '#3b82f6';
+                const fornecedoresStr = (item.fornecedores && item.fornecedores.length > 0) 
+                    ? item.fornecedores.join(', ') 
+                    : 'Não identificado';
+
+                return `
+                    <div class="card material-geral-card ${modoSelecaoGeral ? 'sublote-item selecao-mode' : ''} ${selecionado ? 'selecionado' : ''}" 
+                         style="margin-bottom:1rem; border-left: 5px solid ${corCat}; cursor: ${modoSelecaoGeral ? 'pointer' : 'default'}; position: relative; transition: all 0.2s;"
+                         onclick="${modoSelecaoGeral ? `toggleSelecaoMaterialGeral('${escapeHtml(item.material_nome)}', '${escapeHtml(item.categoria)}')` : ''}">
+                        
+                        ${modoSelecaoGeral ? `
+                            <div class="check-selecao" style="${selecionado ? 'background:#059669; border-color:#059669; color:white;' : ''}">
+                                <i class="fas fa-check"></i>
+                            </div>
+                        ` : ''}
+
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.5rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0; font-size:1.15rem; color:var(--gray-800); display:flex; align-items:center; gap:0.5rem;">
+                                    <i class="fas fa-cubes" style="color:${corCat};"></i> ${escapeHtml(item.material_nome)}
+                                </h3>
+                                <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-top:0.25rem;">
+                                    <span class="badge" style="background:${corCat}20; color:${corCat}; border:1px solid ${corCat}40; font-weight:600; font-size:0.75rem;">
+                                        ${escapeHtml(item.categoria || 'Geral')}
+                                    </span>
+                                    <span style="font-size:0.8rem; color:var(--gray-500);">
+                                        <i class="fas fa-layer-group"></i> ${item.qtd_sublotes} sublote(s) que compõem o saldo
+                                    </span>
+                                </div>
+                            </div>
+                            ${!modoSelecaoGeral ? `
+                                <button onclick="abrirModalBagGeralDireto('${escapeHtml(item.material_nome)}', '${escapeHtml(item.categoria)}')" 
+                                        class="btn btn-sm" 
+                                        style="background:linear-gradient(135deg, #059669, #047857); color:white; padding:0.5rem 1rem; border-radius:8px; font-weight:600; display:flex; align-items:center; gap:0.4rem; box-shadow:0 2px 6px rgba(5,150,105,0.25);"
+                                        title="Retirar material e montar Bag">
+                                    <i class="fas fa-plus-circle"></i> Montar Bag
+                                </button>
+                            ` : ''}
+                        </div>
+
+                        <!-- Grid de Saldo e Preço Médio (Req. 2.1) -->
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:0.75rem; margin-top:0.85rem; padding:0.75rem; background:var(--gray-50); border-radius:10px;">
+                            <div>
+                                <span style="font-size:0.72rem; color:var(--gray-500); text-transform:uppercase; font-weight:700;">Saldo Disponível</span>
+                                <div style="font-size:1.25rem; font-weight:800; color:var(--success-color);">
+                                    ${item.peso_disponivel.toFixed(3)} <span style="font-size:0.85rem; font-weight:normal;">kg</span>
+                                </div>
+                            </div>
+                            <div>
+                                <span style="font-size:0.72rem; color:var(--gray-500); text-transform:uppercase; font-weight:700;" title="Preço Médio Ponderado: Σ(Valor dos Sublotes) / Σ(Peso dos Sublotes)">
+                                    Custo Médio Unitário <i class="fas fa-info-circle" style="font-size:0.7rem; color:var(--gray-400);"></i>
+                                </span>
+                                <div style="font-size:1.25rem; font-weight:800; color:#8b5cf6;">
+                                    ${item.show_prices ? `R$ ${item.preco_medio_kg.toFixed(2)}` : '<span style="font-size:0.9rem; color:var(--gray-400);">Confidencial</span>'}
+                                    <span style="font-size:0.85rem; font-weight:normal; color:var(--gray-500);">${item.show_prices ? '/kg' : ''}</span>
+                                </div>
+                            </div>
+                            ${item.show_prices ? `
+                            <div>
+                                <span style="font-size:0.72rem; color:var(--gray-500); text-transform:uppercase; font-weight:700;">Valor Total Saldo</span>
+                                <div style="font-size:1.25rem; font-weight:800; color:#059669;">
+                                    R$ ${item.valor_total.toFixed(2)}
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Origem e Fornecedores consolidados -->
+                        <div style="margin-top:0.75rem; font-size:0.8rem; color:var(--gray-600); display:flex; align-items:center; gap:0.4rem;">
+                            <i class="fas fa-truck" style="color:var(--gray-400);"></i>
+                            <span><strong>Fornecedores no saldo:</strong> ${escapeHtml(fornecedoresStr)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleModoSelecaoGeral() {
+            modoSelecaoGeral = !modoSelecaoGeral;
+            materiaisGeralSelecionados = [];
+            const btn = document.getElementById('btnSelecionarBagGeral');
+            if (btn) {
+                if (modoSelecaoGeral) {
+                    btn.classList.add('selecionando');
+                    btn.innerHTML = '<i class="fas fa-times"></i> Cancelar Seleção';
+                } else {
+                    btn.classList.remove('selecionando');
+                    btn.innerHTML = '<i class="fas fa-hand-pointer"></i> Montar Bag (Preço Médio)';
+                }
+            }
+            atualizarContagemSelecaoGeral();
+            filtrarEstoqueGeral();
+        }
+
+        function toggleSelecaoMaterialGeral(nome, categoria) {
+            const idx = materiaisGeralSelecionados.findIndex(m => m.material_nome === nome && m.categoria === categoria);
+            if (idx >= 0) {
+                materiaisGeralSelecionados.splice(idx, 1);
+            } else {
+                const itemEstoque = (dadosEstoqueGeral || []).find(m => m.material_nome === nome && m.categoria === categoria);
+                if (itemEstoque) {
+                    materiaisGeralSelecionados.push(itemEstoque);
+                }
+            }
+            atualizarContagemSelecaoGeral();
+            filtrarEstoqueGeral();
+        }
+
+        function atualizarContagemSelecaoGeral() {
+            const count = materiaisGeralSelecionados.length;
+            const span = document.getElementById('contagemSelecaoGeral');
+            const barra = document.getElementById('barraSelecaoGeral');
+            if (span) span.textContent = `${count} material(is) selecionado(s)`;
+            if (barra) {
+                if (count > 0 && modoSelecaoGeral) {
+                    barra.classList.add('active');
+                } else {
+                    barra.classList.remove('active');
+                }
+            }
+        }
+
+        function abrirModalBagGeralDireto(nome, categoria) {
+            const item = (dadosEstoqueGeral || []).find(m => m.material_nome === nome && m.categoria === categoria);
+            if (!item) {
+                showNotification('Material não encontrado no estoque ativo', 'error');
+                return;
+            }
+            materiaisGeralSelecionados = [item];
+            abrirModalBagGeral();
+        }
+
+        async function abrirModalBagGeral() {
+            if (materiaisGeralSelecionados.length === 0) {
+                showNotification('Selecione pelo menos um material do estoque geral', 'error');
+                return;
+            }
+            document.getElementById('modalBagGeral').classList.add('active');
+            document.getElementById('bagGeralBody').innerHTML = '<div style="text-align:center;padding:2.5rem;"><i class="fas fa-spinner fa-spin" style="font-size:2rem;color:#059669;"></i><br><p style="margin-top:0.75rem;color:var(--gray-600);font-weight:600;">Carregando bags abertos...</p></div>';
+            try {
+                const resp = await fetchAPI('/estoque-ativo/bags/abertos');
+                const bagsAbertos = await resp.json();
+                renderizarModalBagGeral(bagsAbertos);
+            } catch(e) {
+                document.getElementById('bagGeralBody').innerHTML = '<p style="color:red;text-align:center;padding:1.5rem;">Erro ao carregar lista de bags disponíveis.</p>';
+            }
+        }
+
+        function fecharModalBagGeral() {
+            document.getElementById('modalBagGeral').classList.remove('active');
+        }
+
+        function renderizarModalBagGeral(bagsAbertos) {
+            const matHtml = materiaisGeralSelecionados.map((item, idx) => {
+                const pmTexto = item.show_prices ? `R$ ${item.preco_medio_kg.toFixed(2)}/kg` : 'Preço Médio';
+                const defaultQtd = (Math.min(item.peso_disponivel, 1.0)).toFixed(3);
+                return `
+                    <div style="background:var(--gray-50); border:1px solid var(--gray-200); border-radius:10px; padding:0.9rem; margin-bottom:0.75rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                            <div>
+                                <strong style="font-size:1.05rem; color:var(--gray-800);"><i class="fas fa-cube" style="color:#059669;"></i> ${escapeHtml(item.material_nome)}</strong>
+                                <span class="badge" style="font-size:0.7rem; background:#e0e7ff; color:#3730a3; margin-left:0.4rem;">${escapeHtml(item.categoria || 'Geral')}</span>
+                            </div>
+                            <div style="text-align:right;">
+                                <span style="font-size:0.75rem; color:var(--gray-500);">Preço Médio Vigente:</span>
+                                <strong style="font-size:0.9rem; color:#8b5cf6; margin-left:0.25rem;">${pmTexto}</strong>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:1rem; margin-top:0.75rem; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:180px;">
+                                <span style="font-size:0.8rem; color:var(--gray-600);">Saldo disponível no estoque: <strong>${item.peso_disponivel.toFixed(3)} kg</strong></span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <label style="font-size:0.85rem; font-weight:700; color:var(--gray-700); margin:0;">Quantidade a retirar:</label>
+                                <input type="number" 
+                                       id="peso_geral_${idx}" 
+                                       data-mat-nome="${escapeHtml(item.material_nome)}" 
+                                       data-mat-cat="${escapeHtml(item.categoria)}" 
+                                       data-mat-pm="${item.preco_medio_kg}" 
+                                       data-mat-saldo="${item.peso_disponivel}" 
+                                       placeholder="ex: 0.11" 
+                                       step="0.001" 
+                                       min="0.001" 
+                                       max="${item.peso_disponivel}" 
+                                       value="${defaultQtd}" 
+                                       oninput="atualizarSubtotalBagGeral(${idx})"
+                                       style="width:130px; padding:0.55rem; border:2px solid #059669; border-radius:8px; text-align:center; font-weight:bold; font-size:1.05rem;">
+                                <span style="font-size:0.85rem; font-weight:bold; color:var(--gray-600);">kg</span>
+                            </div>
+                        </div>
+
+                        ${item.show_prices ? `
+                        <div style="margin-top:0.5rem; text-align:right; font-size:0.8rem; color:var(--gray-600);">
+                            Valor estimado da baixa: <strong id="subtotal_geral_${idx}" style="color:#059669; font-size:0.9rem;">R$ ${(parseFloat(defaultQtd) * item.preco_medio_kg).toFixed(2)}</strong>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            const bagsOptions = (bagsAbertos || []).map(b => 
+                `<option value="${b.id}">${b.codigo} (${(b.peso_acumulado || 0).toFixed(2)} kg)</option>`
+            ).join('');
+
+            document.getElementById('bagGeralBody').innerHTML = `
+                <!-- Seleção do Bag -->
+                <div style="margin-bottom:1.25rem;">
+                    <label style="display:block; font-weight:700; font-size:0.95rem; margin-bottom:0.4rem; color:var(--gray-800);">
+                        <i class="fas fa-box"></i> Selecionar Destino (Bag)
+                    </label>
+                    <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                        <select id="selectBagGeralDestino" style="flex:1; min-width:200px; padding:0.65rem; border:1px solid var(--gray-300); border-radius:8px; font-size:0.95rem;" onchange="document.getElementById('novoBagGeralNome').disabled = this.value !== 'novo'">
+                            <option value="novo">✨ Criar Novo Bag Automaticamente</option>
+                            ${bagsOptions}
+                        </select>
+                        <input type="text" id="novoBagGeralNome" placeholder="Nome/obs do bag (opcional)" style="flex:1; min-width:180px; padding:0.65rem; border:1px solid var(--gray-300); border-radius:8px; font-size:0.95rem;">
+                    </div>
+                </div>
+
+                <!-- Lista de Materiais com Digitação de Quantidade (Req. 2.2) -->
+                <h4 style="margin:1rem 0 0.5rem; color:var(--gray-800); font-size:1rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span><i class="fas fa-list-check"></i> Materiais para Inclusão no Bag (${materiaisGeralSelecionados.length})</span>
+                    <span style="font-size:0.75rem; font-weight:normal; color:var(--gray-500);">Baixa com Preço Médio</span>
+                </h4>
+                <div style="max-height:350px; overflow-y:auto; padding-right:4px;">
+                    ${matHtml}
+                </div>
+
+                <!-- Info Regra de Negócio Preço Médio -->
+                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:0.65rem 0.9rem; margin-top:1rem; font-size:0.8rem; color:#166534; display:flex; align-items:center; gap:0.5rem;">
+                    <i class="fas fa-info-circle" style="font-size:1rem;"></i>
+                    <span>A baixa será registrada aplicando o <strong>Preço Médio Ponderado</strong> vigente, debitando os sublotes em ordem FIFO com rastreabilidade total para estorno.</span>
+                </div>
+
+                <button id="btnConfirmarEnviarBagGeral" onclick="enviarMaterialParaBagGeral()" class="btn" style="width:100%; margin-top:1.25rem; background:linear-gradient(135deg, #059669, #047857); color:white; padding:0.9rem; border-radius:12px; font-size:1.05rem; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:0.5rem; box-shadow:0 4px 12px rgba(5,150,105,0.3);">
+                    <i class="fas fa-paper-plane"></i> Confirmar Baixa e Enviar para Bag
+                </button>
+            `;
+        }
+
+        function atualizarSubtotalBagGeral(idx) {
+            const input = document.getElementById(`peso_geral_${idx}`);
+            const spanSubtotal = document.getElementById(`subtotal_geral_${idx}`);
+            if (!input || !spanSubtotal) return;
+            const peso = parseFloat(input.value || 0);
+            const pm = parseFloat(input.dataset.matPm || 0);
+            spanSubtotal.textContent = `R$ ${(peso * pm).toFixed(2)}`;
+        }
+
+        async function enviarMaterialParaBagGeral() {
+            if (isActionBusy('enviarBagGeral')) return;
+
+            // 1. Coletar materiais e pesos digitados
+            const inputs = document.querySelectorAll('[id^="peso_geral_"]');
+            const materiaisParaEnviar = [];
+            let pesoTotalEnviar = 0;
+
+            for (const inp of inputs) {
+                const peso = parseFloat(inp.value || 0);
+                const saldo = parseFloat(inp.dataset.matSaldo || 0);
+                const nome = inp.dataset.matNome;
+                const cat = inp.dataset.matCat;
+
+                if (peso <= 0) {
+                    showNotification(`Informe uma quantidade válida para "${nome}".`, 'error');
+                    return;
+                }
+                if (peso > saldo + 0.001) {
+                    showNotification(`A quantidade para "${nome}" (${peso.toFixed(3)} kg) excede o saldo disponível (${saldo.toFixed(3)} kg).`, 'error');
+                    return;
+                }
+
+                materiaisParaEnviar.push({
+                    material_nome: nome,
+                    categoria: cat,
+                    peso_enviar: peso
+                });
+                pesoTotalEnviar += peso;
+            }
+
+            if (materiaisParaEnviar.length === 0) {
+                showNotification('Nenhum material com quantidade informada.', 'error');
+                return;
+            }
+
+            // 2. Trava de Segurança: Confirmação Explícita (Req. 2.3)
+            const confirmado = await confirmarAcao(
+                'Confirmar Baixa para Bag',
+                `Deseja registrar a saída de ${pesoTotalEnviar.toFixed(3)} kg de material(is) do Estoque Ativo aplicando o Preço Médio vigente?`
+            );
+            if (!confirmado) return;
+
+            setActionBusy('enviarBagGeral', true);
+            const btn = document.getElementById('btnConfirmarEnviarBagGeral');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando Baixa por Preço Médio...';
+            }
+
+            try {
+                // 3. Obter ou criar Bag
+                const selectBag = document.getElementById('selectBagGeralDestino').value;
+                let bagId = selectBag;
+
+                if (selectBag === 'novo') {
+                    const nomeNovo = (document.getElementById('novoBagGeralNome').value || '').trim();
+                    const respNovo = await fetchAPI('/estoque-ativo/bags/criar', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({nome: nomeNovo})
+                    });
+                    const dataNovo = await respNovo.json();
+                    if (!dataNovo.sucesso) {
+                        showNotification(dataNovo.erro || 'Erro ao criar novo bag', 'error');
+                        return;
+                    }
+                    bagId = dataNovo.bag.id;
+                }
+
+                // 4. Executar baixa via endpoint consolidado
+                const respBaixa = await fetchAPI('/estoque-ativo/bags/adicionar-materiais-geral', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        bag_id: parseInt(bagId),
+                        materiais: materiaisParaEnviar
+                    })
+                });
+
+                const dataBaixa = await respBaixa.json();
+                if (dataBaixa.sucesso) {
+                    showNotification(dataBaixa.mensagem, 'success');
+                    fecharModalBagGeral();
+                    if (modoSelecaoGeral) {
+                        toggleModoSelecaoGeral();
+                    } else {
+                        materiaisGeralSelecionados = [];
+                    }
+                    await Promise.all([
+                        carregarEstoqueGeral(),
+                        carregarBagsEstoque(),
+                        carregarDashboardEstoque(),
+                        carregarLotesAtivos()
+                    ]);
+                } else {
+                    showNotification(dataBaixa.erro || 'Erro ao registrar baixa no estoque', 'error');
+                }
+            } catch (err) {
+                console.error('Erro na baixa:', err);
+                showNotification('Falha de comunicação ao adicionar materiais ao bag.', 'error');
+            } finally {
+                setActionBusy('enviarBagGeral', false);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Baixa e Enviar para Bag';
+                }
             }
         }
 

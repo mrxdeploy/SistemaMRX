@@ -5,6 +5,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func
 from datetime import datetime, timedelta
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -1443,37 +1444,50 @@ def reabrir_bag(bag_id):
 @bp.route('/bags/<int:bag_id>', methods=['DELETE'])
 @jwt_required()
 def excluir_bag(bag_id):
-    """Exclui um bag e devolve todos os seus materiais ao estoque original"""
+    """
+    Exclui um bag e devolve TODOS os seus materiais ao Estoque Ativo.
+
+    Regra de Negócio - Estorno Total do Bag:
+    Para cada item do bag:
+    1. Se foi adicionado via Estoque Geral (preço médio), usa _estornar_item_estoque_geral()
+       que lê o mapa de consumo e restaura cada sublote de origem com valores exatos.
+    2. Se foi adicionado pela via legada (sublote único), devolve ao sublote via entrada_estoque_id.
+    Garante reversão completa independente do método de inserção.
+    """
     try:
         bag = BagProducao.query.get_or_404(bag_id)
-        
+
         # Buscar itens do bag
         itens = ItemSeparadoProducao.query.filter_by(bag_id=bag_id).all()
-        
+
         for item in itens:
-            # Devolver peso ao Lote de origem
-            if item.entrada_estoque_id:
-                sublote = Lote.query.get(item.entrada_estoque_id)
-                if sublote:
-                    peso_kg = float(item.peso_kg or 0)
-                    peso_atual_sublote = float(sublote.peso_liquido or sublote.peso_total_kg or 0)
-                    novo_peso = peso_atual_sublote + peso_kg
-                    
-                    if sublote.status == 'processado':
-                        sublote.status = 'em_estoque'
-                        
-                    sublote.peso_liquido = novo_peso
-                    sublote.peso_total_kg = novo_peso
-                    
-                    preco_kg_item = float(item.valor_estimado or 0) / peso_kg if peso_kg > 0 else 0
-                    valor_adicionado = preco_kg_item * peso_kg
-                    sublote.valor_total = float(sublote.valor_total or 0) + valor_adicionado
+            # Tentar estorno via mapa de consumo (Estoque Geral / PM)
+            estorno_geral = _estornar_item_estoque_geral(item)
+
+            if not estorno_geral:
+                # Lógica legada: devolver peso ao sublote único de origem
+                if item.entrada_estoque_id:
+                    sublote = Lote.query.get(item.entrada_estoque_id)
+                    if sublote:
+                        peso_kg = float(item.peso_kg or 0)
+                        peso_atual_sublote = float(sublote.peso_liquido or sublote.peso_total_kg or 0)
+                        novo_peso = peso_atual_sublote + peso_kg
+
+                        if sublote.status == 'processado':
+                            sublote.status = 'em_estoque'
+
+                        sublote.peso_liquido = novo_peso
+                        sublote.peso_total_kg = novo_peso
+
+                        preco_kg_item = float(item.valor_estimado or 0) / peso_kg if peso_kg > 0 else 0
+                        valor_adicionado = preco_kg_item * peso_kg
+                        sublote.valor_total = float(sublote.valor_total or 0) + valor_adicionado
 
             db.session.delete(item)
-            
+
         db.session.delete(bag)
         db.session.commit()
-        
+
         return jsonify({
             'sucesso': True,
             'mensagem': 'Bag excluído com sucesso e materiais devolvidos ao estoque original.'
@@ -1487,47 +1501,66 @@ def excluir_bag(bag_id):
 @bp.route('/bags/<int:bag_id>/remover-item/<int:item_id>', methods=['DELETE'])
 @jwt_required()
 def remover_item_bag(bag_id, item_id):
-    """Remove um item de um bag e devolve o respectivo peso ao Lote/Sublote de origem"""
+    """
+    Remove um item de um bag e devolve o respectivo peso ao Estoque Ativo.
+
+    Regra de Negócio - Estorno/Rollback:
+    1. Se o item foi adicionado via Estoque Geral (preço médio), o mapa de consumo
+       armazenado em observacoes é lido e cada sublote de origem recebe de volta
+       o peso e valor exatos consumidos (FIFO reverso).
+    2. Se o item foi adicionado pela via legada (sublote único), o estorno ocorre
+       diretamente via entrada_estoque_id.
+    Isso garante reversão matematicamente perfeita em ambos os cenários.
+    """
     try:
         bag = BagProducao.query.get_or_404(bag_id)
-        
+
         if bag.status != 'aberto':
             return jsonify({'erro': 'Só é possível remover itens de bags abertos'}), 400
-            
+
         item = ItemSeparadoProducao.query.filter_by(id=item_id, bag_id=bag_id).first_or_404()
-        
-        # Devolver peso ao Lote de origem
-        if item.entrada_estoque_id:
-            sublote = Lote.query.get(item.entrada_estoque_id)
-            if sublote:
-                peso_kg = float(item.peso_kg or 0)
-                peso_atual_sublote = float(sublote.peso_liquido or sublote.peso_total_kg or 0)
-                novo_peso = peso_atual_sublote + peso_kg
-                
-                # Se o sublote estava processado (peso 0), reativar seu status para poder ser usado novamente
-                if sublote.status == 'processado':
-                    sublote.status = 'em_estoque'
-                    
-                sublote.peso_liquido = novo_peso
-                sublote.peso_total_kg = novo_peso
-                
-                # Recalcular valor total do sublote
-                preco_kg_item = float(item.valor_estimado or 0) / peso_kg if peso_kg > 0 else 0
-                valor_adicionado = preco_kg_item * peso_kg
-                sublote.valor_total = float(sublote.valor_total or 0) + valor_adicionado
+
+        # ======================================================
+        # ESTORNO: Verificar se é item de Estoque Geral (PM)
+        # Se sim, usa o mapa de consumo para restauração exata.
+        # Se não, usa a lógica legada (sublote único).
+        # ======================================================
+        estorno_geral = _estornar_item_estoque_geral(item)
+
+        if not estorno_geral:
+            # Lógica legada: devolver peso ao sublote único de origem
+            if item.entrada_estoque_id:
+                sublote = Lote.query.get(item.entrada_estoque_id)
+                if sublote:
+                    peso_kg = float(item.peso_kg or 0)
+                    peso_atual_sublote = float(sublote.peso_liquido or sublote.peso_total_kg or 0)
+                    novo_peso = peso_atual_sublote + peso_kg
+
+                    # Se o sublote estava processado (peso 0), reativar seu status
+                    if sublote.status == 'processado':
+                        sublote.status = 'em_estoque'
+
+                    sublote.peso_liquido = novo_peso
+                    sublote.peso_total_kg = novo_peso
+
+                    # Recalcular valor total do sublote
+                    preco_kg_item = float(item.valor_estimado or 0) / peso_kg if peso_kg > 0 else 0
+                    valor_adicionado = preco_kg_item * peso_kg
+                    sublote.valor_total = float(sublote.valor_total or 0) + valor_adicionado
 
         # Atualizar dados do Bag
         bag.peso_acumulado = max(0, float(bag.peso_acumulado or 0) - float(item.peso_kg or 0))
         bag.quantidade_itens = max(0, (bag.quantidade_itens or 1) - 1)
         bag.data_atualizacao = datetime.utcnow()
-        
+
         # Deletar item do bag
         db.session.delete(item)
         db.session.commit()
-        
+
         return jsonify({
             'sucesso': True,
             'mensagem': 'Item removido do bag e devolvido ao estoque original',
+            'estorno_tipo': 'preco_medio' if estorno_geral else 'legado',
             'bag_info': {
                 'peso_acumulado': bag.peso_acumulado,
                 'quantidade_itens': bag.quantidade_itens
@@ -1733,6 +1766,451 @@ def apagar_lote_completo(lote_id):
         import traceback
         traceback.print_exc()
         return jsonify({'erro': str(e)}), 500
+        return jsonify({'erro': str(e)}), 500
+
+
+# ============================
+# ESTOQUE GERAL - Visão Consolidada com Preço Médio
+# Regra de Negócio: Agrupa todos os sublotes ativos por nome de material,
+# eliminando a divisão por fornecedor. Calcula o Preço Médio Ponderado:
+#   PM = Σ(Valor_i) / Σ(Peso_i)
+# onde i são os sublotes que compõem o saldo do material.
+# ============================
+
+def _extrair_nome_material(sublote):
+    """Extrai o nome do material de um sublote a partir das observações ou tipo_lote.
+    Prioridade: MATERIAL:/MATERIAL_MANUAL: nas observações > tipo_lote.nome > 'Material'
+    """
+    nome = 'Material'
+    if sublote.observacoes:
+        for parte in sublote.observacoes.split('|'):
+            p = parte.strip()
+            if p.startswith('MATERIAL:') or p.startswith('MATERIAL_MANUAL:'):
+                nome = p.replace('MATERIAL_MANUAL:', '').replace('MATERIAL:', '').strip()
+                break
+    if nome == 'Material' and sublote.tipo_lote:
+        nome = sublote.tipo_lote.nome
+    return nome
+
+
+def _buscar_sublotes_material(material_nome, categoria=''):
+    """
+    Busca todos os sublotes ativos de um material específico, ordenados por FIFO (data_criacao ASC).
+    Usado para o consumo sequencial na baixa por preço médio.
+    
+    Parâmetros:
+        material_nome: Nome do material para filtrar
+        categoria: Categoria/classificação opcional para refinar a busca
+    
+    Retorna:
+        Lista de objetos Lote (sublotes) ordenados por data de criação (FIFO)
+    """
+    status_ativos = ['em_estoque', 'disponivel', 'aprovado', 'CRIADO_SEPARACAO', 'criado_separacao']
+
+    sublotes_query = Lote.query.options(
+        joinedload(Lote.tipo_lote),
+        joinedload(Lote.fornecedor),
+        joinedload(Lote.lote_pai)
+    ).filter(
+        Lote.status.in_(status_ativos),
+        Lote.bloqueado == False,
+        db.or_(
+            Lote.peso_liquido > 0.001,
+            Lote.peso_total_kg > 0.001
+        )
+    ).order_by(Lote.data_criacao.asc()).all()
+
+    resultado = []
+    for sublote in sublotes_query:
+        nome = _extrair_nome_material(sublote)
+        if nome.lower().strip() == material_nome.lower().strip():
+            # Se categoria foi especificada, filtrar também
+            if categoria:
+                cat_sublote = sublote.classificacao_predominante or ''
+                if not cat_sublote and sublote.observacoes:
+                    for parte in sublote.observacoes.split('|'):
+                        if parte.strip().startswith('CLASSIFICACAO:'):
+                            cat_sublote = parte.replace('CLASSIFICACAO:', '').strip()
+                            break
+                if cat_sublote.lower() != categoria.lower():
+                    continue
+            resultado.append(sublote)
+
+    return resultado
+
+
+def _estornar_item_estoque_geral(item):
+    """
+    Estorna um item que foi adicionado via Estoque Geral (Preço Médio).
+
+    Regra de Negócio - Estorno/Rollback:
+    Lê o mapa de consumo do item (armazenado em observacoes com prefixo ESTOQUE_GERAL:)
+    e restaura o peso e valor exatos em cada sublote de origem.
+    Isso garante reversão perfeita sem perda de centavos ou distorção de preço médio.
+
+    Formato do mapa: ESTOQUE_GERAL:{"tipo":"preco_medio","pm_kg":X,"consumo":[{"sid":ID,"peso":P,"valor":V},...]}
+
+    Retorna True se o estorno foi realizado com sucesso, False se não é item de estoque geral.
+    """
+    if not item.observacoes or not item.observacoes.startswith('ESTOQUE_GERAL:'):
+        return False  # Não é um item de estoque geral — usar lógica legada
+
+    try:
+        json_str = item.observacoes.replace('ESTOQUE_GERAL:', '', 1)
+        dados = json.loads(json_str)
+        consumo = dados.get('consumo', [])
+
+        for entry in consumo:
+            sublote_id = entry.get('sid')
+            peso_consumido = float(entry.get('peso', 0))
+            valor_consumido = float(entry.get('valor', 0))
+
+            if not sublote_id or peso_consumido <= 0:
+                continue
+
+            sublote = Lote.query.get(sublote_id)
+            if not sublote:
+                logger.warning(f'⚠️ Estorno: sublote {sublote_id} não encontrado — ignorando')
+                continue
+
+            # Restaurar peso ao sublote de origem
+            peso_atual = float(sublote.peso_liquido or sublote.peso_total_kg or 0)
+            novo_peso = peso_atual + peso_consumido
+            sublote.peso_liquido = novo_peso
+            sublote.peso_total_kg = novo_peso
+
+            # Restaurar valor proporcional
+            sublote.valor_total = float(sublote.valor_total or 0) + valor_consumido
+
+            # Reativar sublote se estava processado (zerado)
+            if sublote.status == 'processado':
+                sublote.status = 'em_estoque'
+
+            logger.info(f'✅ Estorno: sublote {sublote_id} restaurado +{peso_consumido:.3f}kg, +R${valor_consumido:.2f}')
+
+        return True
+
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        logger.error(f'❌ Erro ao parsear mapa de consumo para estorno: {str(e)}')
+        return False
+
+
+@bp.route('/geral', methods=['GET'])
+@jwt_required()
+def listar_estoque_geral():
+    """
+    Visão consolidada do Estoque Ativo agrupada por material/classificação.
+    Elimina a obrigatoriedade de seleção por fornecedor na montagem de lotes.
+
+    Fórmula do Preço Médio Ponderado para cada material j:
+        PM(j) = Σ(Peso_i × CustoUnit_i) / Σ(Peso_i)
+        onde i são os sublotes ativos que compõem o saldo do material j.
+
+    Retorna lista de materiais com:
+    - material_nome, categoria, peso_disponivel, valor_total, preco_medio_kg
+    - qtd_sublotes, fornecedores (lista), sublotes_ids, sublotes_detalhe (admin only)
+    """
+    try:
+        # Verificar permissão do usuário para visualização de preços
+        current_user_id = get_jwt_identity()
+        usuario = Usuario.query.get(current_user_id)
+        is_admin_or_gestor = False
+        if usuario:
+            is_tipo_ok = usuario.tipo in ['admin', 'gestor']
+            is_perfil_ok = usuario.perfil and 'gestor' in usuario.perfil.nome.lower()
+            is_admin_or_gestor = is_tipo_ok or is_perfil_ok
+
+        # Buscar todos os sublotes ativos com peso > 0
+        sublotes_ativos = Lote.query.options(
+            joinedload(Lote.tipo_lote),
+            joinedload(Lote.fornecedor),
+            joinedload(Lote.lote_pai)
+        ).filter(
+            Lote.status.in_(['em_estoque', 'disponivel', 'aprovado', 'CRIADO_SEPARACAO', 'criado_separacao']),
+            Lote.bloqueado == False,
+            db.or_(
+                Lote.peso_liquido > 0.001,
+                Lote.peso_total_kg > 0.001
+            )
+        ).order_by(Lote.data_criacao.asc()).all()
+
+        # Agrupar por (material_nome, categoria)
+        materiais_agrupados = {}
+
+        for sublote in sublotes_ativos:
+            nome_material = _extrair_nome_material(sublote)
+
+            # Extrair categoria/classificação
+            categoria = sublote.classificacao_predominante or ''
+            if not categoria and sublote.observacoes:
+                for parte in sublote.observacoes.split('|'):
+                    if parte.strip().startswith('CLASSIFICACAO:'):
+                        categoria = parte.replace('CLASSIFICACAO:', '').strip()
+                        break
+
+            peso = float(sublote.peso_liquido or sublote.peso_total_kg or 0)
+            if peso <= 0.001:
+                continue
+
+            # Calcular preço/kg usando a função existente do sistema
+            preco_kg = _calcular_preco_kg_sublote(sublote)
+            valor = preco_kg * peso
+
+            # Chave de agrupamento: material + categoria
+            chave = f"{nome_material}||{categoria}"
+
+            if chave not in materiais_agrupados:
+                materiais_agrupados[chave] = {
+                    'material_nome': nome_material,
+                    'categoria': categoria,
+                    'peso_disponivel': 0.0,
+                    'valor_total': 0.0,
+                    'sublotes': [],
+                    'fornecedores': set()
+                }
+
+            grupo = materiais_agrupados[chave]
+            grupo['peso_disponivel'] += peso
+            grupo['valor_total'] += valor
+            grupo['sublotes'].append({
+                'id': sublote.id,
+                'numero_lote': sublote.numero_lote,
+                'peso': round(peso, 3),
+                'preco_kg': round(preco_kg, 2),
+                'valor': round(valor, 2),
+                'fornecedor': sublote.fornecedor.nome if sublote.fornecedor else 'N/A',
+                'data_criacao': sublote.data_criacao.isoformat() if sublote.data_criacao else None
+            })
+            if sublote.fornecedor:
+                grupo['fornecedores'].add(sublote.fornecedor.nome)
+
+        # Formatar resultado final
+        resultado = []
+        for chave, grupo in materiais_agrupados.items():
+            peso_total = grupo['peso_disponivel']
+            valor_total = grupo['valor_total']
+
+            # ============================================================
+            # CÁLCULO DO PREÇO MÉDIO PONDERADO
+            # PM = Σ(Valor_i) / Σ(Peso_i) = Valor_Total / Peso_Total
+            # Garante que lotes com maior volume tenham maior influência.
+            # ============================================================
+            preco_medio = round(valor_total / peso_total, 2) if peso_total > 0 else 0.0
+
+            item = {
+                'material_nome': grupo['material_nome'],
+                'categoria': grupo['categoria'],
+                'peso_disponivel': round(peso_total, 3),
+                'valor_total': round(valor_total, 2) if is_admin_or_gestor else 0,
+                'preco_medio_kg': preco_medio if is_admin_or_gestor else 0,
+                'show_prices': is_admin_or_gestor,
+                'qtd_sublotes': len(grupo['sublotes']),
+                'fornecedores': sorted(list(grupo['fornecedores'])),
+                'sublotes_ids': [s['id'] for s in grupo['sublotes']],
+                'sublotes_detalhe': grupo['sublotes'] if is_admin_or_gestor else []
+            }
+            resultado.append(item)
+
+        # Ordenar por peso disponível decrescente
+        resultado.sort(key=lambda x: -x['peso_disponivel'])
+
+        logger.info(f'📦 Estoque Geral: {len(resultado)} materiais consolidados')
+        return jsonify(resultado)
+
+    except Exception as e:
+        logger.error(f'❌ Erro ao listar estoque geral consolidado: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'erro': str(e)}), 500
+
+
+@bp.route('/bags/adicionar-materiais-geral', methods=['POST'])
+@jwt_required()
+def adicionar_materiais_bag_estoque_geral():
+    """
+    Adiciona materiais ao bag a partir da visão consolidada do Estoque Geral.
+
+    ==========================================
+    REGRAS DE NEGÓCIO - DEDUÇÃO POR PREÇO MÉDIO
+    ==========================================
+    1. Calcula o Preço Médio Ponderado do material:
+       PM = Σ(Valor_i) / Σ(Peso_i), onde i = sublotes ativos do material
+    2. O valor do item no bag é: Valor = Peso_retirar × PM
+    3. A baixa nos sublotes é feita por FIFO (First In First Out - data_criacao ASC)
+    4. Um mapa de consumo é serializado no campo observacoes do item:
+       ESTOQUE_GERAL:{"tipo":"preco_medio","pm_kg":PM,"consumo":[{sid,peso,valor},...]}
+
+    ==========================================
+    REGRAS DE NEGÓCIO - ESTORNO / ROLLBACK
+    ==========================================
+    Ao excluir o item do bag, a função _estornar_item_estoque_geral() lê o mapa
+    de consumo e restaura o peso e valor exatos em cada sublote de origem.
+    Isso garante reversão matematicamente perfeita.
+
+    Payload esperado:
+    {
+        "bag_id": 123,
+        "materiais": [
+            {"material_nome": "Placa High Grade", "categoria": "HIGH_GRADE", "peso_enviar": 0.11}
+        ]
+    }
+    """
+    try:
+        data = request.get_json()
+        bag_id = data.get('bag_id')
+        materiais = data.get('materiais', [])
+
+        if not bag_id:
+            return jsonify({'erro': 'Bag não selecionado'}), 400
+        if not materiais:
+            return jsonify({'erro': 'Nenhum material selecionado'}), 400
+
+        bag = BagProducao.query.get_or_404(bag_id)
+        if bag.status != 'aberto':
+            return jsonify({'erro': 'Este bag está fechado e não aceita mais materiais'}), 400
+
+        current_user_id = get_jwt_identity()
+        total_peso_adicionado = 0
+        total_itens_adicionados = 0
+
+        for mat in materiais:
+            material_nome = mat.get('material_nome', '').strip()
+            categoria = mat.get('categoria', '')
+            peso_enviar = float(mat.get('peso_enviar', 0))
+
+            if not material_nome or peso_enviar <= 0:
+                continue
+
+            # ---- PASSO 1: Buscar sublotes ativos deste material (FIFO) ----
+            sublotes = _buscar_sublotes_material(material_nome, categoria)
+
+            if not sublotes:
+                logger.warning(f'⚠️ Nenhum sublote encontrado para material: {material_nome}')
+                continue
+
+            # ---- PASSO 2: Calcular Preço Médio Ponderado ----
+            # PM = Σ(Valor_i) / Σ(Peso_i)
+            peso_total_estoque = 0.0
+            valor_total_estoque = 0.0
+            for s in sublotes:
+                p = float(s.peso_liquido or s.peso_total_kg or 0)
+                pk = _calcular_preco_kg_sublote(s)
+                peso_total_estoque += p
+                valor_total_estoque += pk * p
+
+            preco_medio = valor_total_estoque / peso_total_estoque if peso_total_estoque > 0 else 0
+
+            # Validar que há saldo suficiente
+            if peso_enviar > peso_total_estoque + 0.01:
+                logger.warning(f'⚠️ Peso solicitado ({peso_enviar:.3f}) excede saldo ({peso_total_estoque:.3f}) para {material_nome}')
+                continue
+
+            # ---- PASSO 3: Consumir sublotes em ordem FIFO ----
+            peso_restante = peso_enviar
+            mapa_consumo = []  # Lista de {sid, peso, valor, preco_kg_original}
+
+            for sublote in sublotes:
+                if peso_restante <= 0.001:
+                    break
+
+                peso_sublote = float(sublote.peso_liquido or sublote.peso_total_kg or 0)
+                if peso_sublote <= 0.001:
+                    continue
+
+                # Quanto consumir deste sublote
+                peso_consumir = min(peso_restante, peso_sublote)
+
+                # Valor consumido deste sublote (proporcional ao custo ORIGINAL do sublote)
+                preco_kg_sublote = _calcular_preco_kg_sublote(sublote)
+                valor_consumido = preco_kg_sublote * peso_consumir
+
+                # Registrar no mapa de consumo para estorno futuro
+                mapa_consumo.append({
+                    'sid': sublote.id,
+                    'peso': round(peso_consumir, 4),
+                    'valor': round(valor_consumido, 2),
+                    'preco_kg_original': round(preco_kg_sublote, 2)
+                })
+
+                # Atualizar saldo do sublote
+                novo_peso = peso_sublote - peso_consumir
+                if novo_peso < 0.01:
+                    # Sublote completamente consumido
+                    sublote.status = 'processado'
+                    sublote.peso_liquido = 0
+                    sublote.peso_total_kg = 0
+                    sublote.valor_total = 0
+                else:
+                    sublote.peso_liquido = novo_peso
+                    sublote.peso_total_kg = novo_peso
+                    # Recalcular valor proporcional restante
+                    valor_total_original = float(sublote.valor_total or 0)
+                    if valor_total_original > 0 and peso_sublote > 0:
+                        sublote.valor_total = round((novo_peso / peso_sublote) * valor_total_original, 2)
+
+                peso_restante -= peso_consumir
+
+            # ---- PASSO 4: Determinar classificação para o item do bag ----
+            item_classificacao_id = bag.classificacao_grade_id  # fallback
+            if categoria:
+                classif_match = ClassificacaoGrade.query.filter(
+                    func.lower(ClassificacaoGrade.categoria) == categoria.lower(),
+                    ClassificacaoGrade.ativo == True
+                ).first()
+                if classif_match:
+                    item_classificacao_id = classif_match.id
+
+            # ---- PASSO 5: Calcular valor usando Preço Médio ----
+            # Valor Item Bag = Peso_retirar × PM
+            valor_item_bag = round(preco_medio * peso_enviar, 2)
+
+            # ---- PASSO 6: Serializar mapa de consumo para estorno futuro ----
+            consumo_json = json.dumps({
+                'tipo': 'preco_medio',
+                'pm_kg': round(preco_medio, 4),
+                'consumo': mapa_consumo
+            }, ensure_ascii=False)
+
+            # ---- PASSO 7: Criar item no bag ----
+            novo_item = ItemSeparadoProducao(
+                classificacao_grade_id=item_classificacao_id,
+                nome_item=material_nome,
+                peso_kg=peso_enviar,
+                quantidade=1,
+                valor_estimado=valor_item_bag,
+                custo_proporcional=valor_item_bag,
+                separado_por_id=current_user_id,
+                data_separacao=datetime.utcnow(),
+                bag_id=bag_id,
+                entrada_estoque_id=mapa_consumo[0]['sid'] if mapa_consumo else None,
+                observacoes=f"ESTOQUE_GERAL:{consumo_json}"
+            )
+            db.session.add(novo_item)
+
+            total_peso_adicionado += peso_enviar
+            total_itens_adicionados += 1
+
+            logger.info(f'✅ Material "{material_nome}" ({peso_enviar:.3f}kg) adicionado ao bag #{bag_id} a PM=R${preco_medio:.2f}/kg')
+
+        # ---- PASSO 8: Atualizar totais do bag ----
+        bag.peso_acumulado = float(bag.peso_acumulado or 0) + total_peso_adicionado
+        bag.quantidade_itens = (bag.quantidade_itens or 0) + total_itens_adicionados
+        bag.data_atualizacao = datetime.utcnow()
+
+        db.session.commit()
+
+        return jsonify({
+            'sucesso': True,
+            'mensagem': f'{total_itens_adicionados} material(is) adicionado(s) ao bag via Preço Médio',
+            'peso_adicionado': round(total_peso_adicionado, 3),
+            'bag': bag.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'❌ Erro ao adicionar materiais (estoque geral) ao bag: {str(e)}')
+        import traceback
+        traceback.print_exc()
         return jsonify({'erro': str(e)}), 500
 
 
