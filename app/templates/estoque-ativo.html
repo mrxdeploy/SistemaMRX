@@ -2604,9 +2604,27 @@
                 const chaveItem = `${item.material_nome}||${item.categoria}`;
                 const selecionado = materiaisGeralSelecionados.some(m => `${m.material_nome}||${m.categoria}` === chaveItem);
                 const corCat = categoriaCores[item.categoria] || '#3b82f6';
-                const fornecedoresStr = (item.fornecedores && item.fornecedores.length > 0) 
-                    ? item.fornecedores.join(', ') 
-                    : 'Não identificado';
+                const totalForn = (item.fornecedores || []).length;
+                let fornecedoresHtml = '';
+                if (totalForn === 0) {
+                    fornecedoresHtml = '<span style="color:var(--gray-400);">Não identificado</span>';
+                } else if (totalForn <= 2) {
+                    fornecedoresHtml = `<span>${escapeHtml(item.fornecedores.join(', '))}</span>`;
+                } else {
+                    const primeiros = item.fornecedores.slice(0, 2).map(f => escapeHtml(f)).join(', ');
+                    const resto = item.fornecedores.slice(2).map(f => escapeHtml(f)).join(', ');
+                    fornecedoresHtml = `
+                        <span>${primeiros}</span>
+                        <details style="display:inline; margin-left:0.35rem;" onclick="event.stopPropagation();">
+                            <summary style="display:inline-block; font-size:0.72rem; font-weight:700; padding:0.15rem 0.5rem; border-radius:999px; background:var(--gray-200); color:var(--gray-700); cursor:pointer; outline:none; transition:all 0.2s;" title="Clique para ver todos os fornecedores">
+                                +${totalForn - 2} outros
+                            </summary>
+                            <div style="margin-top:0.4rem; padding:0.5rem 0.75rem; background:#ffffff; border:1px solid var(--gray-300); border-radius:6px; font-size:0.75rem; color:var(--gray-700); max-height:110px; overflow-y:auto; line-height:1.45; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                                ${resto}
+                            </div>
+                        </details>
+                    `;
+                }
 
                 return `
                     <div class="card material-geral-card ${modoSelecaoGeral ? 'sublote-item selecao-mode' : ''} ${selecionado ? 'selecionado' : ''}" 
@@ -2670,10 +2688,12 @@
                             ` : ''}
                         </div>
 
-                        <!-- Origem e Fornecedores consolidados -->
-                        <div style="margin-top:0.75rem; font-size:0.8rem; color:var(--gray-600); display:flex; align-items:center; gap:0.4rem;">
-                            <i class="fas fa-truck" style="color:var(--gray-400);"></i>
-                            <span><strong>Fornecedores no saldo:</strong> ${escapeHtml(fornecedoresStr)}</span>
+                        <!-- Origem e Fornecedores consolidados (Compactado) -->
+                        <div style="margin-top:0.75rem; font-size:0.8rem; color:var(--gray-600); display:flex; align-items:flex-start; gap:0.4rem;">
+                            <i class="fas fa-truck" style="color:var(--gray-400); margin-top:0.2rem;"></i>
+                            <div style="flex:1;">
+                                <strong>Fornecedores no saldo (${totalForn}):</strong> ${fornecedoresHtml}
+                            </div>
                         </div>
                     </div>
                 `;
