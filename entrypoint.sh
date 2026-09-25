@@ -77,6 +77,5 @@ echo "   - Bind: 0.0.0.0:$PORT"
 echo "   - Timeout: 300s"
 echo "   - WSGI: wsgi:application"
 echo "=========================================="
-# Adicionando --preload para detectar erros de importação na inicialização
-# Aumentando timeout para 300s para evitar 502 no deploy inicial
-exec gunicorn --worker-class eventlet -w 1 --bind "0.0.0.0:$PORT" --timeout 300 --log-level debug --preload wsgi:application
+# Removido --preload para permitir que o eventlet.monkey_patch() execute corretamente antes de carregar locks do threading
+exec gunicorn --worker-class eventlet -w 1 --bind "0.0.0.0:$PORT" --timeout 300 --log-level debug wsgi:application
