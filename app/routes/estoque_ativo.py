@@ -319,7 +319,9 @@ def listar_bags_estoque():
         for bag in bags:
             bag_dict = bag.to_dict()
             
-            itens = ItemSeparadoProducao.query.filter_by(bag_id=bag.id).all()
+            itens = ItemSeparadoProducao.query.options(
+                joinedload(ItemSeparadoProducao.classificacao_grade)
+            ).filter_by(bag_id=bag.id).all()
             itens_data = []
             tem_lotes_origem = False
             
@@ -327,8 +329,31 @@ def listar_bags_estoque():
             itens_por_classificacao = {}
             for item in itens:
                 item_dict = item.to_dict()
+                is_eg = bool(item.observacoes and item.observacoes.startswith('ESTOQUE_GERAL:'))
+                item_dict['is_estoque_geral'] = is_eg
+                if is_eg:
+                    item_dict['fornecedor'] = 'Montante dos Fornecedores'
+                    item_dict['origem_label'] = 'Estoque Geral (Montante dos Fornecedores)'
+                    try:
+                        meta_eg = json.loads(item.observacoes.replace('ESTOQUE_GERAL:', '', 1))
+                        item_dict['pm_kg'] = float(meta_eg.get('pm_kg', 0))
+                        item_dict['fornecedores_consumidos'] = meta_eg.get('fornecedores_consumidos', [])
+                    except:
+                        pass
+                else:
+                    item_dict['origem_label'] = 'Lote individual'
+                    if item.entrada_estoque_id:
+                        sub = Lote.query.options(joinedload(Lote.fornecedor), joinedload(Lote.lote_pai)).get(item.entrada_estoque_id)
+                        if sub:
+                            item_dict['lote_origem_numero'] = sub.numero_lote
+                            if sub.fornecedor:
+                                item_dict['fornecedor'] = sub.fornecedor.nome
+                            elif sub.lote_pai and sub.lote_pai.fornecedor:
+                                item_dict['fornecedor'] = sub.lote_pai.fornecedor.nome
+                            item_dict['origem_label'] = f"Lote {sub.numero_lote} ({item_dict.get('fornecedor', 'N/A')})"
+
                 itens_data.append(item_dict)
-                if item.ordem_producao_id:
+                if item.ordem_producao_id or item.entrada_estoque_id:
                     tem_lotes_origem = True
                 
                 # Agregar por classificação
@@ -488,14 +513,29 @@ def obter_resumo_estoque():
             peso = float(item.peso_kg or 0)
             valor = float(item.valor_estimado or item.custo_proporcional or 0)
             
-            # Buscar fornecedor
-            fornecedor_nome = 'N/A'
-            if lote_filho and lote_filho.fornecedor:
+            # Buscar fornecedor e verificar se o item veio do Estoque Geral (Preço Médio / Montante)
+            is_estoque_geral = False
+            fornecedores_consumidos = []
+            if item.observacoes and item.observacoes.startswith('ESTOQUE_GERAL:'):
+                is_estoque_geral = True
+                fornecedor_nome = 'Montante dos Fornecedores'
+                try:
+                    meta_eg = json.loads(item.observacoes.replace('ESTOQUE_GERAL:', '', 1))
+                    pm_salvo = float(meta_eg.get('pm_kg', 0))
+                    fornecedores_consumidos = meta_eg.get('fornecedores_consumidos', [])
+                    # Se valor não foi salvo ou ficou zerado, recalcular pelo preço médio
+                    if valor <= 0 and pm_salvo > 0 and peso > 0:
+                        valor = round(pm_salvo * peso, 2)
+                except Exception as err:
+                    logger.warning(f'⚠️ Erro ao interpretar metadados de ESTOQUE_GERAL no item {item.id}: {err}')
+            elif lote_filho and lote_filho.fornecedor:
                 fornecedor_nome = lote_filho.fornecedor.nome
             elif lote_pai and lote_pai.fornecedor:
                 fornecedor_nome = lote_pai.fornecedor.nome
             elif item.observacoes and item.observacoes.startswith('Fornecedor:'):
                 fornecedor_nome = item.observacoes.replace('Fornecedor: ', '').strip()
+            else:
+                fornecedor_nome = 'N/A'
             
             preco_kg = round(valor / peso, 2) if peso > 0 else 0.0
             
@@ -508,6 +548,8 @@ def obter_resumo_estoque():
                 'nome': item.nome_item,
                 'classificacao': classif.nome,
                 'fornecedor': fornecedor_nome,
+                'is_estoque_geral': is_estoque_geral,
+                'fornecedores_consumidos': fornecedores_consumidos,
                 'peso_kg': peso
             }
             
@@ -1596,60 +1638,82 @@ def detalhes_bag(bag_id):
             # Usar valor já salvo no item (calculado quando adicionado ao bag)
             valor = float(item.valor_estimado or item.custo_proporcional or 0)
             
-            # Se valor é zero, recalcular dinamicamente a partir do sublote de origem
-            if valor <= 0 and peso > 0 and item.entrada_estoque_id:
-                sublote_origem = Lote.query.options(
-                    joinedload(Lote.lote_pai)
-                ).get(item.entrada_estoque_id)
-                if sublote_origem:
-                    preco_encontrado = _calcular_preco_kg_sublote(sublote_origem)
-                    if preco_encontrado > 0:
-                        valor = round(preco_encontrado * peso, 2)
-                        # Atualizar no banco para não precisar recalcular na próxima vez
-                        item.valor_estimado = valor
-                        item.custo_proporcional = valor
-            
-            preco_kg = round(valor / peso, 2) if peso > 0 else 0
-            
-            # Buscar fornecedor do lote de origem
+            is_estoque_geral = bool(item.observacoes and item.observacoes.startswith('ESTOQUE_GERAL:'))
             fornecedor_nome = 'N/A'
             fornecedor_id_origem = None
-            if item.entrada_estoque_id:
-                sublote_origem = Lote.query.options(
-                    joinedload(Lote.fornecedor),
-                    joinedload(Lote.lote_pai)
-                ).get(item.entrada_estoque_id)
-                if sublote_origem:
-                    if sublote_origem.fornecedor:
-                        fornecedor_nome = sublote_origem.fornecedor.nome
-                        fornecedor_id_origem = sublote_origem.fornecedor_id
-                    elif sublote_origem.lote_pai and sublote_origem.lote_pai.fornecedor:
-                        fornecedor_nome = sublote_origem.lote_pai.fornecedor.nome
-                        fornecedor_id_origem = sublote_origem.lote_pai.fornecedor_id
-            
-            # Fallback: observações do item
-            if fornecedor_nome == 'N/A' and item.observacoes and item.observacoes.startswith('Fornecedor:'):
-                fornecedor_nome = item.observacoes.replace('Fornecedor: ', '')
-            
-            # Buscar preço real da tabela do fornecedor para este material específico
             preco_tabela_fornecedor = None
-            if fornecedor_id_origem and item.nome_item:
-                material_base = MaterialBase.query.filter(
-                    func.lower(MaterialBase.nome) == func.lower(item.nome_item)
-                ).first()
-                if material_base:
-                    preco_tabela = FornecedorTabelaPrecos.query.filter_by(
-                        fornecedor_id=fornecedor_id_origem,
-                        material_id=material_base.id,
-                        status='ativo'
-                    ).order_by(FornecedorTabelaPrecos.versao.desc()).first()
-                    if preco_tabela and preco_tabela.preco_fornecedor:
-                        preco_tabela_fornecedor = float(preco_tabela.preco_fornecedor)
-            
-            # Calcular o valor real do item com base na tabela do fornecedor, se houver
-            valor_efetivo = round(preco_tabela_fornecedor * peso, 2) if preco_tabela_fornecedor is not None else valor
-            # Ajustar o preco_kg de acordo com o valor efetivo
-            preco_kg_efetivo = round(valor_efetivo / peso, 2) if peso > 0 else 0
+            fornecedores_consumidos = []
+
+            if is_estoque_geral:
+                fornecedor_nome = 'Montante dos Fornecedores'
+                pm_salvo = 0
+                try:
+                    meta_eg = json.loads(item.observacoes.replace('ESTOQUE_GERAL:', '', 1))
+                    pm_salvo = float(meta_eg.get('pm_kg', 0))
+                    fornecedores_consumidos = meta_eg.get('fornecedores_consumidos', [])
+                except:
+                    pass
+
+                # Se valor é zero ou não foi salvo, usar o Preço Médio do metadado
+                if valor <= 0 and pm_salvo > 0 and peso > 0:
+                    valor = round(pm_salvo * peso, 2)
+                    item.valor_estimado = valor
+                    item.custo_proporcional = valor
+
+                preco_kg_efetivo = round(valor / peso, 2) if peso > 0 else (pm_salvo or 0)
+                valor_efetivo = valor
+            else:
+                # Se valor é zero, recalcular dinamicamente a partir do sublote de origem
+                if valor <= 0 and peso > 0 and item.entrada_estoque_id:
+                    sublote_origem = Lote.query.options(
+                        joinedload(Lote.lote_pai)
+                    ).get(item.entrada_estoque_id)
+                    if sublote_origem:
+                        preco_encontrado = _calcular_preco_kg_sublote(sublote_origem)
+                        if preco_encontrado > 0:
+                            valor = round(preco_encontrado * peso, 2)
+                            # Atualizar no banco para não precisar recalcular na próxima vez
+                            item.valor_estimado = valor
+                            item.custo_proporcional = valor
+                
+                preco_kg = round(valor / peso, 2) if peso > 0 else 0
+                
+                # Buscar fornecedor do lote de origem
+                if item.entrada_estoque_id:
+                    sublote_origem = Lote.query.options(
+                        joinedload(Lote.fornecedor),
+                        joinedload(Lote.lote_pai)
+                    ).get(item.entrada_estoque_id)
+                    if sublote_origem:
+                        if sublote_origem.fornecedor:
+                            fornecedor_nome = sublote_origem.fornecedor.nome
+                            fornecedor_id_origem = sublote_origem.fornecedor_id
+                        elif sublote_origem.lote_pai and sublote_origem.lote_pai.fornecedor:
+                            fornecedor_nome = sublote_origem.lote_pai.fornecedor.nome
+                            fornecedor_id_origem = sublote_origem.lote_pai.fornecedor_id
+                
+                # Fallback: observações do item
+                if fornecedor_nome == 'N/A' and item.observacoes and item.observacoes.startswith('Fornecedor:'):
+                    fornecedor_nome = item.observacoes.replace('Fornecedor: ', '')
+                
+                # Buscar preço real da tabela do fornecedor para este material específico
+                if fornecedor_id_origem and item.nome_item:
+                    material_base = MaterialBase.query.filter(
+                        func.lower(MaterialBase.nome) == func.lower(item.nome_item)
+                    ).first()
+                    if material_base:
+                        preco_tabela = FornecedorTabelaPrecos.query.filter_by(
+                            fornecedor_id=fornecedor_id_origem,
+                            material_id=material_base.id,
+                            status='ativo'
+                        ).order_by(FornecedorTabelaPrecos.versao.desc()).first()
+                        if preco_tabela and preco_tabela.preco_fornecedor:
+                            preco_tabela_fornecedor = float(preco_tabela.preco_fornecedor)
+                
+                # Calcular o valor real do item com base na tabela do fornecedor, se houver
+                valor_efetivo = round(preco_tabela_fornecedor * peso, 2) if preco_tabela_fornecedor is not None else valor
+                # Ajustar o preco_kg de acordo com o valor efetivo
+                preco_kg_efetivo = round(valor_efetivo / peso, 2) if peso > 0 else 0
 
             materiais.append({
                 'id': item.id,
@@ -1661,6 +1725,8 @@ def detalhes_bag(bag_id):
                 'classificacao': item.classificacao_grade.nome if item.classificacao_grade else 'N/A',
                 'categoria': item.classificacao_grade.categoria if item.classificacao_grade else 'N/A',
                 'fornecedor': fornecedor_nome,
+                'is_estoque_geral': is_estoque_geral,
+                'fornecedores_consumidos': fornecedores_consumidos,
                 'data': item.data_separacao.isoformat() if item.data_separacao else None
             })
             
@@ -2164,9 +2230,21 @@ def adicionar_materiais_bag_estoque_geral():
             # Valor Item Bag = Peso_retirar × PM
             valor_item_bag = round(preco_medio * peso_enviar, 2)
 
+            # Coletar fornecedores dos sublotes consumidos
+            sids_consumidos = {entry['sid'] for entry in mapa_consumo}
+            fornecedores_consumidos = []
+            for s in sublotes:
+                if s.id in sids_consumidos:
+                    fnome = s.fornecedor.nome if s.fornecedor else (s.lote_pai.fornecedor.nome if s.lote_pai and s.lote_pai.fornecedor else None)
+                    if fnome and fnome not in fornecedores_consumidos:
+                        fornecedores_consumidos.append(fnome)
+
             # ---- PASSO 6: Serializar mapa de consumo para estorno futuro ----
             consumo_json = json.dumps({
                 'tipo': 'preco_medio',
+                'origem': 'ESTOQUE_GERAL',
+                'fornecedor_origem': 'Montante dos Fornecedores',
+                'fornecedores_consumidos': fornecedores_consumidos,
                 'pm_kg': round(preco_medio, 4),
                 'consumo': mapa_consumo
             }, ensure_ascii=False)

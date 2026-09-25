@@ -482,6 +482,24 @@
         </div>
 
         <div id="tabTotal" class="tab-content">
+            <!-- Barra de Filtros e Busca de Total Bags -->
+            <div class="card" style="margin-bottom: 1rem;">
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: end;">
+                    <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
+                        <label><i class="fas fa-search"></i> Buscar na Tabela de Bags</label>
+                        <input type="text" id="buscaTotalBags" placeholder="Material, classificação, fornecedor..." onkeyup="filtrarTotalBags()">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+                        <label><i class="fas fa-filter"></i> Origem / Fornecedor</label>
+                        <select id="filtroFornecedorTotalBags" onchange="filtrarTotalBags()">
+                            <option value="">Todas as origens</option>
+                            <option value="montante">✨ Montante dos Fornecedores (Estoque Geral)</option>
+                            <option value="lotes">📦 Lotes Individuais</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             <div class="stats-grid" id="resumoGrid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));"></div>
              
             <div class="card">
@@ -863,9 +881,17 @@
                                         <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: flex-end;">
                                             <span class="badge ${getBadgeClassLote(sublote.status)}" style="font-size: 0.65rem;">${getStatusLabelLote(sublote.status)}</span>
                                             ${!modoSelecao && isEmEstoque ? `
-                                                <button onclick="enviarParaProducao(${sublote.id}); event.stopPropagation();" class="btn btn-sm" style="background: #f59e0b; color: white; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.7rem; white-space: nowrap; margin-top: 0.25rem;">
-                                                    <i class="fas fa-industry"></i> Enviar para Produção
-                                                </button>
+                                                <div style="display: flex; gap: 0.3rem; flex-wrap: wrap; justify-content: flex-end; margin-top: 0.25rem;">
+                                                    <button onclick="abrirModalBagComSublote(${sublote.id}); event.stopPropagation();" class="btn btn-sm" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 0.25rem;" title="Adicionar diretamente a um Bag">
+                                                        <i class="fas fa-box"></i> Enviar p/ Bag
+                                                    </button>
+                                                    <button onclick="navegarParaGeral('${escapeHtml(nomeMat)}'); event.stopPropagation();" class="btn btn-sm" style="background: white; border: 1px solid var(--gray-300); color: var(--gray-700); padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.72rem; white-space: nowrap; display: flex; align-items: center; gap: 0.25rem;" title="Ver estoque consolidado no Estoque Geral">
+                                                        <i class="fas fa-cubes"></i> No Geral
+                                                    </button>
+                                                    <button onclick="enviarParaProducao(${sublote.id}); event.stopPropagation();" class="btn btn-sm" style="background: #f59e0b; color: white; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.72rem; white-space: nowrap;">
+                                                        <i class="fas fa-industry"></i> Produção
+                                                    </button>
+                                                </div>
                                             ` : ''}
                                             ${isEmProducao ? `
                                                 <button onclick="abrirModalProducaoItem(${sublote.id}); event.stopPropagation();" class="btn btn-sm" style="background: #059669; color: white; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.7rem; white-space: nowrap; margin-top: 0.25rem;">
@@ -939,15 +965,85 @@
             renderizarBags(bagsFiltrados);
         }
 
+        let dadosResumoOriginal = [];
+
         async function carregarTotalBags() {
             try {
                 const response = await fetchAPI('/estoque-ativo/resumo');
                 if(response.ok) {
                      const dados = await response.json();
-                     dadosResumo = dados; // Store globally
-                     renderizarResumo(dados);
+                     dadosResumo = dados;
+                     dadosResumoOriginal = dados;
+                     filtrarTotalBags();
                 }
             } catch(e) { console.error('Erro ao carregar resumo:', e); }
+        }
+
+        function formatarFornecedorResumo(item) {
+            if (item.is_estoque_geral || (item.fornecedor && item.fornecedor.includes('Montante'))) {
+                const fornsLista = (item.fornecedores_consumidos && item.fornecedores_consumidos.length > 0) 
+                    ? item.fornecedores_consumidos.join(', ') 
+                    : 'Múltiplos Fornecedores (Saldo Consolidado Estoque Geral)';
+                return `
+                    <span class="badge" style="background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe; font-size:0.75rem; font-weight:700; padding:0.25rem 0.6rem; border-radius:999px; display:inline-flex; align-items:center; gap:0.35rem;" title="Fornecedores no montante: ${escapeHtml(fornsLista)}">
+                        <i class="fas fa-boxes-stacked" style="color:#6366f1;"></i> Montante dos Fornecedores
+                    </span>
+                `;
+            }
+            return `
+                <span style="display:inline-flex; align-items:center; gap:0.35rem; color:var(--gray-800); font-size:0.85rem;">
+                    <i class="fas fa-truck" style="color:var(--gray-400);"></i> ${escapeHtml(item.fornecedor || 'N/A')}
+                </span>
+            `;
+        }
+
+        function filtrarTotalBags() {
+            const buscaInput = document.getElementById('buscaTotalBags');
+            const termo = (buscaInput ? buscaInput.value : '').toLowerCase().trim();
+            const filtroFornecedor = document.getElementById('filtroFornecedorTotalBags') ? document.getElementById('filtroFornecedorTotalBags').value : '';
+
+            if (!dadosResumoOriginal || dadosResumoOriginal.length === 0) {
+                renderizarResumo([]);
+                return;
+            }
+
+            if (!termo && !filtroFornecedor) {
+                renderizarResumo(dadosResumoOriginal);
+                return;
+            }
+
+            const filtrados = dadosResumoOriginal.map(cat => {
+                const itensFiltrados = (cat.itens || []).filter(item => {
+                    const matchTermo = !termo || 
+                        (item.nome || '').toLowerCase().includes(termo) || 
+                        (item.classificacao || '').toLowerCase().includes(termo) || 
+                        (item.fornecedor || '').toLowerCase().includes(termo) ||
+                        (item.fornecedores_consumidos || []).some(f => f.toLowerCase().includes(termo));
+
+                    let matchOrigem = true;
+                    if (filtroFornecedor === 'montante') {
+                        matchOrigem = item.is_estoque_geral || (item.fornecedor || '').includes('Montante');
+                    } else if (filtroFornecedor === 'lotes') {
+                        matchOrigem = !item.is_estoque_geral && !(item.fornecedor || '').includes('Montante');
+                    }
+
+                    return matchTermo && matchOrigem;
+                });
+
+                const novoPeso = itensFiltrados.reduce((acc, it) => acc + (it.peso_kg || 0), 0);
+                const novoValor = itensFiltrados.reduce((acc, it) => acc + (it.total_valor || 0), 0);
+                const novaMedia = novoPeso > 0 ? (novoValor / novoPeso) : 0;
+
+                return {
+                    ...cat,
+                    peso_total: novoPeso,
+                    total_valor: novoValor,
+                    media_geral: novaMedia,
+                    itens: itensFiltrados
+                };
+            }).filter(cat => cat.itens.length > 0);
+
+            renderizarResumo(filtrados);
         }
 
         function renderizarResumo(dados) {
@@ -979,7 +1075,7 @@
                     <tr style="background: var(--gray-100); text-align: left;">
                         <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Material</th>
                         <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: center;">Classificação</th>
-                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: center;">Fornecedor</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: center;">Origem / Fornecedor</th>
                         <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right;">Quantidade</th>
                         <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #8b5cf6;">Valor R$/kg</th>
                         <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right; color: #059669;">Total</th>
@@ -990,7 +1086,7 @@
                     <tr style="background: var(--gray-100); text-align: left;">
                         <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300);">Material</th>
                         <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: center;">Classificação</th>
-                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: center;">Fornecedor</th>
+                        <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: center;">Origem / Fornecedor</th>
                         <th style="padding: 0.75rem; border-bottom: 2px solid var(--gray-300); text-align: right;">Quantidade</th>
                     </tr>
                 `;
@@ -999,8 +1095,8 @@
             // Renderizar Cards
             const grid = document.getElementById('resumoGrid');
             if(!dados || dados.length === 0) {
-                grid.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center;">Nenhum dado encontrado</div>';
-                document.getElementById('tabelaResumoBody').innerHTML = `<tr><td colspan="${showPrices ? 6 : 4}" style="text-align:center; padding: 1rem;">Nenhum registro</td></tr>`;
+                grid.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--gray-500);"><i class="fas fa-boxes" style="font-size:2rem; margin-bottom:0.5rem; opacity:0.4;"></i><p style="margin:0; font-weight:600;">Nenhum item encontrado nos Bags ativos.</p></div>';
+                document.getElementById('tabelaResumoBody').innerHTML = `<tr><td colspan="${showPrices ? 6 : 4}" style="text-align:center; padding: 2rem; color: var(--gray-500);">Nenhum registro para os filtros selecionados</td></tr>`;
                 return;
             }
 
@@ -1013,7 +1109,7 @@
                         </div>
                         <div class="stat-label" style="font-weight: bold; color: var(--gray-700);">${cat.categoria_label}</div>
                         <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
-                            ${cat.itens.length} materiais separados
+                            ${cat.itens.length} materiais nos bags
                         </div>
                         ${showPrices && cat.media_geral > 0 ? `
                             <div style="font-size: 0.85rem; color: #8b5cf6; margin-top: 0.5rem; font-weight: bold;">
@@ -1054,12 +1150,13 @@
                 
                 // Itens da categoria
                 cat.itens.forEach(item => {
+                    const fornecedorHtml = formatarFornecedorResumo(item);
                     if (showPrices) {
                         rows += `
                             <tr style="border-bottom: 1px solid var(--gray-200); border-left: 4px solid ${corCategoria}20;">
-                                <td style="padding: 0.75rem 0.75rem 0.75rem 2rem; font-weight: bold;">${item.nome}</td>
+                                <td style="padding: 0.75rem 0.75rem 0.75rem 2rem; font-weight: bold;">${escapeHtml(item.nome)}</td>
                                 <td style="padding: 0.75rem; text-align: center;"><span style="font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:999px;background:${corCategoria}20;color:${corCategoria};border:1px solid ${corCategoria}40;">${cat.categoria_label}</span></td>
-                                <td style="padding: 0.75rem; text-align: center;">${item.fornecedor || 'N/A'}</td>
+                                <td style="padding: 0.75rem; text-align: center;">${fornecedorHtml}</td>
                                 <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${item.peso_kg.toFixed(3)} kg</td>
                                 <td style="padding: 0.75rem; text-align: right; color: #8b5cf6;">R$ ${(item.media_preco || 0).toFixed(2)}</td>
                                 <td style="padding: 0.75rem; text-align: right; color: #059669; font-weight: bold;">R$ ${(item.total_valor || 0).toFixed(2)}</td>
@@ -1068,9 +1165,9 @@
                     } else {
                         rows += `
                             <tr style="border-bottom: 1px solid var(--gray-200); border-left: 4px solid ${corCategoria}20;">
-                                <td style="padding: 0.75rem 0.75rem 0.75rem 2rem; font-weight: bold;">${item.nome}</td>
+                                <td style="padding: 0.75rem 0.75rem 0.75rem 2rem; font-weight: bold;">${escapeHtml(item.nome)}</td>
                                 <td style="padding: 0.75rem; text-align: center;"><span style="font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:999px;background:${corCategoria}20;color:${corCategoria};border:1px solid ${corCategoria}40;">${cat.categoria_label}</span></td>
-                                <td style="padding: 0.75rem; text-align: center;">${item.fornecedor || 'N/A'}</td>
+                                <td style="padding: 0.75rem; text-align: center;">${fornecedorHtml}</td>
                                 <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${item.peso_kg.toFixed(3)} kg</td>
                             </tr>
                         `;
@@ -1239,23 +1336,41 @@
                                 const itemCatNome = categoriaNomes[itemCatKey] || getCategoriaLabel(itemCatKey) || item.classificacao_nome || 'N/A';
                                 return `
                                 <div class="item-bag">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <div style="flex: 1;">
-                                            <strong style="color: var(--primary-color);">${item.nome_item || item.classificacao_nome || 'Item'}</strong>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                                        <div style="flex: 1; min-width: 180px;">
+                                            <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                                                <strong style="color: var(--primary-color);">${escapeHtml(item.nome_item || item.classificacao_nome || 'Item')}</strong>
+                                                ${item.is_estoque_geral ? `
+                                                    <span class="badge" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: 0.65rem; font-weight: 700;">
+                                                        <i class="fas fa-cubes"></i> Estoque Geral
+                                                    </span>
+                                                    <span style="font-size: 0.72rem; color: #3730a3; font-weight: 600; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                                        <i class="fas fa-boxes-stacked" style="color: #6366f1;"></i> Montante dos Fornecedores
+                                                    </span>
+                                                ` : `
+                                                    <span class="badge" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.65rem; font-weight: 600;">
+                                                        <i class="fas fa-box"></i> ${item.lote_origem_numero ? 'Lote ' + escapeHtml(item.lote_origem_numero) : 'Lote'}
+                                                    </span>
+                                                    <span style="font-size: 0.72rem; color: var(--gray-600); display: inline-flex; align-items: center; gap: 0.25rem;">
+                                                        <i class="fas fa-truck" style="color: var(--gray-400);"></i> ${escapeHtml(item.fornecedor || 'N/A')}
+                                                    </span>
+                                                `}
+                                            </div>
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 0.75rem;">
                                             <span style="font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 999px; background: ${itemCatCor}20; color: ${itemCatCor}; border: 1px solid ${itemCatCor}40;">${itemCatNome}</span>
-                                            <span style="font-size: 0.75rem; font-weight: bold; color: var(--gray-700);">${parseFloat(item.peso_kg || 0).toFixed(2)} kg</span>
+                                            <span style="font-size: 0.78rem; font-weight: bold; color: var(--gray-800);">${parseFloat(item.peso_kg || 0).toFixed(3)} kg</span>
                                             ${bag.status === 'aberto' ? `
-                                            <button onclick="removerItemBagAction(${bag.id}, ${item.id})" title="Remover item e devolver ao estoque" style="background: #ef4444; color: white; padding: 0.3rem 0.5rem; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                                            <button onclick="removerItemBagAction(${bag.id}, ${item.id})" title="Remover item e devolver ao estoque original" style="background: #ef4444; color: white; padding: 0.3rem 0.5rem; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                             ` : ''}
                                         </div>
                                     </div>
+                                    ${item.ordem_producao_numero ? `
                                     <div style="font-size: 0.7rem; margin-top: 0.2rem; color: var(--gray-400);">
-                                        ${item.ordem_producao_numero ? `OP: ${item.ordem_producao_numero}` : ''}
-                                    </div>
+                                        OP: ${item.ordem_producao_numero}
+                                    </div>` : ''}
                                 </div>`;
                             }).join('')}
                         </div>
@@ -2090,9 +2205,7 @@
                     showNotification(data.mensagem, 'success');
                     fecharModalBag();
                     toggleModoSelecao();
-                    await carregarLotesAtivos();
-                    await carregarDashboardEstoque();
-                    await carregarBagsEstoque();
+                    await sincronizarTodasTelas();
                 } else { showNotification(data.erro || 'Erro', 'error'); }
             } catch(e) { showNotification('Erro ao enviar para bag', 'error'); }
             finally { setActionBusy('enviarBag', false); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar para Bag'; } }
@@ -2112,8 +2225,8 @@
                 const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}/fechar`, {method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}'});
                 const data = await resp.json();
                 if (data.sucesso) {
-                    showNotification('Bag fechado!', 'success');
-                    await carregarBagsEstoque();
+                    showNotification('Bag fechado com sucesso!', 'success');
+                    await sincronizarTodasTelas();
                 } else { showNotification(data.erro, 'error'); }
             } catch(e) { showNotification('Erro', 'error'); }
             finally { setActionBusy('fecharBag_' + bagId, false); }
@@ -2129,7 +2242,7 @@
                 const data = await resp.json();
                 if (data.sucesso) {
                     showNotification('Bag reaberto com sucesso!', 'success');
-                    await carregarBagsEstoque();
+                    await sincronizarTodasTelas();
                 } else { showNotification(data.erro, 'error'); }
             } catch(e) { showNotification('Erro', 'error'); }
             finally { setActionBusy('reabrirBag_' + bagId, false); }
@@ -2145,10 +2258,7 @@
                 const data = await resp.json();
                 if (data.sucesso) {
                     showNotification(data.mensagem, 'success');
-                    await carregarBagsEstoque();
-                    await carregarLotesAtivos();
-                    await carregarDashboardEstoque();
-                    if (dadosEstoqueGeral.length > 0) await carregarEstoqueGeral();
+                    await sincronizarTodasTelas();
                 } else { showNotification(data.erro, 'error'); }
             } catch(e) { showNotification('Erro', 'error'); }
             finally { setActionBusy('excluirBag_' + bagId, false); }
@@ -2164,10 +2274,7 @@
                 const data = await resp.json();
                 if (data.sucesso) {
                     showNotification(data.mensagem, 'success');
-                    await carregarBagsEstoque();
-                    await carregarLotesAtivos();
-                    await carregarDashboardEstoque();
-                    if (dadosEstoqueGeral.length > 0) await carregarEstoqueGeral();
+                    await sincronizarTodasTelas();
                 } else { showNotification(data.erro, 'error'); }
             } catch(e) { showNotification('Erro', 'error'); }
             finally { setActionBusy('removerItemBag_' + itemId, false); }
@@ -2231,15 +2338,22 @@
                 const mCatNome = verBagNomes[grupo.categoria] || getCategoriaLabel(grupo.categoria) || grupo.classificacao || 'N/A';
                 const precoKgMedia = grupo.peso_kg > 0 ? (grupo.valor_total / grupo.peso_kg) : 0;
                 
-                const fornecedoresUnicos = [...new Set(grupo.itens.map(i => i.fornecedor || 'N/A'))];
-                const fornecedorDisplay = fornecedoresUnicos.length > 1 ? 'Vários' : (fornecedoresUnicos[0] || 'N/A');
+                const temMontante = grupo.itens.some(i => i.is_estoque_geral || (i.fornecedor && i.fornecedor.includes('Montante')));
+                let fornecedorDisplay = '';
+                if (temMontante) {
+                    fornecedorDisplay = '<span class="badge" style="background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe; font-size:0.75rem; font-weight:700; padding:0.2rem 0.55rem; border-radius:999px; display:inline-flex; align-items:center; gap:0.3rem;"><i class="fas fa-boxes-stacked" style="color:#6366f1;"></i> Montante dos Fornecedores</span>';
+                } else {
+                    const fornecedoresUnicos = [...new Set(grupo.itens.map(i => i.fornecedor || 'N/A'))];
+                    const fornTxt = fornecedoresUnicos.length > 1 ? 'Vários' : (fornecedoresUnicos[0] || 'N/A');
+                    fornecedorDisplay = `<span style="font-size:0.85rem;"><i class="fas fa-truck" style="color:var(--gray-400);"></i> ${escapeHtml(fornTxt)}</span>`;
+                }
 
                 let html = `
                 <tbody id="grupo-materiais-${idx}">
                     <tr style="border-bottom:1px solid var(--gray-200); cursor: pointer; background: #fdfdfd; transition: background 0.2s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='#fdfdfd'" onclick="document.getElementById('sub-materiais-${idx}').style.display = document.getElementById('sub-materiais-${idx}').style.display === 'none' ? 'table-row-group' : 'none'">
                         <td style="padding:0.75rem;font-weight:bold;">
                             <i class="fas fa-chevron-down" style="font-size: 0.8rem; color: var(--gray-500); margin-right: 0.5rem;"></i>
-                            ${grupo.nome} <span style="font-size: 0.75rem; color: var(--gray-500); font-weight: normal;">(${grupo.itens.length})</span>
+                            ${escapeHtml(grupo.nome)} <span style="font-size: 0.75rem; color: var(--gray-500); font-weight: normal;">(${grupo.itens.length})</span>
                         </td>
                         <td style="padding:0.75rem;text-align:center;">
                             <span style="font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:999px;background:${mCatCor}20;color:${mCatCor};border:1px solid ${mCatCor}40;">${mCatNome}</span>
@@ -2255,20 +2369,30 @@
                 grupo.itens.forEach(m => {
                     const subCatCor = verBagCores[m.categoria] || 'var(--gray-400)';
                     const subCatNome = verBagNomes[m.categoria] || getCategoriaLabel(m.categoria) || m.classificacao || 'N/A';
-                    // Usar preço da tabela do fornecedor se disponível, senão fallback para média calculada
-                    const precoExibir = m.preco_tabela_fornecedor != null ? m.preco_tabela_fornecedor : m.preco_kg;
-                    const valorTotalExibir = m.preco_tabela_fornecedor != null ? (m.preco_tabela_fornecedor * m.peso_kg) : m.valor_total;
+                    
+                    // Se veio de estoque geral, usar o Preço Médio ponderado real sem sobrescrever
+                    const isEg = m.is_estoque_geral || (m.fornecedor && m.fornecedor.includes('Montante'));
+                    const precoExibir = isEg ? m.preco_kg : (m.preco_tabela_fornecedor != null ? m.preco_tabela_fornecedor : m.preco_kg);
+                    const valorTotalExibir = isEg ? m.valor_total : (m.preco_tabela_fornecedor != null ? (m.preco_tabela_fornecedor * m.peso_kg) : m.valor_total);
+
+                    let subFornHtml = '';
+                    if (isEg) {
+                        subFornHtml = '<span class="badge" style="background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe; font-size:0.7rem; font-weight:600; padding:0.15rem 0.45rem; border-radius:999px;"><i class="fas fa-boxes-stacked"></i> Montante Fornecedores</span>';
+                    } else {
+                        subFornHtml = `<span style="color:var(--gray-600); font-size:0.8rem;"><i class="fas fa-truck" style="color:var(--gray-400);"></i> ${escapeHtml(m.fornecedor || 'N/A')}</span>`;
+                    }
+
                     html += `
                     <tr style="border-bottom:1px dashed var(--gray-200); font-size: 0.9em; background-color: #fafafa;">
                         <td style="padding:0.5rem 0.75rem 0.5rem 2.5rem; color: var(--gray-600); border-left: 3px solid ${subCatCor}50;">
-                            <i class="fas fa-level-up-alt fa-rotate-90" style="margin-right: 0.3rem; opacity: 0.5;"></i> ${m.nome}
+                            <i class="fas fa-level-up-alt fa-rotate-90" style="margin-right: 0.3rem; opacity: 0.5;"></i> ${escapeHtml(m.nome)}
                         </td>
                         <td style="padding:0.5rem 0.75rem;text-align:center;">
                             <span style="font-size:0.7rem;font-weight:600;padding:0.1rem 0.4rem;border-radius:999px;background:${subCatCor}10;color:${subCatCor};border:1px solid ${subCatCor}30;">${subCatNome}</span>
                         </td>
-                        <td style="padding:0.5rem 0.75rem;text-align:center; color: var(--gray-600);">${m.fornecedor || 'N/A'}</td>
+                        <td style="padding:0.5rem 0.75rem;text-align:center;">${subFornHtml}</td>
                         <td style="padding:0.5rem 0.75rem;text-align:right;color:var(--success-color); opacity: 0.9;">${m.peso_kg.toFixed(3)} kg</td>
-                        <td style="padding:0.5rem 0.75rem;text-align:right;color:#8b5cf6; opacity: 0.9;" title="${m.preco_tabela_fornecedor != null ? 'Preço da tabela do fornecedor' : 'Média calculada'}">R$ ${precoExibir.toFixed(2)}</td>
+                        <td style="padding:0.5rem 0.75rem;text-align:right;color:#8b5cf6; opacity: 0.9;" title="${isEg ? 'Preço Médio Ponderado da baixa do Estoque Geral' : (m.preco_tabela_fornecedor != null ? 'Preço da tabela do fornecedor' : 'Custo do lote')}">R$ ${precoExibir.toFixed(2)}</td>
                         <td style="padding:0.5rem 0.75rem;text-align:right;color:#059669; opacity: 0.9;">R$ ${valorTotalExibir.toFixed(2)}</td>
                     </tr>`;
                 });
@@ -2646,18 +2770,36 @@
                                     <span class="badge" style="background:${corCat}20; color:${corCat}; border:1px solid ${corCat}40; font-weight:600; font-size:0.75rem;">
                                         ${escapeHtml(item.categoria || 'Geral')}
                                     </span>
-                                    <span style="font-size:0.8rem; color:var(--gray-500);">
-                                        <i class="fas fa-layer-group"></i> ${item.qtd_sublotes} sublote(s) que compõem o saldo
-                                    </span>
+                                    <button type="button" 
+                                            onclick="event.stopPropagation(); toggleSublotesDetalheGeral(${idx})" 
+                                            class="btn-link" 
+                                            style="border:none; background:none; padding:0; color:var(--primary-color); font-size:0.8rem; cursor:pointer; display:inline-flex; align-items:center; gap:0.35rem;" 
+                                            title="Clique para ver os sublotes que compõem este saldo">
+                                        <i class="fas fa-layer-group"></i> <strong>${item.qtd_sublotes} sublote(s)</strong> que compõem o saldo <i class="fas fa-chevron-down" id="chevronSublotesGeral_${idx}" style="font-size:0.7rem; transition:transform 0.2s;"></i>
+                                    </button>
                                 </div>
                             </div>
                             ${!modoSelecaoGeral ? `
-                                <button onclick="abrirModalBagGeralDireto('${escapeHtml(item.material_nome)}', '${escapeHtml(item.categoria)}')" 
-                                        class="btn btn-sm" 
-                                        style="background:linear-gradient(135deg, #059669, #047857); color:white; padding:0.5rem 1rem; border-radius:8px; font-weight:600; display:flex; align-items:center; gap:0.4rem; box-shadow:0 2px 6px rgba(5,150,105,0.25);"
-                                        title="Retirar material e montar Bag">
-                                    <i class="fas fa-plus-circle"></i> Montar Bag
-                                </button>
+                                <div style="display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap;">
+                                    <button onclick="event.stopPropagation(); navegarParaLotes('${escapeHtml(item.material_nome)}')" 
+                                            class="btn btn-sm" 
+                                            style="background:white; color:var(--gray-700); border:1px solid var(--gray-300); padding:0.45rem 0.75rem; border-radius:8px; font-size:0.8rem; display:flex; align-items:center; gap:0.35rem;" 
+                                            title="Localizar lotes deste material">
+                                        <i class="fas fa-boxes"></i> Ver nos Lotes
+                                    </button>
+                                    <button onclick="event.stopPropagation(); navegarParaBags('${escapeHtml(item.categoria)}')" 
+                                            class="btn btn-sm" 
+                                            style="background:white; color:var(--gray-700); border:1px solid var(--gray-300); padding:0.45rem 0.75rem; border-radius:8px; font-size:0.8rem; display:flex; align-items:center; gap:0.35rem;" 
+                                            title="Ver Bags desta categoria">
+                                        <i class="fas fa-box"></i> Bags (${escapeHtml(item.categoria)})
+                                    </button>
+                                    <button onclick="abrirModalBagGeralDireto('${escapeHtml(item.material_nome)}', '${escapeHtml(item.categoria)}')" 
+                                            class="btn btn-sm" 
+                                            style="background:linear-gradient(135deg, #059669, #047857); color:white; padding:0.5rem 1rem; border-radius:8px; font-weight:600; display:flex; align-items:center; gap:0.4rem; box-shadow:0 2px 6px rgba(5,150,105,0.25);"
+                                            title="Retirar material e montar Bag">
+                                        <i class="fas fa-plus-circle"></i> Montar Bag
+                                    </button>
+                                </div>
                             ` : ''}
                         </div>
 
@@ -2693,6 +2835,29 @@
                             <i class="fas fa-truck" style="color:var(--gray-400); margin-top:0.2rem;"></i>
                             <div style="flex:1;">
                                 <strong>Fornecedores no saldo (${totalForn}):</strong> ${fornecedoresHtml}
+                            </div>
+                        </div>
+
+                        <!-- Drawer de Sublotes Componentes (Expandível) -->
+                        <div id="sublotesDetalheGeral_${idx}" style="display:none; margin-top:0.75rem; padding:0.75rem; background:white; border:1px solid var(--gray-200); border-radius:8px;">
+                            <div style="font-size:0.75rem; font-weight:bold; color:var(--gray-700); margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center;">
+                                <span><i class="fas fa-boxes"></i> Lotes e Sublotes que compõem este saldo</span>
+                                <button type="button" onclick="event.stopPropagation(); navegarParaLotes('${escapeHtml(item.material_nome)}')" style="border:none;background:none;color:var(--primary-color);font-size:0.75rem;cursor:pointer;font-weight:600;">Abrir na aba Lotes &rarr;</button>
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                                ${(item.sublotes_detalhe && item.sublotes_detalhe.length > 0 ? item.sublotes_detalhe : []).map(s => `
+                                    <div style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0.6rem; background:var(--gray-50); border-radius:6px; font-size:0.78rem;">
+                                        <div>
+                                            <strong style="color:var(--primary-color);">${escapeHtml(s.numero_lote || 'Sublote #' + s.id)}</strong>
+                                            <span style="color:var(--gray-500); margin-left:0.4rem;"><i class="fas fa-truck" style="font-size:0.7rem;"></i> ${escapeHtml(s.fornecedor || 'N/A')}</span>
+                                        </div>
+                                        <div style="display:flex; align-items:center; gap:0.75rem;">
+                                            <span style="color:var(--success-color); font-weight:bold;">${s.peso.toFixed(3)} kg</span>
+                                            ${item.show_prices && s.preco_kg ? `<span style="color:#8b5cf6;">R$ ${s.preco_kg.toFixed(2)}/kg</span>` : ''}
+                                            <button type="button" onclick="event.stopPropagation(); navegarParaLotes('${escapeHtml(s.numero_lote || '')}')" class="btn btn-sm" style="padding:0.15rem 0.45rem; font-size:0.7rem; background:var(--gray-200); color:var(--gray-700); border-radius:4px;" title="Localizar este lote"><i class="fas fa-arrow-right"></i></button>
+                                        </div>
+                                    </div>
+                                `).join('')}
                             </div>
                         </div>
                     </div>
@@ -2962,12 +3127,7 @@
                     } else {
                         materiaisGeralSelecionados = [];
                     }
-                    await Promise.all([
-                        carregarEstoqueGeral(),
-                        carregarBagsEstoque(),
-                        carregarDashboardEstoque(),
-                        carregarLotesAtivos()
-                    ]);
+                    await sincronizarTodasTelas();
                 } else {
                     showNotification(dataBaixa.erro || 'Erro ao registrar baixa no estoque', 'error');
                 }
@@ -2980,6 +3140,80 @@
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-paper-plane"></i> Confirmar Baixa e Enviar para Bag';
                 }
+            }
+        }
+
+        // ============================================================
+        // FUNÇÕES DE SINCRONIZAÇÃO E NAVEGAÇÃO CRUZADA (Estoque Geral <-> Lotes <-> Bags)
+        // ============================================================
+
+        async function sincronizarTodasTelas() {
+            try {
+                await Promise.all([
+                    carregarDashboardEstoque(),
+                    carregarEstoqueGeral(),
+                    carregarLotesAtivos(),
+                    carregarBagsEstoque(),
+                    carregarTotalBags()
+                ]);
+            } catch (err) {
+                console.error('Erro na sincronização de dados:', err);
+            }
+        }
+
+        function navegarParaLotes(termo) {
+            abrirTab('lotes');
+            const input = document.getElementById('buscaLote');
+            if (input) {
+                input.value = termo || '';
+                filtrarLotes();
+                input.focus();
+            }
+        }
+
+        function navegarParaBags(categoria) {
+            abrirTab('bags');
+            const select = document.getElementById('filtroCategoriaBag');
+            if (select && categoria) {
+                const catUpper = categoria.toUpperCase();
+                let found = false;
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value.toUpperCase() === catUpper) {
+                        select.selectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) select.value = '';
+                carregarBagsEstoque();
+            }
+        }
+
+        function navegarParaGeral(termo) {
+            abrirTab('geral');
+            const input = document.getElementById('buscaEstoqueGeral');
+            if (input) {
+                input.value = termo || '';
+                filtrarEstoqueGeral();
+                input.focus();
+            }
+        }
+
+        function abrirModalBagComSublote(subloteId) {
+            materiaisSelecionados.clear();
+            materiaisSelecionados.add(subloteId);
+            atualizarContagemSelecao();
+            abrirModalBag();
+        }
+
+        function toggleSublotesDetalheGeral(idx) {
+            const drawer = document.getElementById(`sublotesDetalheGeral_${idx}`);
+            const chevron = document.getElementById(`chevronSublotesGeral_${idx}`);
+            if (!drawer) return;
+            const estaAberto = drawer.style.display === 'block';
+            drawer.style.display = estaAberto ? 'none' : 'block';
+            if (chevron) {
+                chevron.style.transform = estaAberto ? 'rotate(0deg)' : 'rotate(180deg)';
             }
         }
 
