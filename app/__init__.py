@@ -20,7 +20,7 @@ def create_app():
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 
-    database_url = os.getenv('DATABASE_URL')
+    database_url = os.getenv('DATABASE_URL') or os.getenv('DATABASE_PUBLIC_URL')
     
     if database_url and database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)

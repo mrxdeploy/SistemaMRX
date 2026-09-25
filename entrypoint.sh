@@ -13,13 +13,23 @@ echo "ℹ️  PORT configurado: $PORT"
 echo ""
 echo "📋 Verificando variáveis de ambiente..."
 if [ -z "$DATABASE_URL" ]; then
-    echo "❌ ERRO CRÍTICO: DATABASE_URL não está definido!"
-    echo "   Configure o PostgreSQL no Railway e adicione a variável DATABASE_URL"
-    exit 1
-else
-    echo "✅ DATABASE_URL está configurado"
-    # Mostra apenas o início da URL por segurança
-    echo "   URL: ${DATABASE_URL:0:20}..."
+    if [ -n "$DATABASE_PUBLIC_URL" ]; then
+        echo "ℹ️  DATABASE_URL não definido, usando DATABASE_PUBLIC_URL"
+        export DATABASE_URL="$DATABASE_PUBLIC_URL"
+    else
+        echo "❌ ERRO CRÍTICO: DATABASE_URL não está definido!"
+        echo "   Configure o PostgreSQL no Railway e adicione a variável DATABASE_URL"
+        exit 1
+    fi
+fi
+
+echo "✅ DATABASE_URL está configurado"
+# Mostra apenas o início da URL por segurança
+echo "   URL: ${DATABASE_URL:0:20}..."
+
+# Converte postgres:// para postgresql:// caso necessário
+if [[ "$DATABASE_URL" == postgres://* ]]; then
+    export DATABASE_URL="postgresql://${DATABASE_URL#postgres://}"
 fi
 
 if [ -z "$SESSION_SECRET" ]; then
@@ -34,11 +44,11 @@ else
     echo "✅ JWT_SECRET_KEY configurado"
 fi
 
-# Testa conexão Python
+# Testa conexão e criação da aplicação Python
 echo ""
-echo "🐍 Testando importação da aplicação..."
-python -c "from app import create_app; print('✅ App importado com sucesso')" || {
-    echo "❌ ERRO: Falha ao importar aplicação"
+echo "🐍 Testando inicialização da aplicação..."
+python -c "from app import create_app; app = create_app(); print('✅ App criado e banco conectado com sucesso!')" || {
+    echo "❌ ERRO: Falha ao inicializar aplicação"
     exit 1
 }
 
