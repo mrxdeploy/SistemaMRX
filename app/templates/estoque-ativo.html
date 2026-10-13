@@ -1380,20 +1380,20 @@
                             Criado em ${formatarData(bag.data_criacao)}
                         </span>
                         <div style="display: flex; gap: 0.5rem;">
-                            <button onclick="excluirBagAction(${bag.id})" class="btn btn-sm" style="background: #ef4444; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Excluir Bag">
+                            <button onclick="excluirBagAction(${bag.id})" class="btn btn-sm" style="background: #ef4444; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Excluir bag e estornar todos os materiais ao estoque">
                                 <i class="fas fa-trash"></i> Excluir
                             </button>
                             ${bag.status === 'aberto' ? `
-                                <button onclick="fecharBagAction(${bag.id})" class="btn btn-sm" style="background: #f59e0b; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;">
-                                    <i class="fas fa-lock"></i> Fechar Bag
+                                <button onclick="fecharBagAction(${bag.id})" class="btn btn-sm" style="background: #f59e0b; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Finalizar bag e gerar ordem de exportação">
+                                    <i class="fas fa-check-circle"></i> Finalizar Bag
                                 </button>
                             ` : ''}
                             ${['cheio', 'devolvido_estoque'].includes(bag.status) ? `
-                                <button onclick="reabrirBagAction(${bag.id})" class="btn btn-sm" style="background: #10b981; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;">
-                                    <i class="fas fa-lock-open"></i> Abrir Bag
+                                <button onclick="reabrirBagAction(${bag.id})" class="btn btn-sm" style="background: #10b981; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Reabrir bag para edição">
+                                    <i class="fas fa-lock-open"></i> Reabrir Bag
                                 </button>
                             ` : ''}
-                            <button onclick="abrirVerBag(${bag.id})" class="btn btn-sm" style="background: #0891b2; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;">
+                            <button onclick="abrirVerBag(${bag.id})" class="btn btn-sm" style="background: #0891b2; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Ver detalhes do bag">
                                 <i class="fas fa-eye"></i> Ver Bag
                             </button>
                         </div>
@@ -2214,71 +2214,131 @@
         function fecharModalBag() { document.getElementById('modalBag').classList.remove('active'); }
 
         // ============================
-        // BAGS - Fechar e Ver (Modais de confirmação customizados - Req. 2.3)
+        // BAGS - Fechar, Reabrir, Excluir e Remover Item
+        // Modais de confirmação customizados com feedback detalhado
         // ============================
         async function fecharBagAction(bagId) {
             if (isActionBusy('fecharBag_' + bagId)) return;
-            const ok = await confirmarAcao('Fechar Bag', 'Fechar este bag? Não será possível adicionar mais materiais após o fechamento.');
+            const ok = await confirmarAcao(
+                'Finalizar Bag',
+                'Fechar este bag? Após o fechamento não será possível adicionar ou remover materiais. ' +
+                'O bag receberá um número de ordem de exportação sequencial e ficará pronto para envio à refinaria.'
+            );
             if (!ok) return;
             setActionBusy('fecharBag_' + bagId, true);
             try {
-                const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}/fechar`, {method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}'});
+                const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}/fechar`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: '{}'
+                });
                 const data = await resp.json();
                 if (data.sucesso) {
-                    showNotification('Bag fechado com sucesso!', 'success');
+                    const resumo = data.resumo || {};
+                    const ordemMsg = resumo.ordem_exportacao ? ` | Ordem: ${resumo.ordem_exportacao}` : '';
+                    const pesoMsg = resumo.peso_total_kg != null ? ` | Peso: ${Number(resumo.peso_total_kg).toFixed(3)} kg` : '';
+                    const itensMsg = resumo.quantidade_itens != null ? ` | ${resumo.quantidade_itens} item(ns)` : '';
+                    showNotification(`Bag finalizado com sucesso!${ordemMsg}${pesoMsg}${itensMsg}`, 'success');
                     await sincronizarTodasTelas();
-                } else { showNotification(data.erro, 'error'); }
-            } catch(e) { showNotification('Erro', 'error'); }
-            finally { setActionBusy('fecharBag_' + bagId, false); }
+                } else {
+                    showNotification(data.erro || 'Erro ao finalizar bag.', 'error');
+                }
+            } catch(e) {
+                console.error('Erro ao fechar bag:', e);
+                showNotification('Falha de comunicação ao finalizar bag. Verifique a conexão.', 'error');
+            } finally {
+                setActionBusy('fecharBag_' + bagId, false);
+            }
         }
 
         async function reabrirBagAction(bagId) {
             if (isActionBusy('reabrirBag_' + bagId)) return;
-            const ok = await confirmarAcao('Reabrir Bag', 'Reabrir este bag? O código de rastreio e ordem de exportação serão removidos e você poderá modificá-lo novamente.');
+            const ok = await confirmarAcao(
+                'Reabrir Bag',
+                'Reabrir este bag? O código de rastreio e a ordem de exportação serão removidos. ' +
+                'Você poderá adicionar ou remover materiais novamente.'
+            );
             if (!ok) return;
             setActionBusy('reabrirBag_' + bagId, true);
             try {
-                const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}/reabrir`, {method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}'});
+                const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}/reabrir`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: '{}'
+                });
                 const data = await resp.json();
                 if (data.sucesso) {
-                    showNotification('Bag reaberto com sucesso!', 'success');
+                    showNotification('Bag reaberto com sucesso! Agora você pode modificá-lo.', 'success');
                     await sincronizarTodasTelas();
-                } else { showNotification(data.erro, 'error'); }
-            } catch(e) { showNotification('Erro', 'error'); }
-            finally { setActionBusy('reabrirBag_' + bagId, false); }
+                } else {
+                    showNotification(data.erro || 'Erro ao reabrir bag.', 'error');
+                }
+            } catch(e) {
+                console.error('Erro ao reabrir bag:', e);
+                showNotification('Falha de comunicação ao reabrir bag.', 'error');
+            } finally {
+                setActionBusy('reabrirBag_' + bagId, false);
+            }
         }
 
         async function excluirBagAction(bagId) {
             if (isActionBusy('excluirBag_' + bagId)) return;
-            const ok = await confirmarAcao('Excluir Bag', 'ATENÇÃO: Tem certeza que deseja excluir completamente este bag? Todos os materiais dentro dele serão devolvidos ao estoque original (com estorno de preço médio quando aplicável).');
+            const ok = await confirmarAcao(
+                'Excluir Bag Permanentemente',
+                'ATENÇÃO: Esta ação é irreversível. Deseja excluir completamente este bag?\n\n' +
+                'Todos os materiais dentro dele serão devolvidos ao Estoque Ativo com estorno ' +
+                'exato de peso e valor (preço médio restaurado por mapa de consumo FIFO).'
+            );
             if (!ok) return;
             setActionBusy('excluirBag_' + bagId, true);
             try {
                 const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}`, {method: 'DELETE'});
                 const data = await resp.json();
                 if (data.sucesso) {
-                    showNotification(data.mensagem, 'success');
+                    const resumo = data.resumo_estorno || {};
+                    const pesoMsg = resumo.peso_total_devolvido_kg != null
+                        ? ` — ${Number(resumo.peso_total_devolvido_kg).toFixed(3)} kg devolvidos ao estoque`
+                        : '';
+                    showNotification(`Bag excluído com sucesso${pesoMsg}.`, 'success');
                     await sincronizarTodasTelas();
-                } else { showNotification(data.erro, 'error'); }
-            } catch(e) { showNotification('Erro', 'error'); }
-            finally { setActionBusy('excluirBag_' + bagId, false); }
+                } else {
+                    showNotification(data.erro || 'Erro ao excluir bag.', 'error');
+                }
+            } catch(e) {
+                console.error('Erro ao excluir bag:', e);
+                showNotification('Falha de comunicação ao excluir bag.', 'error');
+            } finally {
+                setActionBusy('excluirBag_' + bagId, false);
+            }
         }
 
         async function removerItemBagAction(bagId, itemId) {
             if (isActionBusy('removerItemBag_' + itemId)) return;
-            const ok = await confirmarAcao('Remover Item do Bag', 'Deseja realmente excluir este item do lote? O peso dele será devolvido ao estoque original com restauração exata de valores.');
+            const ok = await confirmarAcao(
+                'Remover Item do Bag',
+                'Deseja remover este item do bag? O peso e o valor correspondentes serão ' +
+                'devolvidos ao Estoque Ativo com restauração exata via mapa de consumo (FIFO reverso).'
+            );
             if (!ok) return;
             setActionBusy('removerItemBag_' + itemId, true);
             try {
                 const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}/remover-item/${itemId}`, {method: 'DELETE'});
                 const data = await resp.json();
                 if (data.sucesso) {
-                    showNotification(data.mensagem, 'success');
+                    // Usar a mensagem detalhada da API (inclui nome e peso do material)
+                    showNotification(data.mensagem || 'Item removido e devolvido ao estoque.', 'success');
                     await sincronizarTodasTelas();
-                } else { showNotification(data.erro, 'error'); }
-            } catch(e) { showNotification('Erro', 'error'); }
-            finally { setActionBusy('removerItemBag_' + itemId, false); }
+                } else {
+                    showNotification(data.erro || 'Erro ao remover item do bag.', 'error');
+                }
+            } catch(e) {
+                console.error('Erro ao remover item:', e);
+                showNotification('Falha de comunicação ao remover item do bag.', 'error');
+            } finally {
+                setActionBusy('removerItemBag_' + itemId, false);
+            }
         }
+
 
         async function abrirVerBag(bagId) {
             document.getElementById('modalVerBag').classList.add('active');
@@ -3120,7 +3180,12 @@
 
                 const dataBaixa = await respBaixa.json();
                 if (dataBaixa.sucesso) {
-                    showNotification(dataBaixa.mensagem, 'success');
+                    const itensAdicionados = (dataBaixa.itens_adicionados || []).length;
+                    const pesoTotal = Number(dataBaixa.peso_adicionado || 0).toFixed(3);
+                    showNotification(
+                        `${dataBaixa.mensagem || `${itensAdicionados} material(is) adicionado(s)`} — ${pesoTotal} kg baixados do Estoque Ativo.`,
+                        'success'
+                    );
                     fecharModalBagGeral();
                     if (modoSelecaoGeral) {
                         toggleModoSelecaoGeral();
@@ -3129,7 +3194,17 @@
                     }
                     await sincronizarTodasTelas();
                 } else {
-                    showNotification(dataBaixa.erro || 'Erro ao registrar baixa no estoque', 'error');
+                    // Exibir detalhes de validação por material, se disponíveis
+                    const detalhes = dataBaixa.detalhes;
+                    if (detalhes && detalhes.length > 0) {
+                        const mensagemDetalhada = detalhes.map((d, i) => `${i + 1}. ${d}`).join('\n');
+                        showNotification(
+                            `Não foi possível registrar a baixa:\n${mensagemDetalhada}`,
+                            'error'
+                        );
+                    } else {
+                        showNotification(dataBaixa.erro || 'Erro ao registrar baixa no estoque.', 'error');
+                    }
                 }
             } catch (err) {
                 console.error('Erro na baixa:', err);

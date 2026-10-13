@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+﻿from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, Lote, BagProducao, ItemSeparadoProducao, ClassificacaoGrade, ItemSolicitacao, MaterialBase, Usuario, Fornecedor, Solicitacao, OrdemCompra, FornecedorTabelaPrecos
 from sqlalchemy.orm import joinedload, selectinload
@@ -1418,39 +1418,118 @@ def adicionar_materiais_bag():
 @bp.route('/bags/<int:bag_id>/fechar', methods=['POST'])
 @jwt_required()
 def fechar_bag(bag_id):
-    """Fecha um bag (não aceita mais adições)"""
+    """
+    Finaliza/fecha um bag, impedindo novas adições e gerando número de ordem de exportação.
+
+    Regras de Negócio - Finalização:
+    1. Só permite fechar bags com status 'aberto'.
+    2. Exige ao menos 1 item com peso > 0 cadastrado no bag.
+    3. Gera ordem_exportacao sequencial diária no formato YYYY-MM-DD-XXXX.
+       Usa parsing seguro com regex para evitar ValueError em dados legados ou formatos
+       inesperados (ex: split('-')[-1] quebrava com valores como '2026-10-12-extra-texto').
+    4. Garante unicidade da ordem_exportacao mesmo em condições de concorrência.
+    5. Recalcula e consolida peso_acumulado com base nos itens reais antes de fechar.
+    6. Operação atômica: rollback total em qualquer falha.
+    """
+    import re as _re
     try:
         bag = BagProducao.query.get_or_404(bag_id)
-        
+
+        # ---- 1. Validação de status ----
         if bag.status != 'aberto':
-            return jsonify({'erro': 'Bag já está fechado'}), 400
-        
-        # Generate ordem_exportacao - sequential per day
+            return jsonify({
+                'erro': 'Bag já está finalizado ou foi enviado para refinaria. '
+                        'Reabra-o antes de finalizar novamente.'
+            }), 400
+
+        # ---- 2. Validação de conteúdo: exige itens com peso real ----
+        itens = ItemSeparadoProducao.query.filter_by(bag_id=bag_id).all()
+        if not itens:
+            return jsonify({
+                'erro': 'Não é possível finalizar um bag sem materiais. '
+                        'Adicione ao menos um item via Estoque Geral antes de fechar.'
+            }), 400
+
+        peso_total_itens = sum(float(i.peso_kg or 0) for i in itens)
+        if peso_total_itens <= 0.001:
+            return jsonify({
+                'erro': 'Não é possível finalizar um bag com peso total zerado. '
+                        'Verifique os itens cadastrados.'
+            }), 400
+
+        # ---- 3. Geração segura da ordem_exportacao sequencial diária ----
+        # Formato: YYYY-MM-DD-XXXX  (ex: 2026-10-12-0001)
         hoje_br = datetime.utcnow() - timedelta(hours=3)
-        ano = hoje_br.strftime('%Y')
-        mes = hoje_br.strftime('%m')
-        dia = hoje_br.strftime('%d')
-        prefixo_dia = f"{ano}-{mes}-{dia}-"
+        prefixo_dia = hoje_br.strftime('%Y-%m-%d-')
+
+        # Busca a maior sequência já existente para este dia (excluindo o próprio bag)
         ultima_ordem = BagProducao.query.filter(
-            BagProducao.ordem_exportacao.like(f'{prefixo_dia}%')
+            BagProducao.ordem_exportacao.like(f'{prefixo_dia}%'),
+            BagProducao.id != bag_id
         ).order_by(BagProducao.ordem_exportacao.desc()).first()
+
+        seq = 1
         if ultima_ordem and ultima_ordem.ordem_exportacao:
-            ultimo_seq = int(ultima_ordem.ordem_exportacao.split('-')[-1])
-            seq = f"{ultimo_seq + 1:04d}"
-        else:
-            seq = "0001"
-        ordem_ex = f"{prefixo_dia}{seq}"
-        
+            # Parsing seguro com regex — captura apenas os dígitos no final da string
+            # Evita ValueError quando o campo tem formatos legados ou dados corrompidos
+            match = _re.search(r'-(\d+)\s*$', ultima_ordem.ordem_exportacao)
+            if match:
+                try:
+                    seq = int(match.group(1)) + 1
+                except (ValueError, TypeError):
+                    seq = 1  # fallback seguro
+
+        ordem_ex = f"{prefixo_dia}{seq:04d}"
+
+        # Garantia de unicidade: protege contra race condition incrementando até valor único
+        tentativas = 0
+        while tentativas < 200:
+            conflito = BagProducao.query.filter(
+                BagProducao.ordem_exportacao == ordem_ex,
+                BagProducao.id != bag_id
+            ).first()
+            if not conflito:
+                break
+            seq += 1
+            ordem_ex = f"{prefixo_dia}{seq:04d}"
+            tentativas += 1
+
+        # ---- 4. Consolidar totais reais do bag com base nos itens ----
+        peso_consolidado = round(peso_total_itens, 4)
+        valor_consolidado = round(
+            sum(float(i.valor_estimado or i.custo_proporcional or 0) for i in itens), 2
+        )
+
+        # ---- 5. Efetivar o fechamento ----
         bag.status = 'cheio'
         bag.ordem_exportacao = ordem_ex
+        bag.peso_acumulado = peso_consolidado
         bag.data_atualizacao = datetime.utcnow()
+
         db.session.commit()
-        
-        return jsonify({'sucesso': True, 'mensagem': 'Bag fechado com sucesso', 'bag': bag.to_dict()})
+
+        logger.info(
+            f'✅ Bag #{bag_id} finalizado | Ordem: {ordem_ex} | '
+            f'Peso: {peso_consolidado:.3f} kg | Valor: R${valor_consolidado:.2f} | '
+            f'Itens: {len(itens)}'
+        )
+
+        return jsonify({
+            'sucesso': True,
+            'mensagem': f'Bag finalizado com sucesso! Ordem de exportação: {ordem_ex}',
+            'bag': bag.to_dict(),
+            'resumo': {
+                'ordem_exportacao': ordem_ex,
+                'peso_total_kg': peso_consolidado,
+                'valor_total': valor_consolidado,
+                'quantidade_itens': len(itens)
+            }
+        })
+
     except Exception as e:
         db.session.rollback()
-        logger.error(f'Erro ao fechar bag {bag_id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'❌ Erro ao fechar bag {bag_id}: {str(e)}', exc_info=True)
+        return jsonify({'erro': f'Erro interno ao finalizar bag: {str(e)}'}), 500
 
 
 @bp.route('/bags/<int:bag_id>/reabrir', methods=['POST'])
@@ -1489,55 +1568,100 @@ def excluir_bag(bag_id):
     """
     Exclui um bag e devolve TODOS os seus materiais ao Estoque Ativo.
 
-    Regra de Negócio - Estorno Total do Bag:
-    Para cada item do bag:
+    Regra de Negócio - Estorno Total Atômico:
+    Toda a operação ocorre em uma única transação. Para cada item do bag:
     1. Se foi adicionado via Estoque Geral (preço médio), usa _estornar_item_estoque_geral()
-       que lê o mapa de consumo e restaura cada sublote de origem com valores exatos.
-    2. Se foi adicionado pela via legada (sublote único), devolve ao sublote via entrada_estoque_id.
-    Garante reversão completa independente do método de inserção.
+       que lê o mapa de consumo serializado (ESTOQUE_GERAL:{...}) e restaura cada sublote
+       de origem com peso e valor exatos — reversão matematicamente perfeita.
+    2. Se foi adicionado pela via legada (sublote único via entrada_estoque_id),
+       devolve peso e valor ao sublote de origem diretamente.
+    3. Sublotes que estavam com status='processado' (peso=0) voltam para 'em_estoque'.
+    4. Em qualquer falha: rollback completo — nenhum dado fica em estado inconsistente.
     """
     try:
         bag = BagProducao.query.get_or_404(bag_id)
+        bag_codigo = bag.codigo  # Salvar antes de deletar para o log
 
-        # Buscar itens do bag
+        # Buscar todos os itens do bag
         itens = ItemSeparadoProducao.query.filter_by(bag_id=bag_id).all()
 
-        for item in itens:
-            # Tentar estorno via mapa de consumo (Estoque Geral / PM)
-            estorno_geral = _estornar_item_estoque_geral(item)
+        itens_estornados = 0
+        peso_total_estornado = 0.0
+        valor_total_estornado = 0.0
+        erros_estorno = []
 
-            if not estorno_geral:
-                # Lógica legada: devolver peso ao sublote único de origem
+        for item in itens:
+            peso_item = float(item.peso_kg or 0)
+            valor_item = float(item.valor_estimado or item.custo_proporcional or 0)
+
+            # ---- Tentativa 1: Estorno via mapa de consumo (Estoque Geral / Preço Médio) ----
+            estorno_ok = _estornar_item_estoque_geral(item)
+
+            if not estorno_ok:
+                # ---- Tentativa 2: Lógica legada — devolver ao sublote único de origem ----
                 if item.entrada_estoque_id:
                     sublote = Lote.query.get(item.entrada_estoque_id)
                     if sublote:
-                        peso_kg = float(item.peso_kg or 0)
-                        peso_atual_sublote = float(sublote.peso_liquido or sublote.peso_total_kg or 0)
-                        novo_peso = peso_atual_sublote + peso_kg
+                        novo_peso = float(sublote.peso_liquido or sublote.peso_total_kg or 0) + peso_item
 
+                        # Reativar sublote se estava zerado/processado
                         if sublote.status == 'processado':
                             sublote.status = 'em_estoque'
 
                         sublote.peso_liquido = novo_peso
                         sublote.peso_total_kg = novo_peso
 
-                        preco_kg_item = float(item.valor_estimado or 0) / peso_kg if peso_kg > 0 else 0
-                        valor_adicionado = preco_kg_item * peso_kg
-                        sublote.valor_total = float(sublote.valor_total or 0) + valor_adicionado
+                        # Restaurar valor proporcional
+                        preco_kg_item = valor_item / peso_item if peso_item > 0 else 0
+                        sublote.valor_total = float(sublote.valor_total or 0) + (preco_kg_item * peso_item)
+                        estorno_ok = True
+                    else:
+                        erros_estorno.append(
+                            f'Sublote ID={item.entrada_estoque_id} não encontrado para item ID={item.id}'
+                        )
+                else:
+                    # Item sem rastreabilidade — apenas registrar aviso
+                    logger.warning(
+                        f'⚠️ Item #{item.id} ({item.nome_item}) sem mapa de consumo e sem '
+                        f'entrada_estoque_id — não foi possível estornar ao estoque.'
+                    )
+
+            if estorno_ok:
+                itens_estornados += 1
+                peso_total_estornado += peso_item
+                valor_total_estornado += valor_item
 
             db.session.delete(item)
 
         db.session.delete(bag)
         db.session.commit()
 
+        if erros_estorno:
+            for erro in erros_estorno:
+                logger.warning(f'⚠️ Aviso no estorno do bag {bag_codigo}: {erro}')
+
+        logger.info(
+            f'✅ Bag #{bag_id} ({bag_codigo}) excluído | '
+            f'Itens estornados: {itens_estornados}/{len(itens)} | '
+            f'Peso devolvido: {peso_total_estornado:.3f} kg | '
+            f'Valor devolvido: R${valor_total_estornado:.2f}'
+        )
+
         return jsonify({
             'sucesso': True,
-            'mensagem': 'Bag excluído com sucesso e materiais devolvidos ao estoque original.'
+            'mensagem': 'Bag excluído com sucesso e materiais devolvidos ao estoque original.',
+            'resumo_estorno': {
+                'itens_estornados': itens_estornados,
+                'peso_total_devolvido_kg': round(peso_total_estornado, 4),
+                'valor_total_devolvido': round(valor_total_estornado, 2),
+                'avisos': erros_estorno
+            }
         })
+
     except Exception as e:
         db.session.rollback()
-        logger.error(f'Erro ao excluir bag {bag_id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'❌ Erro ao excluir bag {bag_id}: {str(e)}', exc_info=True)
+        return jsonify({'erro': f'Erro interno ao excluir bag: {str(e)}'}), 500
 
 
 @bp.route('/bags/<int:bag_id>/remover-item/<int:item_id>', methods=['DELETE'])
@@ -1546,72 +1670,106 @@ def remover_item_bag(bag_id, item_id):
     """
     Remove um item de um bag e devolve o respectivo peso ao Estoque Ativo.
 
-    Regra de Negócio - Estorno/Rollback:
-    1. Se o item foi adicionado via Estoque Geral (preço médio), o mapa de consumo
-       armazenado em observacoes é lido e cada sublote de origem recebe de volta
-       o peso e valor exatos consumidos (FIFO reverso).
-    2. Se o item foi adicionado pela via legada (sublote único), o estorno ocorre
-       diretamente via entrada_estoque_id.
-    Isso garante reversão matematicamente perfeita em ambos os cenários.
+    Regra de Negócio - Estorno Parcial:
+    1. Só permite remover itens de bags com status 'aberto'.
+    2. Se o item foi adicionado via Estoque Geral (preço médio), o mapa de consumo
+       serializado em observacoes (prefixo ESTOQUE_GERAL:) é lido e cada sublote de
+       origem recebe de volta o peso e valor exatos consumidos — FIFO reverso perfeito.
+    3. Se o item foi adicionado pela via legada (sublote único), o estorno ocorre
+       diretamente ao sublote referenciado em entrada_estoque_id.
+    4. Sublotes que estavam 'processado' voltam para 'em_estoque'.
+    5. Recalcula peso_acumulado e quantidade_itens do bag após remoção.
+    6. Operação atômica: rollback total em qualquer falha.
     """
     try:
         bag = BagProducao.query.get_or_404(bag_id)
 
+        # ---- Validação: só bags abertos permitem remoção de itens ----
         if bag.status != 'aberto':
-            return jsonify({'erro': 'Só é possível remover itens de bags abertos'}), 400
+            return jsonify({
+                'erro': 'Só é possível remover itens de bags abertos. '
+                        'Reabra o bag antes de remover itens.'
+            }), 400
 
         item = ItemSeparadoProducao.query.filter_by(id=item_id, bag_id=bag_id).first_or_404()
 
+        # Salvar dados do item antes de deletar (para resposta e log)
+        nome_item = item.nome_item or 'Material'
+        peso_item = float(item.peso_kg or 0)
+        valor_item = float(item.valor_estimado or item.custo_proporcional or 0)
+
         # ======================================================
-        # ESTORNO: Verificar se é item de Estoque Geral (PM)
-        # Se sim, usa o mapa de consumo para restauração exata.
-        # Se não, usa a lógica legada (sublote único).
+        # ESTORNO: Prioridade 1 — via mapa de consumo (Estoque Geral / Preço Médio)
+        # Prioridade 2 — via sublote único (legado)
         # ======================================================
         estorno_geral = _estornar_item_estoque_geral(item)
+        estorno_tipo = 'preco_medio'
 
         if not estorno_geral:
+            estorno_tipo = 'legado'
             # Lógica legada: devolver peso ao sublote único de origem
             if item.entrada_estoque_id:
                 sublote = Lote.query.get(item.entrada_estoque_id)
                 if sublote:
-                    peso_kg = float(item.peso_kg or 0)
-                    peso_atual_sublote = float(sublote.peso_liquido or sublote.peso_total_kg or 0)
-                    novo_peso = peso_atual_sublote + peso_kg
+                    novo_peso = float(sublote.peso_liquido or sublote.peso_total_kg or 0) + peso_item
 
-                    # Se o sublote estava processado (peso 0), reativar seu status
+                    # Reativar sublote se estava zerado/processado
                     if sublote.status == 'processado':
                         sublote.status = 'em_estoque'
 
                     sublote.peso_liquido = novo_peso
                     sublote.peso_total_kg = novo_peso
 
-                    # Recalcular valor total do sublote
-                    preco_kg_item = float(item.valor_estimado or 0) / peso_kg if peso_kg > 0 else 0
-                    valor_adicionado = preco_kg_item * peso_kg
-                    sublote.valor_total = float(sublote.valor_total or 0) + valor_adicionado
+                    # Restaurar valor proporcional
+                    preco_kg_item = valor_item / peso_item if peso_item > 0 else 0
+                    sublote.valor_total = float(sublote.valor_total or 0) + (preco_kg_item * peso_item)
+                else:
+                    logger.warning(
+                        f'⚠️ Sublote ID={item.entrada_estoque_id} não encontrado '
+                        f'ao remover item #{item_id} do bag #{bag_id}'
+                    )
+                    estorno_tipo = 'sem_rastreabilidade'
+            else:
+                logger.warning(
+                    f'⚠️ Item #{item_id} ({nome_item}) sem mapa de consumo e sem '
+                    f'entrada_estoque_id — não foi possível estornar ao estoque.'
+                )
+                estorno_tipo = 'sem_rastreabilidade'
 
-        # Atualizar dados do Bag
-        bag.peso_acumulado = max(0, float(bag.peso_acumulado or 0) - float(item.peso_kg or 0))
+        # ---- Recalcular totais do bag após remoção ----
+        bag.peso_acumulado = max(0.0, round(float(bag.peso_acumulado or 0) - peso_item, 4))
         bag.quantidade_itens = max(0, (bag.quantidade_itens or 1) - 1)
         bag.data_atualizacao = datetime.utcnow()
 
-        # Deletar item do bag
+        # ---- Deletar o item ----
         db.session.delete(item)
         db.session.commit()
 
+        logger.info(
+            f'✅ Item #{item_id} ({nome_item}, {peso_item:.3f} kg) removido do bag #{bag_id} | '
+            f'Estorno: {estorno_tipo} | Bag restante: {bag.peso_acumulado:.3f} kg'
+        )
+
         return jsonify({
             'sucesso': True,
-            'mensagem': 'Item removido do bag e devolvido ao estoque original',
-            'estorno_tipo': 'preco_medio' if estorno_geral else 'legado',
+            'mensagem': f'Material "{nome_item}" ({peso_item:.3f} kg) removido e devolvido ao Estoque Ativo.',
+            'estorno_tipo': estorno_tipo,
+            'item_removido': {
+                'nome': nome_item,
+                'peso_kg': peso_item,
+                'valor': valor_item
+            },
             'bag_info': {
-                'peso_acumulado': bag.peso_acumulado,
+                'id': bag.id,
+                'peso_acumulado': float(bag.peso_acumulado),
                 'quantidade_itens': bag.quantidade_itens
             }
         })
+
     except Exception as e:
         db.session.rollback()
-        logger.error(f'Erro ao remover item {item_id} do bag {bag_id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'❌ Erro ao remover item {item_id} do bag {bag_id}: {str(e)}', exc_info=True)
+        return jsonify({'erro': f'Erro interno ao remover item: {str(e)}'}), 500
 
 
 @bp.route('/bags/<int:bag_id>/detalhes', methods=['GET'])
@@ -2099,12 +2257,15 @@ def adicionar_materiais_bag_estoque_geral():
     ==========================================
     REGRAS DE NEGÓCIO - DEDUÇÃO POR PREÇO MÉDIO
     ==========================================
-    1. Calcula o Preço Médio Ponderado do material:
+    1. Pré-validação de TODOS os materiais antes de qualquer modificação no banco.
+       Se qualquer material tiver saldo insuficiente ou não for encontrado, a requisição
+       inteira é rejeitada com mensagem clara — sem efeitos colaterais parciais.
+    2. Calcula o Preço Médio Ponderado do material:
        PM = Σ(Valor_i) / Σ(Peso_i), onde i = sublotes ativos do material
-    2. O valor do item no bag é: Valor = Peso_retirar × PM
-    3. A baixa nos sublotes é feita por FIFO (First In First Out - data_criacao ASC)
-    4. Um mapa de consumo é serializado no campo observacoes do item:
-       ESTOQUE_GERAL:{"tipo":"preco_medio","pm_kg":PM,"consumo":[{sid,peso,valor},...]}
+    3. O valor do item no bag é: Valor = Peso_retirar × PM
+    4. A baixa nos sublotes é feita por FIFO (First In First Out - data_criacao ASC)
+    5. Um mapa de consumo é serializado no campo observacoes do item:
+       ESTOQUE_GERAL:{"tipo":"preco_medio","pm_kg":PM,"consumo":[{sid,peso,valor,preco_kg_original},...]}
 
     ==========================================
     REGRAS DE NEGÓCIO - ESTORNO / ROLLBACK
@@ -2123,6 +2284,9 @@ def adicionar_materiais_bag_estoque_geral():
     """
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'erro': 'Payload JSON inválido ou ausente'}), 400
+
         bag_id = data.get('bag_id')
         materiais = data.get('materiais', [])
 
@@ -2133,47 +2297,93 @@ def adicionar_materiais_bag_estoque_geral():
 
         bag = BagProducao.query.get_or_404(bag_id)
         if bag.status != 'aberto':
-            return jsonify({'erro': 'Este bag está fechado e não aceita mais materiais'}), 400
+            return jsonify({'erro': 'Este bag está fechado e não aceita mais materiais. Reabra-o para continuar.'}), 400
 
         current_user_id = get_jwt_identity()
-        total_peso_adicionado = 0
-        total_itens_adicionados = 0
 
-        for mat in materiais:
+        # ============================================================
+        # PRÉ-VALIDAÇÃO: Verificar todos os materiais ANTES de qualquer
+        # modificação no banco (falha rápida, sem efeitos colaterais)
+        # ============================================================
+        erros_validacao = []
+        contextos_validados = []  # Lista de dicts com dados calculados para a fase de execução
+
+        materiais_limpos = [m for m in materiais if m.get('material_nome', '').strip() and float(m.get('peso_enviar', 0)) > 0]
+        if not materiais_limpos:
+            return jsonify({'erro': 'Todos os materiais têm nome ou peso inválido.'}), 400
+
+        for mat in materiais_limpos:
             material_nome = mat.get('material_nome', '').strip()
             categoria = mat.get('categoria', '')
             peso_enviar = float(mat.get('peso_enviar', 0))
 
-            if not material_nome or peso_enviar <= 0:
-                continue
-
-            # ---- PASSO 1: Buscar sublotes ativos deste material (FIFO) ----
+            # Buscar sublotes ativos do material (FIFO)
             sublotes = _buscar_sublotes_material(material_nome, categoria)
 
             if not sublotes:
-                logger.warning(f'⚠️ Nenhum sublote encontrado para material: {material_nome}')
+                erros_validacao.append(
+                    f'Material "{material_nome}" (categoria: {categoria or "N/A"}) não encontrado no Estoque Ativo. '
+                    f'Verifique se há sublotes disponíveis.'
+                )
                 continue
 
-            # ---- PASSO 2: Calcular Preço Médio Ponderado ----
-            # PM = Σ(Valor_i) / Σ(Peso_i)
-            peso_total_estoque = 0.0
-            valor_total_estoque = 0.0
-            for s in sublotes:
-                p = float(s.peso_liquido or s.peso_total_kg or 0)
-                pk = _calcular_preco_kg_sublote(s)
-                peso_total_estoque += p
-                valor_total_estoque += pk * p
+            # Calcular saldo total e Preço Médio Ponderado
+            peso_total_estoque = sum(float(s.peso_liquido or s.peso_total_kg or 0) for s in sublotes)
+            valor_total_estoque = sum(
+                _calcular_preco_kg_sublote(s) * float(s.peso_liquido or s.peso_total_kg or 0)
+                for s in sublotes
+            )
 
-            preco_medio = valor_total_estoque / peso_total_estoque if peso_total_estoque > 0 else 0
-
-            # Validar que há saldo suficiente
-            if peso_enviar > peso_total_estoque + 0.01:
-                logger.warning(f'⚠️ Peso solicitado ({peso_enviar:.3f}) excede saldo ({peso_total_estoque:.3f}) para {material_nome}')
+            if peso_total_estoque <= 0.001:
+                erros_validacao.append(
+                    f'Material "{material_nome}" está sem saldo disponível no Estoque Ativo.'
+                )
                 continue
+
+            # Validação estrita de saldo — erro explícito, sem ignorar silenciosamente
+            if peso_enviar > peso_total_estoque + 0.005:  # tolerância de 5g para arredondamentos
+                erros_validacao.append(
+                    f'Saldo insuficiente para "{material_nome}": '
+                    f'disponível {peso_total_estoque:.3f} kg, solicitado {peso_enviar:.3f} kg. '
+                    f'Reduza a quantidade ou selecione menos material.'
+                )
+                continue
+
+            preco_medio = valor_total_estoque / peso_total_estoque
+
+            contextos_validados.append({
+                'material_nome': material_nome,
+                'categoria': categoria,
+                'peso_enviar': peso_enviar,
+                'sublotes': sublotes,
+                'preco_medio': preco_medio,
+                'peso_total_estoque': peso_total_estoque,
+            })
+
+        # Se qualquer material falhou na validação, rejeitar TUDO sem tocar no banco
+        if erros_validacao:
+            return jsonify({
+                'erro': 'Não foi possível processar a requisição devido a problemas nos materiais selecionados.',
+                'detalhes': erros_validacao
+            }), 400
+
+        # ============================================================
+        # EXECUÇÃO: Todos validados — agora processar as deduções FIFO
+        # ============================================================
+        total_peso_adicionado = 0
+        total_itens_adicionados = 0
+        itens_adicionados_resumo = []
+
+        for ctx in contextos_validados:
+            material_nome = ctx['material_nome']
+            categoria = ctx['categoria']
+            peso_enviar = ctx['peso_enviar']
+            sublotes = ctx['sublotes']
+            preco_medio = ctx['preco_medio']
 
             # ---- PASSO 3: Consumir sublotes em ordem FIFO ----
             peso_restante = peso_enviar
-            mapa_consumo = []  # Lista de {sid, peso, valor, preco_kg_original}
+            mapa_consumo = []
 
             for sublote in sublotes:
                 if peso_restante <= 0.001:
@@ -2183,33 +2393,27 @@ def adicionar_materiais_bag_estoque_geral():
                 if peso_sublote <= 0.001:
                     continue
 
-                # Quanto consumir deste sublote
                 peso_consumir = min(peso_restante, peso_sublote)
-
-                # Valor consumido deste sublote (proporcional ao custo ORIGINAL do sublote)
                 preco_kg_sublote = _calcular_preco_kg_sublote(sublote)
                 valor_consumido = preco_kg_sublote * peso_consumir
 
-                # Registrar no mapa de consumo para estorno futuro
                 mapa_consumo.append({
                     'sid': sublote.id,
                     'peso': round(peso_consumir, 4),
                     'valor': round(valor_consumido, 2),
-                    'preco_kg_original': round(preco_kg_sublote, 2)
+                    'preco_kg_original': round(preco_kg_sublote, 4)
                 })
 
-                # Atualizar saldo do sublote
+                # Deduzir saldo do sublote
                 novo_peso = peso_sublote - peso_consumir
                 if novo_peso < 0.01:
-                    # Sublote completamente consumido
                     sublote.status = 'processado'
                     sublote.peso_liquido = 0
                     sublote.peso_total_kg = 0
                     sublote.valor_total = 0
                 else:
-                    sublote.peso_liquido = novo_peso
-                    sublote.peso_total_kg = novo_peso
-                    # Recalcular valor proporcional restante
+                    sublote.peso_liquido = round(novo_peso, 4)
+                    sublote.peso_total_kg = round(novo_peso, 4)
                     valor_total_original = float(sublote.valor_total or 0)
                     if valor_total_original > 0 and peso_sublote > 0:
                         sublote.valor_total = round((novo_peso / peso_sublote) * valor_total_original, 2)
@@ -2227,19 +2431,21 @@ def adicionar_materiais_bag_estoque_geral():
                     item_classificacao_id = classif_match.id
 
             # ---- PASSO 5: Calcular valor usando Preço Médio ----
-            # Valor Item Bag = Peso_retirar × PM
             valor_item_bag = round(preco_medio * peso_enviar, 2)
 
-            # Coletar fornecedores dos sublotes consumidos
+            # ---- PASSO 6: Coletar fornecedores consumidos para rastreabilidade ----
             sids_consumidos = {entry['sid'] for entry in mapa_consumo}
             fornecedores_consumidos = []
             for s in sublotes:
                 if s.id in sids_consumidos:
-                    fnome = s.fornecedor.nome if s.fornecedor else (s.lote_pai.fornecedor.nome if s.lote_pai and s.lote_pai.fornecedor else None)
+                    fnome = (
+                        s.fornecedor.nome if s.fornecedor
+                        else (s.lote_pai.fornecedor.nome if s.lote_pai and s.lote_pai.fornecedor else None)
+                    )
                     if fnome and fnome not in fornecedores_consumidos:
                         fornecedores_consumidos.append(fnome)
 
-            # ---- PASSO 6: Serializar mapa de consumo para estorno futuro ----
+            # ---- PASSO 7: Serializar mapa de consumo para estorno futuro ----
             consumo_json = json.dumps({
                 'tipo': 'preco_medio',
                 'origem': 'ESTOQUE_GERAL',
@@ -2249,7 +2455,7 @@ def adicionar_materiais_bag_estoque_geral():
                 'consumo': mapa_consumo
             }, ensure_ascii=False)
 
-            # ---- PASSO 7: Criar item no bag ----
+            # ---- PASSO 8: Criar item no bag ----
             novo_item = ItemSeparadoProducao(
                 classificacao_grade_id=item_classificacao_id,
                 nome_item=material_nome,
@@ -2267,11 +2473,21 @@ def adicionar_materiais_bag_estoque_geral():
 
             total_peso_adicionado += peso_enviar
             total_itens_adicionados += 1
+            itens_adicionados_resumo.append({
+                'material': material_nome,
+                'peso_kg': round(peso_enviar, 4),
+                'preco_medio_kg': round(preco_medio, 4),
+                'valor_total': valor_item_bag,
+                'sublotes_consumidos': len(mapa_consumo)
+            })
 
-            logger.info(f'✅ Material "{material_nome}" ({peso_enviar:.3f}kg) adicionado ao bag #{bag_id} a PM=R${preco_medio:.2f}/kg')
+            logger.info(
+                f'✅ Material "{material_nome}" ({peso_enviar:.3f}kg) adicionado ao bag #{bag_id} '
+                f'a PM=R${preco_medio:.4f}/kg | Sublotes consumidos: {len(mapa_consumo)}'
+            )
 
-        # ---- PASSO 8: Atualizar totais do bag ----
-        bag.peso_acumulado = float(bag.peso_acumulado or 0) + total_peso_adicionado
+        # ---- PASSO 9: Atualizar totais do bag ----
+        bag.peso_acumulado = round(float(bag.peso_acumulado or 0) + total_peso_adicionado, 4)
         bag.quantidade_itens = (bag.quantidade_itens or 0) + total_itens_adicionados
         bag.data_atualizacao = datetime.utcnow()
 
@@ -2279,16 +2495,14 @@ def adicionar_materiais_bag_estoque_geral():
 
         return jsonify({
             'sucesso': True,
-            'mensagem': f'{total_itens_adicionados} material(is) adicionado(s) ao bag via Preço Médio',
+            'mensagem': f'{total_itens_adicionados} material(is) adicionado(s) ao bag via Preço Médio.',
             'peso_adicionado': round(total_peso_adicionado, 3),
+            'itens_adicionados': itens_adicionados_resumo,
             'bag': bag.to_dict()
         })
 
     except Exception as e:
         db.session.rollback()
-        logger.error(f'❌ Erro ao adicionar materiais (estoque geral) ao bag: {str(e)}')
-        import traceback
-        traceback.print_exc()
-        return jsonify({'erro': str(e)}), 500
-
+        logger.error(f'❌ Erro ao adicionar materiais (estoque geral) ao bag: {str(e)}', exc_info=True)
+        return jsonify({'erro': f'Erro interno ao adicionar materiais: {str(e)}'}), 500
 
