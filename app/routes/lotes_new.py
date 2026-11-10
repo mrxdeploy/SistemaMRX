@@ -85,9 +85,9 @@ def criar_lotes_de_solicitacao(solicitacao_id):
         lotes_criados = []
         
         for (tipo_lote_id, estrelas), itens in itens_agrupados.items():
-            peso_total = sum(item.peso_kg for item in itens)
-            valor_total = sum(item.valor_calculado for item in itens)
-            estrelas_media = sum(item.estrelas_final for item in itens) / len(itens)
+            peso_total = sum(float(item.peso_kg or 0) for item in itens)
+            valor_total = sum((item.valor_calculado or 0.0) for item in itens)
+            estrelas_media = sum((item.estrelas_final or 3) for item in itens) / len(itens)
             
             lote = Lote(
                 numero_lote=str(uuid.uuid4()).upper()[:12],

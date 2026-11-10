@@ -93,7 +93,7 @@ def _criar_oc_e_lotes(solicitacao, usuario_id, data_request=None):
     for chave, itens in lotes_agrupados.items():
         tipo_chave, id_referencia, estrelas = chave
         
-        peso_total = sum(item.peso_kg for item in itens)
+        peso_total = sum(float(item.peso_kg or 0) for item in itens)
         valor_total = sum((item.valor_calculado or 0.0) for item in itens)
         estrelas_media = sum((item.estrelas_final or 3) for item in itens) / len(itens)
         
@@ -1111,8 +1111,8 @@ def aprovar_e_promover_solicitacao(id):
         for chave, itens in lotes_agrupados.items():
             tipo_chave, id_referencia, estrelas = chave
             
-            peso_total = sum(item.peso_kg for item in itens)
-            valor_total = sum(item.valor_calculado for item in itens)
+            peso_total = sum(float(item.peso_kg or 0) for item in itens)
+            valor_total = sum((item.valor_calculado or 0.0) for item in itens)
             
             lote = Lote(
                 fornecedor_id=solicitacao.fornecedor_id,
