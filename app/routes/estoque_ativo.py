@@ -375,7 +375,7 @@ def debug_custo_medio():
         return jsonify({'erro': 'Acesso negado'}), 403
 
     nome = request.args.get('material', '').strip()
-    limite = int(request.args.get('limite', 20))
+    limite = min(max(int(request.args.get('limite', 20)), 1), 200)
 
     if not nome:
         return jsonify({'erro': 'Informe ?material=NOME DO MATERIAL'}), 400

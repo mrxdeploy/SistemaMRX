@@ -1,4 +1,5 @@
-﻿from flask import Blueprint, request, jsonify
+﻿import logging
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Solicitacao, ItemSolicitacao, Fornecedor, TipoLote, FornecedorTipoLoteClassificacao, db, Usuario, Lote, OrdemCompra, Notificacao, Perfil, MaterialBase, TabelaPreco
 from app.auth import admin_required
@@ -7,6 +8,8 @@ from app import socketio
 from datetime import datetime
 from app.utils.datetime_br import now_brasilia
 from sqlalchemy import inspect as sa_inspect
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('solicitacoes', __name__, url_prefix='/api/solicitacoes')
 
@@ -26,9 +29,9 @@ def _criar_oc_e_lotes(solicitacao, usuario_id, data_request=None):
     if data_request is None:
         data_request = {}
     
-    print(f"\n{'='*60}")
-    print(f" CRIANDO OC E LOTES PARA SOLICITAÇÃO #{solicitacao.id}")
-    print(f"{'='*60}")
+    logger.debug(f"\n{'='*60}")
+    logger.debug(f" CRIANDO OC E LOTES PARA SOLICITAÇÃO #{solicitacao.id}")
+    logger.debug(f"{'='*60}")
     
     if not solicitacao.itens or len(solicitacao.itens) == 0:
         raise ValueError('Solicitação não possui itens')
@@ -46,16 +49,16 @@ def _criar_oc_e_lotes(solicitacao, usuario_id, data_request=None):
     
     # Checar se o objeto encontrado está marcado como deletado na sessão atual
     if oc_existente and not sa_inspect(oc_existente).deleted:
-        print(f" ⚠️ OC já existe: #{oc_existente.id} - pulando criação")
+        logger.debug(f" ⚠️ OC já existe: #{oc_existente.id} - pulando criação")
         return oc_existente, []
     
     valor_total_oc = sum((item.valor_calculado or 0.0) for item in solicitacao.itens)
-    print(f" Valor total calculado: R$ {valor_total_oc:.2f}")
+    logger.debug(f" Valor total calculado: R$ {valor_total_oc:.2f}")
     
     if valor_total_oc < 0:
         raise ValueError('Valor total da OC não pode ser negativo')
     
-    print(f"\n ETAPA 1: Criando Ordem de Compra...")
+    logger.debug(f"\n ETAPA 1: Criando Ordem de Compra...")
     oc = OrdemCompra(
         solicitacao_id=solicitacao.id,
         fornecedor_id=solicitacao.fornecedor_id,
@@ -67,11 +70,11 @@ def _criar_oc_e_lotes(solicitacao, usuario_id, data_request=None):
     db.session.add(oc)
     db.session.flush()
     
-    print(f" ✓ OC #{oc.id} criada com sucesso")
-    print(f"   Status: {oc.status}")
-    print(f"   Valor: R$ {oc.valor_total:.2f}")
+    logger.debug(f" ✓ OC #{oc.id} criada com sucesso")
+    logger.debug(f"   Status: {oc.status}")
+    logger.debug(f"   Valor: R$ {oc.valor_total:.2f}")
     
-    print(f"\n ETAPA 2: Criando lotes...")
+    logger.debug(f"\n ETAPA 2: Criando lotes...")
     
     lotes_agrupados = {}
     
@@ -81,7 +84,7 @@ def _criar_oc_e_lotes(solicitacao, usuario_id, data_request=None):
         elif item.tipo_lote_id:
             chave = ('tipo_lote', item.tipo_lote_id, item.estrelas_final)
         else:
-            print(f"    ⚠️ Item {item.id} sem material_id nem tipo_lote_id - pulando")
+            logger.debug(f"    ⚠️ Item {item.id} sem material_id nem tipo_lote_id - pulando")
             continue
         
         if chave not in lotes_agrupados:
@@ -103,10 +106,10 @@ def _criar_oc_e_lotes(solicitacao, usuario_id, data_request=None):
         if tipo_chave == 'material':
             material = MaterialBase.query.get(id_referencia)
             tipo_lote_id = 1
-            print(f"    Criando lote para material: {material.nome if material else id_referencia}")
+            logger.debug(f"    Criando lote para material: {material.nome if material else id_referencia}")
         else:
             tipo_lote_id = id_referencia
-            print(f"    Criando lote para tipo_lote_id: {tipo_lote_id}")
+            logger.debug(f"    Criando lote para tipo_lote_id: {tipo_lote_id}")
         
         lote = Lote(
             fornecedor_id=solicitacao.fornecedor_id,
@@ -123,15 +126,15 @@ def _criar_oc_e_lotes(solicitacao, usuario_id, data_request=None):
         db.session.add(lote)
         db.session.flush()
         
-        print(f"    ✓ Lote criado: {lote.numero_lote} (Estrelas: {estrelas}, Itens: {len(itens)})")
+        logger.debug(f"    ✓ Lote criado: {lote.numero_lote} (Estrelas: {estrelas}, Itens: {len(itens)})")
         lotes_criados.append(lote.numero_lote)
         
         for item in itens:
             item.lote_id = lote.id
     
-    print(f" ✓ {len(lotes_criados)} lote(s) criado(s): {', '.join(lotes_criados)}")
+    logger.debug(f" ✓ {len(lotes_criados)} lote(s) criado(s): {', '.join(lotes_criados)}")
     
-    print(f"\n ETAPA 3: Registrando auditoria da OC...")
+    logger.debug(f"\n ETAPA 3: Registrando auditoria da OC...")
     if usuario_id:
         ip = request.headers.get('X-Forwarded-For', request.remote_addr) if request else None
         gps = data_request.get('gps')
@@ -148,11 +151,11 @@ def _criar_oc_e_lotes(solicitacao, usuario_id, data_request=None):
             gps=gps,
             dispositivo=dispositivo
         )
-        print(f" ✓ Auditoria registrada")
+        logger.debug(f" ✓ Auditoria registrada")
     else:
-        print(f" ⚠️ Auditoria não registrada (sem usuario_id)")
+        logger.debug(f" ⚠️ Auditoria não registrada (sem usuario_id)")
     
-    print(f"{'='*60}\n")
+    logger.debug(f"{'='*60}\n")
     
     return oc, lotes_criados
 
@@ -225,7 +228,7 @@ def calcular_valor_item_novo(fornecedor_id, material_id, peso_kg):
     fornecedor = Fornecedor.query.get(fornecedor_id)
     
     if not fornecedor:
-        print(f"       Fornecedor não encontrado")
+        logger.debug(f"       Fornecedor não encontrado")
         return (0.0, 0.0, 3)
     
     # Buscar preço na tabela personalizada do fornecedor (pegar sempre a VERSÃO MAIS RECENTE ATIVA)
@@ -236,13 +239,13 @@ def calcular_valor_item_novo(fornecedor_id, material_id, peso_kg):
     ).order_by(FornecedorTabelaPrecos.versao.desc()).first()
     
     if not preco_fornecedor:
-        print(f"       Preço não encontrado para material {material_id} na tabela do fornecedor {fornecedor_id}")
+        logger.debug(f"       Preço não encontrado para material {material_id} na tabela do fornecedor {fornecedor_id}")
         return (0.0, 0.0, 3)
     
     preco_kg = float(preco_fornecedor.preco_fornecedor) if preco_fornecedor.preco_fornecedor else 0.0
     valor = preco_kg * float(peso_kg)
     
-    print(f"       Preço encontrado: R$ {preco_kg}/kg × {peso_kg}kg = R$ {valor:.2f}")
+    logger.debug(f"       Preço encontrado: R$ {preco_kg}/kg × {peso_kg}kg = R$ {valor:.2f}")
     
     return (valor, preco_kg, 3)
 
@@ -272,9 +275,9 @@ def calcular_valor_item(fornecedor_id, tipo_lote_id, classificacao, estrelas_fro
 
     if classificacao_config and classificacao:
         estrelas_final = classificacao_config.get_estrelas_por_classificacao(classificacao)
-        print(f"       Usando estrelas da configuração: {estrelas_final} (classificação: {classificacao})")
+        logger.debug(f"       Usando estrelas da configuração: {estrelas_final} (classificação: {classificacao})")
     else:
-        print(f"       Usando estrelas do frontend: {estrelas_final}")
+        logger.debug(f"       Usando estrelas do frontend: {estrelas_final}")
 
     # Busca o preço na tabela TipoLotePreco (tabela global de preços)
     preco = TipoLotePreco.query.filter_by(
@@ -285,8 +288,8 @@ def calcular_valor_item(fornecedor_id, tipo_lote_id, classificacao, estrelas_fro
     ).first()
 
     if not preco:
-        print(f"       Preço não encontrado em TipoLotePreco!")
-        print(f"       Buscando preços disponíveis para tipo_lote={tipo_lote_id}, classificacao={classificacao}...")
+        logger.debug(f"       Preço não encontrado em TipoLotePreco!")
+        logger.debug(f"       Buscando preços disponíveis para tipo_lote={tipo_lote_id}, classificacao={classificacao}...")
 
         # Lista todos os preços disponíveis para debug
         precos_disponiveis = TipoLotePreco.query.filter_by(
@@ -296,16 +299,16 @@ def calcular_valor_item(fornecedor_id, tipo_lote_id, classificacao, estrelas_fro
         ).all()
 
         if precos_disponiveis:
-            print(f"       Preços cadastrados para classificação '{classificacao}':")
+            logger.debug(f"       Preços cadastrados para classificação '{classificacao}':")
             for p in precos_disponiveis:
-                print(f"         - {p.estrelas} estrelas: R$ {p.preco_por_kg}/kg")
+                logger.debug(f"         - {p.estrelas} estrelas: R$ {p.preco_por_kg}/kg")
         else:
-            print(f"       Nenhum preço cadastrado para tipo_lote={tipo_lote_id}, classificacao={classificacao}")
+            logger.debug(f"       Nenhum preço cadastrado para tipo_lote={tipo_lote_id}, classificacao={classificacao}")
 
         return (0.0, 0.0, estrelas_final)
 
     valor = preco.preco_por_kg * float(peso_kg)
-    print(f"       Preço encontrado: R$ {preco.preco_por_kg}/kg × {peso_kg}kg = R$ {valor:.2f}")
+    logger.debug(f"       Preço encontrado: R$ {preco.preco_por_kg}/kg × {peso_kg}kg = R$ {valor:.2f}")
 
     return (valor, preco.preco_por_kg, estrelas_final)
 
@@ -408,15 +411,15 @@ def criar_solicitacao():
         db.session.add(solicitacao)
         db.session.flush()
 
-        print(f"\n{'='*60}")
-        print(f" CRIANDO SOLICITAÇÃO #{solicitacao.id}")
-        print(f"   Fornecedor: {fornecedor.nome}")
-        print(f"   Total de itens recebidos: {len(data['itens'])}")
-        print(f"{'='*60}")
+        logger.debug(f"\n{'='*60}")
+        logger.debug(f" CRIANDO SOLICITAÇÃO #{solicitacao.id}")
+        logger.debug(f"   Fornecedor: {fornecedor.nome}")
+        logger.debug(f"   Total de itens recebidos: {len(data['itens'])}")
+        logger.debug(f"{'='*60}")
 
         for item_data in data['itens']:
-            print(f"\n Item recebido do frontend:")
-            print(f"   {item_data}")
+            logger.debug(f"\n Item recebido do frontend:")
+            logger.debug(f"   {item_data}")
 
             # VALIDAÇÃO CRÍTICA: Peso deve ser positivo
             if not item_data.get('peso_kg') or float(item_data.get('peso_kg', 0)) <= 0:
@@ -425,23 +428,23 @@ def criar_solicitacao():
 
             # NOVO FORMATO: usando material_id (alinhado com Fluxo_comprador.md)
             if item_data.get('material_id'):
-                print(f"    Usando NOVO formato (material_id)")
+                logger.debug(f"    Usando NOVO formato (material_id)")
                 
                 material_id = item_data['material_id']
                 material = MaterialBase.query.get(material_id)
                 
                 if not material:
-                    print(f"    Material não encontrado - pulando")
+                    logger.debug(f"    Material não encontrado - pulando")
                     continue
                 
-                print(f"    Material: {material.nome} (Classificação: {material.classificacao})")
+                logger.debug(f"    Material: {material.nome} (Classificação: {material.classificacao})")
                 
                 # Verificar se usa preço customizado
                 preco_customizado = item_data.get('preco_customizado', False)
                 preco_oferecido = item_data.get('preco_oferecido')
                 
                 if preco_customizado and preco_oferecido is not None:
-                    print(f"    Usando PREÇO CUSTOMIZADO: R$ {preco_oferecido}/kg")
+                    logger.debug(f"    Usando PREÇO CUSTOMIZADO: R$ {preco_oferecido}/kg")
                     
                     # VALIDAÇÃO CRÍTICA: Preço oferecido deve ser > 0
                     if float(preco_oferecido) <= 0:
@@ -457,23 +460,23 @@ def criar_solicitacao():
                     
                     # Validar que o material tem preço configurado na tabela
                     if preco_tabela <= 0:
-                        print(f"    ⚠️ Material sem preço configurado na tabela - REQUER APROVAÇÃO MANUAL")
+                        logger.debug(f"    ⚠️ Material sem preço configurado na tabela - REQUER APROVAÇÃO MANUAL")
                         requer_aprovacao_manual = True  # Flag latched - uma vez True, sempre True
                         preco_tabela = 0
                         tabela_estrelas = 3  # Valor padrão válido (entre 1 e 5)
                     
-                    print(f"    Preço da tabela ({tabela_estrelas}★): R$ {preco_tabela}/kg")
-                    print(f"    Preço oferecido: R$ {preco_oferecido}/kg")
+                    logger.debug(f"    Preço da tabela ({tabela_estrelas}★): R$ {preco_tabela}/kg")
+                    logger.debug(f"    Preço oferecido: R$ {preco_oferecido}/kg")
                     
                     # Calcular valor com preço oferecido
                     valor = float(preco_oferecido) * float(item_data['peso_kg'])
                     
                     # Verificar se precisa aprovação manual (apenas se preço da tabela é válido)
                     if preco_tabela > 0 and float(preco_oferecido) > float(preco_tabela):
-                        print(f"    ⚠️ Preço oferecido MAIOR que tabela - REQUER APROVAÇÃO MANUAL")
+                        logger.debug(f"    ⚠️ Preço oferecido MAIOR que tabela - REQUER APROVAÇÃO MANUAL")
                         requer_aprovacao_manual = True  # Flag latched - uma vez True, sempre True
                     elif preco_tabela > 0:
-                        print(f"    ✓ Preço oferecido menor ou igual à tabela - aprovação automática")
+                        logger.debug(f"    ✓ Preço oferecido menor ou igual à tabela - aprovação automática")
                     
                     item = ItemSolicitacao(
                         solicitacao_id=solicitacao.id,
@@ -491,10 +494,10 @@ def criar_solicitacao():
                         observacoes=item_data.get('observacoes', '')
                     )
                     
-                    print(f"    Item salvo: Material={material.nome}, Valor=R$ {item.valor_calculado:.2f}, Preço custom=R$ {preco_oferecido}/kg")
+                    logger.debug(f"    Item salvo: Material={material.nome}, Valor=R$ {item.valor_calculado:.2f}, Preço custom=R$ {preco_oferecido}/kg")
                 else:
                     # Usar preço da tabela (comportamento padrão)
-                    print(f"    Calculando valor usando tabela do fornecedor...")
+                    logger.debug(f"    Calculando valor usando tabela do fornecedor...")
                     
                     valor, preco_por_kg, tabela_estrelas = calcular_valor_item_novo(
                         data['fornecedor_id'],
@@ -504,17 +507,17 @@ def criar_solicitacao():
                     
                     # VALIDAÇÃO: Material deve ter preço configurado na tabela
                     if preco_por_kg <= 0:
-                        print(f"    ⚠️ Material sem preço configurado na tabela - REQUER APROVAÇÃO MANUAL")
+                        logger.debug(f"    ⚠️ Material sem preço configurado na tabela - REQUER APROVAÇÃO MANUAL")
                         requer_aprovacao_manual = True  # Flag latched - uma vez True, sempre True
                         preco_por_kg = 0
                         tabela_estrelas = 3  # Valor padrão válido (entre 1 e 5)
                         valor = 0
                     
-                    print(f"    Valor final: R$ {valor:.2f} (Tabela: {tabela_estrelas}★)")
+                    logger.debug(f"    Valor final: R$ {valor:.2f} (Tabela: {tabela_estrelas}★)")
                     if preco_por_kg > 0:
-                        print(f"    ✓ Usando preço da tabela - aprovação automática")
+                        logger.debug(f"    ✓ Usando preço da tabela - aprovação automática")
                     else:
-                        print(f"    ⚠️ Preço inválido - solicitação requer aprovação manual")
+                        logger.debug(f"    ⚠️ Preço inválido - solicitação requer aprovação manual")
                     
                     item = ItemSolicitacao(
                         solicitacao_id=solicitacao.id,
@@ -532,29 +535,29 @@ def criar_solicitacao():
                         observacoes=item_data.get('observacoes', '')
                     )
                     
-                    print(f"    Item salvo: Material={material.nome}, Valor=R$ {item.valor_calculado:.2f}, Tabela={tabela_estrelas}★")
+                    logger.debug(f"    Item salvo: Material={material.nome}, Valor=R$ {item.valor_calculado:.2f}, Tabela={tabela_estrelas}★")
                 
                 db.session.add(item)
             
             # FORMATO ANTIGO: usando tipo_lote_id + classificacao (retrocompatibilidade)
             elif item_data.get('tipo_lote_id'):
-                print(f"    Usando formato ANTIGO (tipo_lote_id + classificacao)")
+                logger.debug(f"    Usando formato ANTIGO (tipo_lote_id + classificacao)")
                 
                 tipo_lote = TipoLote.query.get(item_data['tipo_lote_id'])
                 if not tipo_lote:
-                    print(f"    Tipo de lote não encontrado - pulando")
+                    logger.debug(f"    Tipo de lote não encontrado - pulando")
                     continue
 
-                print(f"    Tipo de lote: {tipo_lote.nome}")
+                logger.debug(f"    Tipo de lote: {tipo_lote.nome}")
 
                 classificacao = item_data.get('classificacao', 'medio')
                 estrelas_final = item_data.get('estrelas_final', 3)
                 if estrelas_final is None or not (1 <= estrelas_final <= 5):
                     estrelas_final = 3
 
-                print(f"    Classificação: {classificacao}")
-                print(f"    Estrelas (frontend): {estrelas_final}")
-                print(f"    Calculando valor...")
+                logger.debug(f"    Classificação: {classificacao}")
+                logger.debug(f"    Estrelas (frontend): {estrelas_final}")
+                logger.debug(f"    Calculando valor...")
 
                 valor, preco_por_kg, estrelas_usadas = calcular_valor_item(
                     data['fornecedor_id'],
@@ -564,8 +567,8 @@ def criar_solicitacao():
                     item_data['peso_kg']
                 )
 
-                print(f"    Valor final: R$ {valor:.2f}")
-                print(f"    Estrelas usadas: {estrelas_usadas}")
+                logger.debug(f"    Valor final: R$ {valor:.2f}")
+                logger.debug(f"    Estrelas usadas: {estrelas_usadas}")
 
                 item = ItemSolicitacao(
                     solicitacao_id=solicitacao.id,
@@ -581,20 +584,20 @@ def criar_solicitacao():
                     observacoes=item_data.get('observacoes', '')
                 )
 
-                print(f"    Item salvo: Valor=R$ {item.valor_calculado:.2f}, Classificação={item.classificacao}, Estrelas={item.estrelas_final}")
+                logger.debug(f"    Item salvo: Valor=R$ {item.valor_calculado:.2f}, Classificação={item.classificacao}, Estrelas={item.estrelas_final}")
                 db.session.add(item)
             
             else:
-                print(f"    Item inválido - sem material_id nem tipo_lote_id - pulando")
+                logger.debug(f"    Item inválido - sem material_id nem tipo_lote_id - pulando")
                 continue
 
         # Definir status final da solicitação
         if requer_aprovacao_manual:
             solicitacao.status = 'pendente'
-            print(f"\n{'='*60}")
-            print(f" STATUS FINAL: PENDENTE (requer aprovação manual)")
-            print(f" Motivo: Um ou mais itens têm preço oferecido acima da tabela")
-            print(f"{'='*60}")
+            logger.debug(f"\n{'='*60}")
+            logger.debug(f" STATUS FINAL: PENDENTE (requer aprovação manual)")
+            logger.debug(f" Motivo: Um ou mais itens têm preço oferecido acima da tabela")
+            logger.debug(f"{'='*60}")
             
             db.session.commit()
             
@@ -605,10 +608,10 @@ def criar_solicitacao():
         else:
             solicitacao.status = 'aprovada'
             solicitacao.data_confirmacao = now_brasilia()
-            print(f"\n{'='*60}")
-            print(f" STATUS FINAL: APROVADA AUTOMATICAMENTE")
-            print(f" Motivo: Todos os itens usam preço da tabela ou preço oferecido ≤ tabela")
-            print(f"{'='*60}")
+            logger.debug(f"\n{'='*60}")
+            logger.debug(f" STATUS FINAL: APROVADA AUTOMATICAMENTE")
+            logger.debug(f" Motivo: Todos os itens usam preço da tabela ou preço oferecido ≤ tabela")
+            logger.debug(f"{'='*60}")
             
             db.session.flush()
             
@@ -622,15 +625,15 @@ def criar_solicitacao():
                 sol_dict['oc_id'] = oc.id
                 sol_dict['lotes_criados'] = lotes_criados
                 
-                print(f"\n{'='*60}")
-                print(f" ✅ SOLICITAÇÃO APROVADA AUTOMATICAMENTE E OC #{oc.id} CRIADA")
-                print(f" Lotes criados: {', '.join(lotes_criados)}")
-                print(f"{'='*60}\n")
+                logger.debug(f"\n{'='*60}")
+                logger.debug(f" ✅ SOLICITAÇÃO APROVADA AUTOMATICAMENTE E OC #{oc.id} CRIADA")
+                logger.debug(f" Lotes criados: {', '.join(lotes_criados)}")
+                logger.debug(f"{'='*60}\n")
                 
                 return jsonify(sol_dict), 201
                 
             except Exception as e:
-                print(f"\n❌ ERRO ao criar OC/lotes: {str(e)}")
+                logger.debug(f"\n❌ ERRO ao criar OC/lotes: {str(e)}")
                 db.session.rollback()
                 raise
 
@@ -703,7 +706,7 @@ def editar_solicitacao(id):
         from app.models import Lote
         lotes_existentes = Lote.query.filter_by(solicitacao_origem_id=id).all()
         if lotes_existentes:
-            print(f" DEBUG: Removendo {len(lotes_existentes)} lote(s) existente(s) da solicitação #{id}")
+            logger.debug(f" DEBUG: Removendo {len(lotes_existentes)} lote(s) existente(s) da solicitação #{id}")
             for lote in lotes_existentes:
                 # Desassociar itens para evitar restrições de chave estrangeira antes da deleção
                 for item in lote.itens:
@@ -856,67 +859,67 @@ def aprovar_solicitacao(id):
     solicitacao = None
     
     try:
-        print(f"\n{'='*60}")
-        print(f" INICIANDO APROVAÇÃO DA SOLICITAÇÃO #{id}")
-        print(f"{'='*60}")
+        logger.debug(f"\n{'='*60}")
+        logger.debug(f" INICIANDO APROVAÇÃO DA SOLICITAÇÃO #{id}")
+        logger.debug(f"{'='*60}")
         
         usuario_id = get_jwt_identity()
         data = request.get_json(silent=True) or {}
         
-        print(f"\n FASE 1: Validações preliminares (SEM modificar dados)...")
+        logger.debug(f"\n FASE 1: Validações preliminares (SEM modificar dados)...")
         
         solicitacao = Solicitacao.query.get(id)
         
         if not solicitacao:
-            print(f" Solicitação #{id} não encontrada")
+            logger.debug(f" Solicitação #{id} não encontrada")
             return jsonify({'erro': 'Solicitação não encontrada'}), 404
         
-        print(f" Solicitação encontrada: #{solicitacao.id}")
-        print(f"   Status atual: {solicitacao.status}")
-        print(f"   Fornecedor: {solicitacao.fornecedor.nome if solicitacao.fornecedor else 'N/A'}")
+        logger.debug(f" Solicitação encontrada: #{solicitacao.id}")
+        logger.debug(f"   Status atual: {solicitacao.status}")
+        logger.debug(f"   Fornecedor: {solicitacao.fornecedor.nome if solicitacao.fornecedor else 'N/A'}")
         
         if solicitacao.status != 'pendente':
-            print(f" Status inválido: {solicitacao.status}")
+            logger.debug(f" Status inválido: {solicitacao.status}")
             return jsonify({'erro': f'Solicitação já foi processada (status: {solicitacao.status})'}), 400
         
         if not solicitacao.itens or len(solicitacao.itens) == 0:
-            print(f" Solicitação sem itens")
+            logger.debug(f" Solicitação sem itens")
             return jsonify({'erro': 'Solicitação não possui itens'}), 400
         
-        print(f" Solicitação possui {len(solicitacao.itens)} itens")
+        logger.debug(f" Solicitação possui {len(solicitacao.itens)} itens")
         
         itens_sem_preco = [item for item in solicitacao.itens if item.valor_calculado is None or item.valor_calculado < 0]
         if itens_sem_preco:
-            print(f" Existem {len(itens_sem_preco)} itens sem preço configurado ou com valor inválido")
+            logger.debug(f" Existem {len(itens_sem_preco)} itens sem preço configurado ou com valor inválido")
             return jsonify({'erro': f'Existem {len(itens_sem_preco)} itens sem preço configurado ou com valor inválido. Configure os preços antes de aprovar.'}), 400
         
         oc_existente = OrdemCompra.query.filter_by(solicitacao_id=id).first()
         if oc_existente:
-            print(f" Já existe OC #{oc_existente.id} para esta solicitação")
+            logger.debug(f" Já existe OC #{oc_existente.id} para esta solicitação")
             return jsonify({'erro': f'Já existe uma ordem de compra (#{oc_existente.id}) para esta solicitação'}), 400
         
         valor_total_oc = sum((item.valor_calculado or 0.0) for item in solicitacao.itens)
-        print(f" Valor total calculado: R$ {valor_total_oc:.2f}")
+        logger.debug(f" Valor total calculado: R$ {valor_total_oc:.2f}")
         
         if valor_total_oc < 0:
-            print(f" Valor total negativo")
+            logger.debug(f" Valor total negativo")
             return jsonify({'erro': 'Valor total da OC não pode ser negativo'}), 400
         
-        print(f" Todas as validações passaram!")
+        logger.debug(f" Todas as validações passaram!")
         
-        print(f"\n FASE 2: Salvando alterações no banco...")
+        logger.debug(f"\n FASE 2: Salvando alterações no banco...")
         
-        print(f"\n ETAPA 1: Atualizando status da solicitação...")
+        logger.debug(f"\n ETAPA 1: Atualizando status da solicitação...")
         solicitacao.status = 'aprovada'
         solicitacao.data_confirmacao = now_brasilia()
         solicitacao.admin_id = usuario_id
-        print(f" Status atualizado para: aprovada")
+        logger.debug(f" Status atualizado para: aprovada")
         
         db.session.flush()
         
         oc, lotes_criados = _criar_oc_e_lotes(solicitacao, usuario_id, data)
         
-        print(f"\n ETAPA 2: Criando notificações...")
+        logger.debug(f"\n ETAPA 2: Criando notificações...")
         notificacao_funcionario = Notificacao(
             usuario_id=solicitacao.funcionario_id,
             titulo='Solicitação Aprovada',
@@ -924,7 +927,7 @@ def aprovar_solicitacao(id):
             url=f'/solicitacoes.html?id={solicitacao.id}'
         )
         db.session.add(notificacao_funcionario)
-        print(f"    Notificação para funcionário criada")
+        logger.debug(f"    Notificação para funcionário criada")
         
         usuarios_financeiro = Usuario.query.filter(
             db.and_(
@@ -948,12 +951,12 @@ def aprovar_solicitacao(id):
                 db.session.add(notificacao_financeiro)
                 usuarios_ids_notificados.add(usuario_fin.id)
         
-        print(f"    {len(usuarios_ids_notificados)} notificações para financeiro/admin criadas")
+        logger.debug(f"    {len(usuarios_ids_notificados)} notificações para financeiro/admin criadas")
         
         db.session.commit()
-        print(f"\n Transação commitada com sucesso!")
+        logger.debug(f"\n Transação commitada com sucesso!")
         
-        print(f"\n FASE 3: Enviando notificações WebSocket...")
+        logger.debug(f"\n FASE 3: Enviando notificações WebSocket...")
         try:
             socketio.emit('nova_notificacao', {
                 'tipo': 'solicitacao_aprovada',
@@ -970,18 +973,18 @@ def aprovar_solicitacao(id):
                 'fornecedor': solicitacao.fornecedor.nome
             }, room='admins')
             
-            print(f" Notificações WebSocket enviadas")
+            logger.debug(f" Notificações WebSocket enviadas")
         except Exception as ws_error:
-            print(f" Erro ao enviar WebSocket (não crítico): {str(ws_error)}")
+            logger.debug(f" Erro ao enviar WebSocket (não crítico): {str(ws_error)}")
         
-        print(f"\n{'='*60}")
-        print(f" APROVAÇÃO CONCLUÍDA COM SUCESSO!")
-        print(f"{'='*60}")
-        print(f"   Solicitação: #{solicitacao.id} (aprovada)")
-        print(f"   Lotes criados: {len(lotes_criados)}")
-        print(f"   OC criada: #{oc.id} (em_analise)")
-        print(f"   Valor total: R$ {oc.valor_total:.2f}")
-        print(f"{'='*60}\n")
+        logger.debug(f"\n{'='*60}")
+        logger.debug(f" APROVAÇÃO CONCLUÍDA COM SUCESSO!")
+        logger.debug(f"{'='*60}")
+        logger.debug(f"   Solicitação: #{solicitacao.id} (aprovada)")
+        logger.debug(f"   Lotes criados: {len(lotes_criados)}")
+        logger.debug(f"   OC criada: #{oc.id} (em_analise)")
+        logger.debug(f"   Valor total: R$ {oc.valor_total:.2f}")
+        logger.debug(f"{'='*60}\n")
         
         return jsonify({
             'mensagem': 'Solicitação aprovada, lotes criados e Ordem de Compra gerada com sucesso',
@@ -994,13 +997,13 @@ def aprovar_solicitacao(id):
     
     except Exception as e:
         db.session.rollback()
-        print(f"\n{'='*60}")
-        print(f" ERRO AO APROVAR SOLICITAÇÃO #{id}")
-        print(f"{'='*60}")
-        print(f"Erro: {str(e)}")
+        logger.debug(f"\n{'='*60}")
+        logger.debug(f" ERRO AO APROVAR SOLICITAÇÃO #{id}")
+        logger.debug(f"{'='*60}")
+        logger.debug(f"Erro: {str(e)}")
         import traceback
         traceback.print_exc()
-        print(f"{'='*60}\n")
+        logger.debug(f"{'='*60}\n")
         return jsonify({'erro': f'Erro ao aprovar solicitação: {str(e)}'}), 500
 
 @bp.route('/<int:id>/aprovar-e-promover', methods=['POST'])
@@ -1011,9 +1014,9 @@ def aprovar_e_promover_solicitacao(id):
     Promoção: 1★ → 2★ ou 2★ → 3★ (máximo 3★)
     """
     try:
-        print(f"\n{'='*60}")
-        print(f" INICIANDO APROVAÇÃO COM PROMOÇÃO - SOLICITAÇÃO #{id}")
-        print(f"{'='*60}")
+        logger.debug(f"\n{'='*60}")
+        logger.debug(f" INICIANDO APROVAÇÃO COM PROMOÇÃO - SOLICITAÇÃO #{id}")
+        logger.debug(f"{'='*60}")
         
         solicitacao = Solicitacao.query.get(id)
         
@@ -1032,32 +1035,32 @@ def aprovar_e_promover_solicitacao(id):
         tabela_anterior = TabelaPreco.query.get(tabela_anterior_id) if tabela_anterior_id else None
         estrelas_anterior = tabela_anterior.nivel_estrelas if tabela_anterior else 0
         
-        print(f" Fornecedor: {fornecedor.nome}")
-        print(f" Tabela de preço atual: {tabela_anterior.nome if tabela_anterior else 'Nenhuma'} ({estrelas_anterior}★)")
+        logger.debug(f" Fornecedor: {fornecedor.nome}")
+        logger.debug(f" Tabela de preço atual: {tabela_anterior.nome if tabela_anterior else 'Nenhuma'} ({estrelas_anterior}★)")
         
         # Promover fornecedor (aumentar estrelas)
         if estrelas_anterior >= 3:
             # Já está no nível máximo, não pode promover mais
-            print(f" Fornecedor já está no nível máximo ({estrelas_anterior}★)")
+            logger.debug(f" Fornecedor já está no nível máximo ({estrelas_anterior}★)")
             return jsonify({
                 'erro': f'Fornecedor já está no nível máximo ({estrelas_anterior}★) e não pode ser promovido. Use a opção "Aceitar" ao invés de "Aceitar e Promover".'
             }), 400
         elif not tabela_anterior_id or estrelas_anterior < 1:
             # Fornecedor sem tabela, atribuir 1★
             nova_tabela = TabelaPreco.query.filter_by(nivel_estrelas=1).first()
-            print(f" Promovendo de: Sem tabela → 1★")
+            logger.debug(f" Promovendo de: Sem tabela → 1★")
         elif estrelas_anterior == 1:
             # 1★ → 2★
             nova_tabela = TabelaPreco.query.filter_by(nivel_estrelas=2).first()
-            print(f" Promovendo de: 1★ → 2★")
+            logger.debug(f" Promovendo de: 1★ → 2★")
         elif estrelas_anterior == 2:
             # 2★ → 3★
             nova_tabela = TabelaPreco.query.filter_by(nivel_estrelas=3).first()
-            print(f" Promovendo de: 2★ → 3★")
+            logger.debug(f" Promovendo de: 2★ → 3★")
         else:
             # Caso inesperado
             nova_tabela = tabela_anterior
-            print(f" Situação inesperada - mantendo tabela atual")
+            logger.debug(f" Situação inesperada - mantendo tabela atual")
         
         if not nova_tabela:
             return jsonify({'erro': 'Tabela de preço para promoção não encontrada no sistema'}), 500
@@ -1065,7 +1068,7 @@ def aprovar_e_promover_solicitacao(id):
         # Atualizar tabela do fornecedor
         fornecedor.tabela_preco_id = nova_tabela.id
         
-        print(f" Nova tabela de preço: {nova_tabela.nome} ({nova_tabela.nivel_estrelas}★)")
+        logger.debug(f" Nova tabela de preço: {nova_tabela.nome} ({nova_tabela.nivel_estrelas}★)")
         
         # Aprovar a solicitação usando a lógica existente
         # Criar OC e lotes (reutilizar lógica da função aprovar_solicitacao)
@@ -1090,7 +1093,7 @@ def aprovar_e_promover_solicitacao(id):
         db.session.add(oc)
         db.session.flush()
         
-        print(f" OC #{oc.id} criada com sucesso")
+        logger.debug(f" OC #{oc.id} criada com sucesso")
         
         # Criar lotes (simplificado)
         lotes_criados = []
@@ -1139,18 +1142,18 @@ def aprovar_e_promover_solicitacao(id):
                 'valor_total': lote.valor_total
             })
             
-            print(f" Lote criado: #{lote.numero_lote} ({len(itens)} itens)")
+            logger.debug(f" Lote criado: #{lote.numero_lote} ({len(itens)} itens)")
         
         db.session.commit()
         
-        print(f"\n{'='*60}")
-        print(f" APROVAÇÃO COM PROMOÇÃO CONCLUÍDA!")
-        print(f"{'='*60}")
-        print(f" Fornecedor promovido: {estrelas_anterior}★ → {nova_tabela.nivel_estrelas}★")
-        print(f" Solicitação: #{solicitacao.id} (aprovada)")
-        print(f" OC criada: #{oc.id}")
-        print(f" Lotes criados: {len(lotes_criados)}")
-        print(f"{'='*60}\n")
+        logger.debug(f"\n{'='*60}")
+        logger.debug(f" APROVAÇÃO COM PROMOÇÃO CONCLUÍDA!")
+        logger.debug(f"{'='*60}")
+        logger.debug(f" Fornecedor promovido: {estrelas_anterior}★ → {nova_tabela.nivel_estrelas}★")
+        logger.debug(f" Solicitação: #{solicitacao.id} (aprovada)")
+        logger.debug(f" OC criada: #{oc.id}")
+        logger.debug(f" Lotes criados: {len(lotes_criados)}")
+        logger.debug(f"{'='*60}\n")
         
         return jsonify({
             'mensagem': f'Solicitação aprovada e fornecedor promovido de {estrelas_anterior}★ para {nova_tabela.nivel_estrelas}★',
@@ -1167,7 +1170,7 @@ def aprovar_e_promover_solicitacao(id):
     
     except Exception as e:
         db.session.rollback()
-        print(f"\nERRO ao aprovar com promoção: {str(e)}")
+        logger.debug(f"\nERRO ao aprovar com promoção: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'erro': f'Erro ao aprovar e promover: {str(e)}'}), 500
@@ -1222,7 +1225,7 @@ def deletar_solicitacao(id):
         
         if is_admin or is_gestor:
             # Admins e Gestores podem deletar qualquer uma em qualquer status
-            print(f"DEBUG: Exclusão administrativa permitida para {usuario.nome} (Status: {solicitacao.status})")
+            logger.debug(f"DEBUG: Exclusão administrativa permitida para {usuario.nome} (Status: {solicitacao.status})")
         else:
             # Funcionários comuns só deletam as suas e se estiverem pendentes
             if solicitacao.funcionario_id != usuario_id:
