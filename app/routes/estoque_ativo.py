@@ -97,18 +97,24 @@ def _calcular_preco_kg_sublote(sublote):
             tipo_lote_id = sublote.tipo_lote_id
             
             # Prioridade 4a: Buscar item específico por tipo_lote_id
+            # Só é válido se o tipo_lote_id for exclusivo deste material na OC.
+            # OCs criadas via compras.py usam tipo_lote_id_padrao igual para todos
+            # os itens; nesses casos len(itens_especificos) == total da OC e não
+            # podemos determinar qual item é o certo apenas pelo tipo_lote_id.
             if tipo_lote_id:
                 itens_especificos = ItemSolicitacao.query.filter_by(
                     solicitacao_id=solicitacao_id,
                     tipo_lote_id=tipo_lote_id
                 ).all()
-                if itens_especificos:
-                    # Usar preco_por_kg_snapshot (preço aprovado no pedido de compra)
+                total_itens_oc = ItemSolicitacao.query.filter_by(
+                    solicitacao_id=solicitacao_id
+                ).count()
+                # Só usar se corresponder a um subconjunto (não todos os itens da OC)
+                if itens_especificos and len(itens_especificos) < total_itens_oc:
                     for item in itens_especificos:
                         preco_snap = float(item.preco_por_kg_snapshot or 0)
                         if preco_snap > 0:
                             return preco_snap
-                    # Fallback: calcular do valor_calculado
                     total_val = sum(float(i.valor_calculado or 0) for i in itens_especificos)
                     total_peso = sum(float(i.peso_kg or 0) for i in itens_especificos)
                     if total_peso > 0 and total_val > 0:
@@ -148,7 +154,25 @@ def _calcular_preco_kg_sublote(sublote):
                         peso_item = float(item_especifico.peso_kg or 0)
                         if val_calc > 0 and peso_item > 0:
                             return val_calc / peso_item
-            
+
+            # Prioridade 4c: buscar por texto nas observações do item da OC.
+            # OCs criadas via compras.py não preenchem material_id mas gravam
+            # observacoes="Material: {codigo} - {nome}". Essa busca resolve o caso.
+            if nome_material:
+                nome_lower_4c = nome_material.lower()
+                todos_itens_4c = ItemSolicitacao.query.filter_by(
+                    solicitacao_id=solicitacao_id
+                ).all()
+                for item_oc in todos_itens_4c:
+                    if item_oc.observacoes and nome_lower_4c in item_oc.observacoes.lower():
+                        preco_snap = float(item_oc.preco_por_kg_snapshot or 0)
+                        if preco_snap > 0:
+                            return preco_snap
+                        val_calc = float(item_oc.valor_calculado or 0)
+                        peso_item = float(item_oc.peso_kg or 0)
+                        if val_calc > 0 and peso_item > 0:
+                            return val_calc / peso_item
+
             # Prioridade 5: Fallback com suporte a rollback via flag de versão
             itens_todos = ItemSolicitacao.query.filter_by(
                 solicitacao_id=solicitacao_id
@@ -161,9 +185,12 @@ def _calcular_preco_kg_sublote(sublote):
                 itens_a_usar = itens_todos
                 if usar_v2:
                     itens_filtrados = []
-                    # 5a: filtrar por tipo_lote_id do sublote
+                    # 5a: filtrar por tipo_lote_id — só válido se reduzir a lista
+                    # (evita o caso padrao onde todos os itens da OC têm o mesmo tipo_lote_id)
                     if tipo_lote_id:
-                        itens_filtrados = [i for i in itens_todos if i.tipo_lote_id == tipo_lote_id]
+                        temp = [i for i in itens_todos if i.tipo_lote_id == tipo_lote_id]
+                        if 0 < len(temp) < len(itens_todos):
+                            itens_filtrados = temp
                     # 5b: filtrar por material_id via nome parcial
                     if not itens_filtrados and nome_material:
                         mat_b = MaterialBase.query.filter(
@@ -171,6 +198,13 @@ def _calcular_preco_kg_sublote(sublote):
                         ).first()
                         if mat_b:
                             itens_filtrados = [i for i in itens_todos if i.material_id == mat_b.id]
+                    # 5c: filtrar por observações do item (OCs do compras.py)
+                    if not itens_filtrados and nome_material:
+                        nome_lower_5c = nome_material.lower()
+                        itens_filtrados = [
+                            i for i in itens_todos
+                            if i.observacoes and nome_lower_5c in i.observacoes.lower()
+                        ]
                     if itens_filtrados:
                         itens_a_usar = itens_filtrados
 
