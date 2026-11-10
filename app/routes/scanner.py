@@ -1,5 +1,8 @@
-﻿from flask import Blueprint, request, jsonify, render_template
+﻿import logging
+from flask import Blueprint, request, jsonify, render_template
+logger = logging.getLogger(__name__)
 from flask_jwt_extended import jwt_required, get_jwt_identity
+logger = logging.getLogger(__name__)
 from app.models import db, Usuario, ScannerConfig, ScannerAnalysis
 from app.services.pcb_analyzer import (
     analyze_pcb_image as opencv_analyze_pcb,
@@ -144,7 +147,8 @@ def analyze_pcb():
         
     except Exception as e:
         print(f'Erro no scanner: {e}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/api/scanner/config', methods=['GET'])
 @jwt_required()
@@ -160,7 +164,8 @@ def get_config():
         return jsonify(config.to_dict()), 200
         
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/api/admin/scanner-config', methods=['GET'])
 @jwt_required()
@@ -176,7 +181,8 @@ def get_admin_config():
         return jsonify(config.to_dict()), 200
         
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/api/admin/scanner-config', methods=['POST'])
 @jwt_required()
@@ -206,7 +212,8 @@ def update_admin_config():
         }), 200
         
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/api/scanner/status', methods=['GET'])
 def scanner_status():
@@ -222,7 +229,8 @@ def scanner_status():
             'perplexity_configured': perplexity_configured
         }), 200
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/api/scanner/history', methods=['GET'])
 @jwt_required()
@@ -241,7 +249,8 @@ def scanner_history():
         return jsonify([a.to_dict(include_image=include_images) for a in analyses]), 200
         
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/api/scanner/analysis/<int:analysis_id>', methods=['GET'])
 @jwt_required()
@@ -261,7 +270,8 @@ def get_analysis(analysis_id):
         return jsonify(analysis.to_dict(include_image=include_image)), 200
         
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/api/scanner/analysis/<int:analysis_id>/image', methods=['GET'])
 @jwt_required()
@@ -278,13 +288,15 @@ def get_analysis_image(analysis_id):
             return jsonify({'erro': 'Imagem nao encontrada'}), 404
         
         from flask import Response
+logger = logging.getLogger(__name__)
         return Response(
             analysis.image_data,
             mimetype=analysis.image_mimetype or 'image/jpeg'
         )
         
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/scanner')
 def scanner_page():

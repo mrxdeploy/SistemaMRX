@@ -472,7 +472,8 @@ def dashboard_estoque_ativo():
         })
     except Exception as e:
         logger.error(f'Erro ao carregar dashboard estoque ativo: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/lotes', methods=['GET'])
@@ -549,7 +550,8 @@ def listar_lotes_ativos():
         logger.error(f'❌ Erro ao listar lotes ativos: {str(e)}')
         import traceback
         traceback.print_exc()
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/bags', methods=['GET'])
@@ -694,7 +696,8 @@ def listar_bags_estoque():
         return jsonify(resultado)
     except Exception as e:
         logger.error(f'Erro ao listar bags do estoque: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/lotes/<int:lote_id>/sublotes', methods=['GET'])
@@ -712,7 +715,8 @@ def obter_sublotes(lote_id):
         return jsonify(resultado)
     except Exception as e:
         logger.error(f'Erro ao obter sublotes do lote {lote_id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/bags/<int:bag_id>/itens', methods=['GET'])
@@ -730,7 +734,8 @@ def obter_itens_bag(bag_id):
         return jsonify(resultado)
     except Exception as e:
         logger.error(f'Erro ao obter itens do bag {bag_id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/resumo', methods=['GET'])
@@ -870,7 +875,8 @@ def obter_resumo_estoque():
         logger.error(f'Erro ao obter resumo: {str(e)}')
         import traceback
         traceback.print_exc()
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/resumo-compra', methods=['GET'])
@@ -1083,7 +1089,8 @@ def enviar_para_producao():
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao enviar para produção: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/producao/sublote/<int:sublote_id>', methods=['GET'])
@@ -1166,7 +1173,8 @@ def obter_detalhes_producao(sublote_id):
         })
     except Exception as e:
         logger.error(f'Erro ao obter detalhes produção sublote {sublote_id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/producao/sublote/<int:sublote_id>/adicionar-item', methods=['POST'])
@@ -1244,7 +1252,8 @@ def adicionar_item_separado(sublote_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao adicionar item separado: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/producao/sublote/<int:sublote_id>/remover-item/<int:item_id>', methods=['DELETE'])
@@ -1264,7 +1273,8 @@ def remover_item_separado(sublote_id, item_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao remover item separado: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/producao/sublote/<int:sublote_id>/devolver-estoque', methods=['POST'])
@@ -1366,7 +1376,8 @@ def devolver_sublote_estoque(sublote_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao devolver sublote {sublote_id} ao estoque: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/producao/em-separacao', methods=['GET'])
@@ -1419,7 +1430,8 @@ def listar_em_separacao():
         return jsonify(resultado)
     except Exception as e:
         logger.error(f'Erro ao listar materiais em separação: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/classificacoes/autocomplete', methods=['GET'])
@@ -1464,7 +1476,8 @@ def autocomplete_classificacoes():
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao listar classificações: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 # ============================
@@ -1519,7 +1532,8 @@ def criar_bag():
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao criar bag: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/bags/abertos', methods=['GET'])
@@ -1545,7 +1559,8 @@ def listar_bags_abertos():
         } for b in bags])
     except Exception as e:
         logger.error(f'Erro ao listar bags abertos: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/bags/adicionar-materiais', methods=['POST'])
@@ -1689,7 +1704,8 @@ def adicionar_materiais_bag():
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao adicionar materiais ao bag: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/bags/<int:bag_id>/fechar', methods=['POST'])
@@ -1836,7 +1852,8 @@ def reabrir_bag(bag_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao reabrir bag {bag_id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/bags/<int:bag_id>', methods=['DELETE'])
@@ -2187,7 +2204,8 @@ def detalhes_bag(bag_id):
         return jsonify(bag_dict)
     except Exception as e:
         logger.error(f'Erro ao obter detalhes do bag {bag_id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 # ============================
@@ -2267,8 +2285,10 @@ def apagar_lote_completo(lote_id):
         logger.error(f'❌ Erro ao apagar lote {lote_id}: {str(e)}')
         import traceback
         traceback.print_exc()
-        return jsonify({'erro': str(e)}), 500
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 # ============================
@@ -2530,7 +2550,8 @@ def listar_estoque_geral():
         logger.error(f'❌ Erro ao listar estoque geral consolidado: {str(e)}')
         import traceback
         traceback.print_exc()
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/bags/adicionar-materiais-geral', methods=['POST'])

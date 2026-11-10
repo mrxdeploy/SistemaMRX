@@ -41,7 +41,8 @@ def listar_classificacoes():
         return jsonify([c.to_dict() for c in classificacoes])
     except Exception as e:
         logger.error(f'Erro ao listar classificações: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/classificacoes/<int:id>', methods=['GET'])
@@ -53,7 +54,8 @@ def obter_classificacao(id):
         return jsonify(classificacao.to_dict())
     except Exception as e:
         logger.error(f'Erro ao obter classificação {id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/classificacoes', methods=['POST'])
@@ -92,7 +94,8 @@ def criar_classificacao():
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao criar classificação: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/classificacoes/<int:id>', methods=['PUT'])
@@ -135,7 +138,8 @@ def atualizar_classificacao(id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao atualizar classificação {id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/classificacoes/<int:id>', methods=['DELETE'])
@@ -165,7 +169,8 @@ def deletar_classificacao(id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao deletar classificação {id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/categorias', methods=['GET'])
@@ -187,7 +192,8 @@ def listar_categorias():
         return jsonify(sorted(list(todas_categorias)))
     except Exception as e:
         logger.error(f'Erro ao listar categorias: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/categorias', methods=['POST'])
@@ -209,7 +215,8 @@ def criar_categoria():
         return jsonify({'categoria': nome_categoria, 'mensagem': 'Categoria criada com sucesso'})
     except Exception as e:
         logger.error(f'Erro ao criar categoria: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 # ============================
@@ -244,7 +251,8 @@ def listar_ordens():
         return jsonify([op.to_dict() for op in ordens])
     except Exception as e:
         logger.error(f'Erro ao listar ordens de produção: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/ordens/<int:id>', methods=['GET'])
@@ -258,7 +266,8 @@ def obter_ordem(id):
         return jsonify(resultado)
     except Exception as e:
         logger.error(f'Erro ao obter ordem de produção {id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/ordens', methods=['POST'])
@@ -364,7 +373,8 @@ def criar_ordem():
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao criar ordem de produção: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/ordens/<int:id>', methods=['PUT'])
@@ -396,7 +406,8 @@ def atualizar_ordem(id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao atualizar ordem de produção {id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/ordens/<int:id>/iniciar-separacao', methods=['POST'])
@@ -417,7 +428,8 @@ def iniciar_separacao(id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao iniciar separação da ordem {id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/ordens/<int:id>/finalizar', methods=['POST'])
@@ -559,7 +571,8 @@ def cancelar_ordem(id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao cancelar ordem {id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 # ============================
@@ -575,7 +588,8 @@ def listar_itens_ordem(op_id):
         return jsonify([item.to_dict() for item in ordem.itens_separados])
     except Exception as e:
         logger.error(f'Erro ao listar itens da ordem {op_id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/ordens/<int:op_id>/itens', methods=['POST'])
@@ -658,7 +672,8 @@ def adicionar_item(op_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao adicionar item na ordem {op_id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/itens/<int:id>', methods=['DELETE'])
@@ -689,7 +704,8 @@ def remover_item(id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao remover item {id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 # ============================
@@ -988,7 +1004,8 @@ def listar_estoque_agregado():
 
     except Exception as e:
         logger.error(f'Erro ao listar estoque agregado: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 # ============================
@@ -1080,7 +1097,8 @@ def exportar_op_excel(id):
         )
     except Exception as e:
         logger.error(f'Erro ao exportar Excel da OP {id}: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/bags', methods=['GET'])
@@ -1177,7 +1195,8 @@ def listar_bags_producao():
         return jsonify(resultado)
     except Exception as e:
         logger.error(f'Erro ao listar bags na produção: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/bags/<int:bag_id>/devolver-estoque', methods=['POST'])
 @jwt_required()
@@ -1197,7 +1216,8 @@ def devolver_bag_estoque(bag_id):
     except Exception as e:
         db.session.rollback()
         logger.error(f'Erro ao devolver bag {bag_id} ao estoque: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/dashboard', methods=['GET'])
 @jwt_required()
@@ -1226,4 +1246,5 @@ def dashboard_producao():
         })
     except Exception as e:
         logger.error(f'Erro no dashboard de produção: {str(e)}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500

@@ -1,5 +1,8 @@
+﻿import logging
 from flask import Blueprint, jsonify, request
+logger = logging.getLogger(__name__)
 from flask_jwt_extended import jwt_required, get_jwt_identity
+logger = logging.getLogger(__name__)
 from datetime import datetime
 import requests
 import os
@@ -337,7 +340,8 @@ def chat():
         return jsonify(resultado)
     except Exception as e:
         print(f'Erro no chat: {e}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 def processar_mensagem_inteligente(mensagem, usuario_id, sessao_id):
@@ -463,7 +467,8 @@ def historico():
         
         return jsonify([c.to_dict() for c in conversas])
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/sessoes', methods=['GET'])
@@ -496,7 +501,8 @@ def listar_sessoes():
             'mensagens': s.mensagens
         } for s in sessoes])
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/sugestoes', methods=['GET'])
@@ -525,6 +531,7 @@ def sugestoes():
 @jwt_required()
 def exportar_conversa(sessao_id):
     from flask import Response
+logger = logging.getLogger(__name__)
     try:
         usuario_id = get_jwt_identity()
         usuario, erro_response, status_code = verificar_usuario(usuario_id)
@@ -560,4 +567,5 @@ def exportar_conversa(sessao_id):
                 headers={'Content-Disposition': f'attachment; filename=conversa_{sessao_id[:8]}.txt'}
             )
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500

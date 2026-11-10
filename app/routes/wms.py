@@ -1,5 +1,8 @@
-﻿from flask import Blueprint, request, jsonify
+﻿import logging
+from flask import Blueprint, request, jsonify
+logger = logging.getLogger(__name__)
 from flask_jwt_extended import jwt_required, get_jwt_identity
+logger = logging.getLogger(__name__)
 from app.models import db, Lote, ItemSolicitacao, Fornecedor, MovimentacaoEstoque, MaterialBase, Usuario, Inventario, InventarioContagem
 from app.auth import admin_required
 from datetime import datetime
@@ -1001,7 +1004,8 @@ def listar_lotes_ativos():
 
     except Exception as e:
         print(f'Erro ao listar lotes ativos: {e}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/materiais-opcoes', methods=['GET'])
 @jwt_required()
@@ -1018,7 +1022,8 @@ def obter_materiais_opcoes():
 
     except Exception as e:
         print(f'Erro ao obter materiais: {e}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/fornecedores-opcoes', methods=['GET'])
 @jwt_required()
@@ -1034,7 +1039,8 @@ def obter_fornecedores_opcoes():
 
     except Exception as e:
         print(f'Erro ao obter fornecedores: {e}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/status-opcoes', methods=['GET'])
 @jwt_required()
@@ -1084,7 +1090,8 @@ def obter_status_opcoes():
 
     except Exception as e:
         print(f'Erro ao obter status: {e}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/localizacao-opcoes', methods=['GET'])
 @jwt_required()
@@ -1119,4 +1126,5 @@ def obter_localizacao_opcoes():
 
     except Exception as e:
         print(f'Erro ao obter localizações: {e}')
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500

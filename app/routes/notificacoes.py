@@ -1,5 +1,8 @@
+﻿import logging
 from flask import Blueprint, jsonify
+logger = logging.getLogger(__name__)
 from flask_jwt_extended import jwt_required, get_jwt_identity
+logger = logging.getLogger(__name__)
 from app.models import db, Notificacao, Usuario
 from app.auth import admin_required
 
@@ -89,7 +92,8 @@ def gerar_notificacoes_pendentes():
             'resultado': resultado
         }), 200
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/resumo-pendencias', methods=['GET'])
 @admin_required
@@ -100,7 +104,8 @@ def obter_resumo_pendencias():
         resumo = obter_resumo_pendencias()
         return jsonify(resumo), 200
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/verificar-fornecedores', methods=['POST'])
 @admin_required
@@ -115,7 +120,8 @@ def verificar_fornecedores():
             'resultado': resultado
         }), 200
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 @bp.route('/verificar-ordens-compra', methods=['POST'])
 @admin_required
@@ -130,4 +136,5 @@ def verificar_ordens_compra():
             'resultado': resultado
         }), 200
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500

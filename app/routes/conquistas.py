@@ -1,5 +1,8 @@
+﻿import logging
 from flask import Blueprint, jsonify, request
+logger = logging.getLogger(__name__)
 from flask_jwt_extended import jwt_required, get_jwt_identity
+logger = logging.getLogger(__name__)
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from app.models import db, Conquista, AporteConquista, Usuario
@@ -33,7 +36,8 @@ def listar_conquistas():
         
         return jsonify([c.to_dict() for c in conquistas])
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('', methods=['POST'])
@@ -85,7 +89,8 @@ def criar_conquista():
         return jsonify({'erro': str(e)}), 400
     except Exception as e:
         db.session.rollback()
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/<int:id>', methods=['GET'])
@@ -108,7 +113,8 @@ def obter_conquista(id):
         
         return jsonify(result)
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/<int:id>', methods=['PUT'])
@@ -159,7 +165,8 @@ def atualizar_conquista(id):
         return jsonify({'erro': str(e)}), 400
     except Exception as e:
         db.session.rollback()
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/<int:id>', methods=['DELETE'])
@@ -183,7 +190,8 @@ def excluir_conquista(id):
         return jsonify({'mensagem': 'Conquista excluida com sucesso'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/<int:id>/aportes', methods=['GET'])
@@ -205,7 +213,8 @@ def listar_aportes(id):
         
         return jsonify([a.to_dict() for a in aportes])
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/<int:id>/aportes', methods=['POST'])
@@ -260,7 +269,8 @@ def registrar_aporte(id):
         return jsonify({'erro': str(e)}), 400
     except Exception as e:
         db.session.rollback()
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/resumo', methods=['GET'])
@@ -308,7 +318,8 @@ def obter_resumo():
             'por_categoria': por_categoria
         })
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
 @bp.route('/recomendacoes', methods=['GET'])
@@ -356,4 +367,5 @@ def obter_recomendacoes():
         
         return jsonify(recomendacoes)
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
