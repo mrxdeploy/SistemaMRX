@@ -1060,12 +1060,12 @@ def enviar_para_producao():
         sublotes_enviados = []
         
         for sid in sublote_ids:
-            sublote = Lote.query.get(sid)
+            sublote = Lote.query.filter_by(id=sid).with_for_update().first()
             if not sublote:
                 continue
             if sublote.status == 'em_producao':
                 continue
-            
+
             sublote.status = 'em_producao'
             sublote.reservado = True
             sublote.reservado_para = 'Produção'
@@ -2579,7 +2579,7 @@ def adicionar_materiais_bag_estoque_geral():
         if not materiais:
             return jsonify({'erro': 'Nenhum material selecionado'}), 400
 
-        bag = BagProducao.query.get_or_404(bag_id)
+        bag = BagProducao.query.filter_by(id=bag_id).with_for_update().first_or_404()
         if bag.status != 'aberto':
             return jsonify({'erro': 'Este bag está fechado e não aceita mais materiais. Reabra-o para continuar.'}), 400
 
