@@ -2492,11 +2492,12 @@ def listar_estoque_geral():
             valor_total = grupo['valor_total']
 
             # ============================================================
-            # CÁLCULO DO PREÇO MÉDIO PONDERADO
-            # PM = Σ(Valor_i) / Σ(Peso_i) = Valor_Total / Peso_Total
-            # Garante que lotes com maior volume tenham maior influência.
+            # CÁLCULO DO PREÇO MÉDIO ARITMÉTICO
+            # PM = Σ(Preco_kg_i) / N — cada sublote tem peso igual,
+            # independente do volume. Reflete o preço médio por fornecedor.
             # ============================================================
-            preco_medio = round(valor_total / peso_total, 2) if peso_total > 0 else 0.0
+            precos_sublotes = [s['preco_kg'] for s in grupo['sublotes'] if s['preco_kg'] > 0]
+            preco_medio = round(sum(precos_sublotes) / len(precos_sublotes), 2) if precos_sublotes else 0.0
 
             item = {
                 'material_nome': grupo['material_nome'],
