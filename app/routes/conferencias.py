@@ -79,12 +79,28 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
                 'motivo': motivo
             })
         
-        # Calcular valor_total do lote proporcionalmente ao peso conferido vs peso da OC
+        # Calcular valor_total do lote para o material específico desta conferência.
+        # Se a OC tem múltiplos materiais (compras.py), não atribuir o valor total da OC
+        # inteira ao lote — isso causaria custo médio errado na Priority 3.
         valor_total_oc = float(oc.valor_total or 0)
-        if decisao == 'ACEITAR_COM_DESCONTO' and percentual_desconto and valor_total_oc > 0:
-            valor_total_lote = valor_total_oc * (1 - percentual_desconto / 100)
+        valor_base_lote = valor_total_oc  # fallback para OC de 1 material
+
+        if oc.solicitacao and oc.solicitacao.itens:
+            itens_oc = oc.solicitacao.itens
+            # Tenta encontrar o item exato pelo peso (tolerância 100g)
+            itens_match = [i for i in itens_oc if abs(float(i.peso_kg or 0) - peso_liquido) < 0.1]
+            if len(itens_match) == 1 and float(itens_match[0].valor_calculado or 0) > 0:
+                valor_base_lote = float(itens_match[0].valor_calculado)
+            elif len(itens_oc) > 1:
+                # OC com múltiplos materiais: distribui proporcionalmente pelo peso
+                peso_total_oc = sum(float(i.peso_kg or 0) for i in itens_oc)
+                if peso_total_oc > 0:
+                    valor_base_lote = valor_total_oc * (peso_liquido / peso_total_oc)
+
+        if decisao == 'ACEITAR_COM_DESCONTO' and percentual_desconto and valor_base_lote > 0:
+            valor_total_lote = valor_base_lote * (1 - percentual_desconto / 100)
         else:
-            valor_total_lote = valor_total_oc
+            valor_total_lote = valor_base_lote
 
         lote = Lote(
             fornecedor_id=oc.fornecedor_id,
