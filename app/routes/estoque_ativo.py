@@ -128,7 +128,8 @@ def _calcular_preco_kg_sublote(sublote):
                     if p.startswith('MATERIAL:') or p.startswith('MATERIAL_MANUAL:'):
                         nome_material = p.replace('MATERIAL_MANUAL:', '').replace('MATERIAL:', '').strip()
                         break
-            elif sublote.tipo_lote:
+            # Usar tipo_lote.nome como fallback mesmo se observacoes existir sem MATERIAL:
+            if not nome_material and sublote.tipo_lote:
                 nome_material = sublote.tipo_lote.nome
             
             if nome_material:
@@ -221,6 +222,208 @@ def _calcular_preco_kg_sublote(sublote):
                     return total_val / total_peso
     
     return 0
+
+
+def _calcular_preco_kg_sublote_debug(sublote):
+    """Versão debug de _calcular_preco_kg_sublote — retorna (preco, caminho) em vez de só preco."""
+    if not sublote:
+        return 0, 'sublote_nulo'
+
+    peso_atual = float(sublote.peso_liquido or sublote.peso_total_kg or 0)
+
+    if sublote.observacoes:
+        for parte in sublote.observacoes.split('|'):
+            if parte.strip().startswith('PRECO_KG:'):
+                try:
+                    preco = float(parte.replace('PRECO_KG:', '').strip())
+                    if preco > 0:
+                        return preco, 'P1_observacoes_PRECO_KG'
+                except:
+                    pass
+
+    val_sublote = float(sublote.valor_total or 0)
+    if val_sublote > 0 and peso_atual > 0:
+        return val_sublote / peso_atual, 'P2_valor_total_sublote'
+
+    lote_pai = sublote.lote_pai if sublote.lote_pai_id else None
+    if lote_pai:
+        pai_val = float(lote_pai.valor_total or 0)
+        pai_peso = float(lote_pai.peso_liquido or lote_pai.peso_total_kg or 0)
+        if pai_val > 0 and pai_peso > 0:
+            return pai_val / pai_peso, 'P3_valor_total_lote_pai'
+
+    solicitacao_id = None
+    if lote_pai and lote_pai.solicitacao_origem_id:
+        solicitacao_id = lote_pai.solicitacao_origem_id
+    elif sublote.solicitacao_origem_id:
+        solicitacao_id = sublote.solicitacao_origem_id
+
+    if not solicitacao_id:
+        return 0, 'P_sem_solicitacao_id'
+
+    oc_aprovada = OrdemCompra.query.filter_by(solicitacao_id=solicitacao_id).filter(
+        OrdemCompra.status.in_(['aprovada', 'aprovada_adm', 'concluido', 'APROVADA', 'APROVADA_ADM',
+                                 'concluida', 'em_conferencia', 'conferida', 'conferido'])
+    ).first() or OrdemCompra.query.filter_by(solicitacao_id=solicitacao_id).first()
+
+    if not oc_aprovada:
+        return 0, 'P_sem_oc'
+
+    tipo_lote_id = sublote.tipo_lote_id
+    total_itens_oc = ItemSolicitacao.query.filter_by(solicitacao_id=solicitacao_id).count()
+
+    if tipo_lote_id:
+        itens_esp = ItemSolicitacao.query.filter_by(solicitacao_id=solicitacao_id, tipo_lote_id=tipo_lote_id).all()
+        if itens_esp and len(itens_esp) < total_itens_oc:
+            for i in itens_esp:
+                if float(i.preco_por_kg_snapshot or 0) > 0:
+                    return float(i.preco_por_kg_snapshot), 'P4a_tipo_lote_id_unico_snapshot'
+            tv = sum(float(i.valor_calculado or 0) for i in itens_esp)
+            tp = sum(float(i.peso_kg or 0) for i in itens_esp)
+            if tp > 0 and tv > 0:
+                return tv / tp, 'P4a_tipo_lote_id_unico_calculado'
+
+    nome_material = None
+    if sublote.observacoes:
+        for parte in sublote.observacoes.split('|'):
+            p = parte.strip()
+            if p.startswith('MATERIAL:') or p.startswith('MATERIAL_MANUAL:'):
+                nome_material = p.replace('MATERIAL_MANUAL:', '').replace('MATERIAL:', '').strip()
+                break
+    if not nome_material and sublote.tipo_lote:
+        nome_material = sublote.tipo_lote.nome
+
+    if nome_material:
+        mat_b = MaterialBase.query.filter(func.lower(MaterialBase.nome) == func.lower(nome_material)).first()
+        if not mat_b:
+            mat_b = MaterialBase.query.filter(func.lower(MaterialBase.nome).like(f'%{nome_material.lower()}%')).first()
+        if mat_b:
+            item_esp = ItemSolicitacao.query.filter_by(solicitacao_id=solicitacao_id, material_id=mat_b.id).first()
+            if item_esp:
+                if float(item_esp.preco_por_kg_snapshot or 0) > 0:
+                    return float(item_esp.preco_por_kg_snapshot), 'P4b_material_id_snapshot'
+                vc = float(item_esp.valor_calculado or 0)
+                pk = float(item_esp.peso_kg or 0)
+                if vc > 0 and pk > 0:
+                    return vc / pk, 'P4b_material_id_calculado'
+
+        nome_lower = nome_material.lower()
+        todos = ItemSolicitacao.query.filter_by(solicitacao_id=solicitacao_id).all()
+        for item_oc in todos:
+            if item_oc.observacoes and nome_lower in item_oc.observacoes.lower():
+                if float(item_oc.preco_por_kg_snapshot or 0) > 0:
+                    return float(item_oc.preco_por_kg_snapshot), 'P4c_observacoes_snapshot'
+                vc = float(item_oc.valor_calculado or 0)
+                pk = float(item_oc.peso_kg or 0)
+                if vc > 0 and pk > 0:
+                    return vc / pk, 'P4c_observacoes_calculado'
+
+    itens_todos = ItemSolicitacao.query.filter_by(solicitacao_id=solicitacao_id).all()
+    if not itens_todos:
+        return 0, 'P5_sem_itens'
+
+    itens_a_usar = itens_todos
+    caminho_p5 = 'P5_todos_itens'
+
+    if _get_versao_custo_medio() != 'v1':
+        itens_f = []
+        if tipo_lote_id:
+            temp = [i for i in itens_todos if i.tipo_lote_id == tipo_lote_id]
+            if 0 < len(temp) < len(itens_todos):
+                itens_f = temp
+                caminho_p5 = 'P5a_tipo_lote_filtrado'
+        if not itens_f and nome_material:
+            mat_b2 = MaterialBase.query.filter(func.lower(MaterialBase.nome).like(f'%{nome_material.lower()}%')).first()
+            if mat_b2:
+                itens_f = [i for i in itens_todos if i.material_id == mat_b2.id]
+                if itens_f:
+                    caminho_p5 = 'P5b_material_id_filtrado'
+        if not itens_f and nome_material:
+            nl = nome_material.lower()
+            itens_f = [i for i in itens_todos if i.observacoes and nl in i.observacoes.lower()]
+            if itens_f:
+                caminho_p5 = 'P5c_observacoes_filtrado'
+        if itens_f:
+            itens_a_usar = itens_f
+
+    ps = [float(i.preco_por_kg_snapshot or 0) for i in itens_a_usar if float(i.preco_por_kg_snapshot or 0) > 0]
+    if ps:
+        tv = sum(float(i.preco_por_kg_snapshot or 0) * float(i.peso_kg or 0) for i in itens_a_usar if float(i.preco_por_kg_snapshot or 0) > 0)
+        tp = sum(float(i.peso_kg or 0) for i in itens_a_usar if float(i.preco_por_kg_snapshot or 0) > 0)
+        if tp > 0:
+            return tv / tp, caminho_p5 + '_snapshot'
+
+    tv = sum(float(i.valor_calculado or 0) for i in itens_a_usar)
+    tp = sum(float(i.peso_kg or 0) for i in itens_a_usar)
+    if tp > 0 and tv > 0:
+        return tv / tp, caminho_p5 + '_calculado'
+
+    return 0, 'P5_sem_preco'
+
+
+@bp.route('/debug-custo-medio', methods=['GET'])
+@jwt_required()
+def debug_custo_medio():
+    """
+    GET /api/estoque-ativo/debug-custo-medio?material=SUCATA PLACA MARROM&limite=10
+    Retorna o caminho de cálculo para sublotes do material informado (apenas admin/gestor).
+    """
+    usuario_id = get_jwt_identity()
+    usuario = Usuario.query.get(usuario_id)
+    if not usuario or usuario.tipo not in ('admin', 'gestor'):
+        return jsonify({'erro': 'Acesso negado'}), 403
+
+    nome = request.args.get('material', '').strip()
+    limite = int(request.args.get('limite', 20))
+
+    if not nome:
+        return jsonify({'erro': 'Informe ?material=NOME DO MATERIAL'}), 400
+
+    sublotes = Lote.query.filter(
+        Lote.status.in_(LOTES_ATIVOS_STATUS),
+        Lote.lote_pai_id.isnot(None),
+        Lote.bloqueado == False
+    ).join(Lote.tipo_lote).filter(
+        func.lower(Lote.tipo_lote.property.mapper.class_.nome).like(f'%{nome.lower()}%')
+    ).limit(limite).all()
+
+    if not sublotes:
+        # fallback: buscar sem join por tipo_lote
+        sublotes = Lote.query.filter(
+            Lote.status.in_(LOTES_ATIVOS_STATUS),
+            Lote.lote_pai_id.isnot(None),
+            Lote.bloqueado == False
+        ).limit(limite).all()
+
+    resultado = []
+    caminhos = {}
+    for s in sublotes:
+        preco, caminho = _calcular_preco_kg_sublote_debug(s)
+        caminhos[caminho] = caminhos.get(caminho, 0) + 1
+        sol_id = None
+        lp = s.lote_pai if s.lote_pai_id else None
+        if lp and lp.solicitacao_origem_id:
+            sol_id = lp.solicitacao_origem_id
+        elif s.solicitacao_origem_id:
+            sol_id = s.solicitacao_origem_id
+        resultado.append({
+            'sublote_id': s.id,
+            'tipo_lote': s.tipo_lote.nome if s.tipo_lote else None,
+            'peso_kg': float(s.peso_liquido or s.peso_total_kg or 0),
+            'preco_calculado': round(preco, 4),
+            'caminho': caminho,
+            'solicitacao_id': sol_id,
+            'tem_observacoes': bool(s.observacoes),
+            'obs_preview': (s.observacoes or '')[:80],
+        })
+
+    return jsonify({
+        'material_buscado': nome,
+        'total_sublotes_analisados': len(resultado),
+        'resumo_caminhos': caminhos,
+        'detalhes': resultado
+    })
+
 
 @bp.route('/dashboard', methods=['GET'])
 @jwt_required()
