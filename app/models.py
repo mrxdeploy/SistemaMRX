@@ -789,7 +789,7 @@ class Lote(db.Model):  # type: ignore
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         if not kwargs.get('numero_lote'):
-            ano = datetime.now().year
+            ano = now_brasilia().year
             self.numero_lote = f"{ano}-{str(uuid.uuid4().hex[:5]).upper()}"
 
     def to_dict(self):
@@ -1508,7 +1508,7 @@ class Inventario(db.Model):  # type: ignore
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         if not kwargs.get('numero_inventario'):
-            ano = datetime.now().year
+            ano = now_brasilia().year
             self.numero_inventario = f"INV-{ano}-{str(uuid.uuid4().hex[:5]).upper()}"
 
     def to_dict(self):
@@ -2150,8 +2150,8 @@ class OrdemProducao(db.Model):  # type: ignore
     @staticmethod
     def gerar_numero_op():
         """Gera número único para OP no formato OP-YYYYMMDD-XXXX"""
-        from datetime import datetime
-        hoje = datetime.now().strftime('%Y%m%d')
+        from app.utils.datetime_br import now_brasilia
+        hoje = now_brasilia().strftime('%Y%m%d')
         ultima_op = OrdemProducao.query.filter(
             OrdemProducao.numero_op.like(f'OP-{hoje}-%')
         ).order_by(OrdemProducao.id.desc()).first()

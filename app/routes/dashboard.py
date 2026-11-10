@@ -1,8 +1,9 @@
-from flask import Blueprint, jsonify
+﻿from flask import Blueprint, jsonify
 from app.models import db, Fornecedor, Solicitacao, Lote, EntradaEstoque, FornecedorTipoLotePreco, ItemSolicitacao, TipoLote, Usuario, Motorista, OrdemServico, BagProducao, MaterialBase
 from app.auth import admin_ou_auditor_required
 from sqlalchemy import func
 from datetime import datetime, timedelta
+from app.utils.datetime_br import now_brasilia
 from dateutil.relativedelta import relativedelta
 import requests
 
@@ -140,7 +141,7 @@ def obter_grafico_mensal():
     from dateutil.relativedelta import relativedelta
     
     # Últimos 6 meses
-    hoje = datetime.now()
+    hoje = now_brasilia()
     meses = []
     dados = []
     
@@ -181,7 +182,7 @@ def obter_grafico_mensal():
 @admin_ou_auditor_required
 def obter_metricas_financeiras():
     """Retorna métricas financeiras dos compradores"""
-    hoje = datetime.now()
+    hoje = now_brasilia()
     mes_atual = datetime(hoje.year, hoje.month, 1)
     mes_anterior = mes_atual - relativedelta(months=1)
     inicio_semana = hoje - timedelta(days=hoje.weekday())
@@ -269,7 +270,7 @@ def obter_metricas_financeiras():
 @admin_ou_auditor_required
 def obter_metricas_logistica():
     """Retorna métricas de logística"""
-    hoje = datetime.now()
+    hoje = now_brasilia()
     mes_atual = datetime(hoje.year, hoje.month, 1)
     
     motoristas = Motorista.query.filter(Motorista.ativo == True).all()
@@ -317,7 +318,7 @@ def obter_metricas_logistica():
 @admin_ou_auditor_required
 def obter_analise_fornecedores():
     """Retorna análise detalhada de fornecedores"""
-    hoje = datetime.now()
+    hoje = now_brasilia()
     mes_atual = datetime(hoje.year, hoje.month, 1)
     
     fornecedores_ativos = Fornecedor.query.filter(Fornecedor.ativo == True).all()
@@ -384,7 +385,7 @@ def obter_analise_fornecedores():
 @admin_ou_auditor_required
 def obter_metricas_operacionais():
     """Retorna métricas de eficiência operacional"""
-    hoje = datetime.now()
+    hoje = now_brasilia()
     mes_atual = datetime(hoje.year, hoje.month, 1)
     
     total_solicitacoes = Solicitacao.query.filter(
@@ -487,7 +488,7 @@ def obter_indicadores_externos():
     global _cotacoes_cache
     
     # Verificar se temos cache válido
-    agora = datetime.now()
+    agora = now_brasilia()
     if _cotacoes_cache['timestamp'] and _cotacoes_cache['dados']:
         tempo_decorrido = (agora - _cotacoes_cache['timestamp']).total_seconds() / 60
         if tempo_decorrido < CACHE_DURACAO_MINUTOS:
@@ -556,7 +557,7 @@ def obter_indicadores_externos():
         
         # Buscar histórico
         historico_dolar = []
-        hoje = datetime.now()
+        hoje = now_brasilia()
         
         try:
             resp_historico = requests.get(
@@ -620,7 +621,7 @@ def obter_indicadores_externos():
             'dolar': {'valor': 5.75, 'variacao': 0, 'data_atualizacao': 'Estimado'},
             'euro': {'valor': 6.20, 'variacao': 0, 'data_atualizacao': 'Estimado'},
             'historico_dolar': [
-                {'data': (datetime.now() - timedelta(days=i)).strftime('%d/%m'), 'valor': 5.75 + (i % 3 - 1) * 0.05}
+                {'data': (now_brasilia() - timedelta(days=i)).strftime('%d/%m'), 'valor': 5.75 + (i % 3 - 1) * 0.05}
                 for i in range(29, -1, -1)
             ],
             'erro': 'API temporariamente indisponível - usando valores estimados'
@@ -630,7 +631,7 @@ def obter_indicadores_externos():
 @admin_ou_auditor_required
 def obter_main_metrics():
     """Retorna todas as métricas principais para o novo dashboard centralizado"""
-    hoje = datetime.now()
+    hoje = now_brasilia()
     mes_atual = datetime(hoje.year, hoje.month, 1)
 
     # 1. Top 5 Fornecedores por Valor (Dinheiro)

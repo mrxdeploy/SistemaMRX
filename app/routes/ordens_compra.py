@@ -11,7 +11,7 @@ bp = Blueprint('ordens_compra', __name__, url_prefix='/api/ordens-compra')
 def gerar_numero_os():
     """Gera número único para Ordem de Serviço"""
     import uuid
-    timestamp = datetime.now().strftime('%Y%m%d')
+    timestamp = now_brasilia().strftime('%Y%m%d')
     random_str = uuid.uuid4().hex[:6].upper()
     return f"OS-{timestamp}-{random_str}"
 
