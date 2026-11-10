@@ -27,6 +27,14 @@ function formatarMoeda(valor) {
     }).format(valor);
 }
 
+function formatarPeso(valor, decimais = 3) {
+    if (valor === null || valor === undefined) return '0';
+    return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: decimais,
+        maximumFractionDigits: decimais
+    }).format(valor);
+}
+
 function formatarData(data) {
     if (!data) return '';
     const date = new Date(data);

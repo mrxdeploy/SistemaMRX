@@ -109,10 +109,15 @@ def _calcular_preco_kg_sublote(sublote):
                 nome_material = sublote.tipo_lote.nome
             
             if nome_material:
-                # Buscar material base pelo nome
+                # Buscar material base pelo nome - primeiro match exato, depois parcial
                 material_base = MaterialBase.query.filter(
                     func.lower(MaterialBase.nome) == func.lower(nome_material)
                 ).first()
+                if not material_base:
+                    # Fallback: match parcial para nomes como "PLACA MARROM" vs "SUCATA PLACA MARROM"
+                    material_base = MaterialBase.query.filter(
+                        func.lower(MaterialBase.nome).like(f'%{nome_material.lower()}%')
+                    ).first()
                 if material_base:
                     item_especifico = ItemSolicitacao.query.filter_by(
                         solicitacao_id=solicitacao_id,
@@ -127,23 +132,39 @@ def _calcular_preco_kg_sublote(sublote):
                         if val_calc > 0 and peso_item > 0:
                             return val_calc / peso_item
             
-            # Prioridade 5: Média geral de todos os itens do pedido de compra
+            # Prioridade 5: Fallback — filtra pelo material do sublote antes de usar média geral
+            # CORREÇÃO: evita diluir o preço misturando materiais diferentes do mesmo pedido de compra
             itens_todos = ItemSolicitacao.query.filter_by(
                 solicitacao_id=solicitacao_id
             ).all()
             if itens_todos:
-                # Tentar usar preco_por_kg_snapshot primeiro
-                precos_snap = [float(i.preco_por_kg_snapshot or 0) for i in itens_todos if float(i.preco_por_kg_snapshot or 0) > 0]
+                # Tentar filtrar apenas itens do mesmo material
+                itens_filtrados = []
+
+                # 5a: filtrar por tipo_lote_id do sublote
+                if tipo_lote_id:
+                    itens_filtrados = [i for i in itens_todos if i.tipo_lote_id == tipo_lote_id]
+
+                # 5b: filtrar por material_id via nome (match parcial para suportar variações de nome)
+                if not itens_filtrados and nome_material:
+                    mat_b = MaterialBase.query.filter(
+                        func.lower(MaterialBase.nome).like(f'%{nome_material.lower()}%')
+                    ).first()
+                    if mat_b:
+                        itens_filtrados = [i for i in itens_todos if i.material_id == mat_b.id]
+
+                # Usar itens filtrados se encontrou, senão usar todos como último recurso
+                itens_a_usar = itens_filtrados if itens_filtrados else itens_todos
+
+                precos_snap = [float(i.preco_por_kg_snapshot or 0) for i in itens_a_usar if float(i.preco_por_kg_snapshot or 0) > 0]
                 if precos_snap:
-                    # Média ponderada por peso
-                    total_val = sum(float(i.preco_por_kg_snapshot or 0) * float(i.peso_kg or 0) for i in itens_todos if float(i.preco_por_kg_snapshot or 0) > 0)
-                    total_peso = sum(float(i.peso_kg or 0) for i in itens_todos if float(i.preco_por_kg_snapshot or 0) > 0)
+                    total_val = sum(float(i.preco_por_kg_snapshot or 0) * float(i.peso_kg or 0) for i in itens_a_usar if float(i.preco_por_kg_snapshot or 0) > 0)
+                    total_peso = sum(float(i.peso_kg or 0) for i in itens_a_usar if float(i.preco_por_kg_snapshot or 0) > 0)
                     if total_peso > 0:
                         return total_val / total_peso
-                
-                # Fallback: valor_calculado
-                total_val = sum(float(i.valor_calculado or 0) for i in itens_todos)
-                total_peso = sum(float(i.peso_kg or 0) for i in itens_todos)
+
+                total_val = sum(float(i.valor_calculado or 0) for i in itens_a_usar)
+                total_peso = sum(float(i.peso_kg or 0) for i in itens_a_usar)
                 if total_peso > 0 and total_val > 0:
                     return total_val / total_peso
     

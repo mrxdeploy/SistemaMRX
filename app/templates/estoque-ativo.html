@@ -626,6 +626,11 @@
     <script src="/static/js/app.js"></script>
     <script src="/static/js/chat-widget.js"></script>
     <script>
+        // Formatação padrão Brasil
+        const fmtKg  = (v, d = 3) => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }).format(v || 0);
+        const fmtRS  = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+        const fmtNum = (v, d = 2) => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }).format(v || 0);
+
         let lotesAtivos = [];
         let bagsEstoque = [];
         let dadosResumo = [];
@@ -736,7 +741,7 @@
                     document.getElementById('statLotesAtivos').textContent = data.lotes_ativos || 0;
                     document.getElementById('statEmProducao').textContent = data.em_producao || 0;
                     document.getElementById('statBagsEstoque').textContent = data.bags_estoque || 0;
-                    document.getElementById('statPesoTotal').textContent = `${(data.peso_total || 0).toFixed(2)} kg`;
+                    document.getElementById('statPesoTotal').textContent = `${fmtKg(data.peso_total, 2)} kg`;
                 }
             } catch (error) {
                 console.error('Erro ao carregar dashboard:', error);
@@ -833,8 +838,8 @@
                         </div>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; margin-top: 1rem; font-size: 0.875rem;">
-                        <div><strong>Peso Original:</strong> ${pesoOriginal.toFixed(2)} kg</div>
-                        ${foiSeparado ? `<div><strong>Peso Separado:</strong> <span style="color: var(--success-color);">${pesoSublotes.toFixed(2)} kg</span></div>` : ''}
+                        <div><strong>Peso Original:</strong> ${fmtKg(pesoOriginal, 2)} kg</div>
+                        ${foiSeparado ? `<div><strong>Peso Separado:</strong> <span style="color: var(--success-color);">${fmtKg(pesoSublotes, 2)} kg</span></div>` : ''}
                         <div><strong>Fornecedor:</strong> ${lote.fornecedor_nome || 'N/A'}</div>
                         ${lote.localizacao_atual ? `<div><strong>Local:</strong> ${lote.localizacao_atual}</div>` : ''}
                     </div>
@@ -870,7 +875,7 @@
                                                 <i class="fas fa-tag"></i> <strong>Material:</strong> ${nomeMat}
                                             </div>
                                             <div style="font-size: 0.8rem; color: var(--gray-700); margin-left: 2rem;">
-                                                <i class="fas fa-weight"></i> <strong>Peso:</strong> <span style="color: var(--success-color); font-weight: bold;">${pesoSub.toFixed(2)} kg</span>
+                                                <i class="fas fa-weight"></i> <strong>Peso:</strong> <span style="color: var(--success-color); font-weight: bold;">${fmtKg(pesoSub, 2)} kg</span>
                                             </div>
                                             ${sublote.qualidade_recebida ? `
                                                 <div style="font-size: 0.8rem; color: var(--gray-700); margin-left: 2rem;">
@@ -903,7 +908,7 @@
                                 </div>
                             `}).join('')}
                             <div style="background: var(--gray-100); padding: 0.5rem; border-radius: 0.375rem; margin-top: 0.5rem; text-align: center; font-size: 0.8rem; color: var(--gray-700);">
-                                <i class="fas fa-calculator"></i> <strong>Total separado:</strong> ${pesoSublotes.toFixed(2)} kg de ${lote.sublotes.length} tipo(s) de material
+                                <i class="fas fa-calculator"></i> <strong>Total separado:</strong> ${fmtKg(pesoSublotes, 2)} kg de ${lote.sublotes.length} tipo(s) de material
                             </div>
                         </div>
                     ` : (lote.status || '').toUpperCase() === 'PROCESSADO' ? `
@@ -1105,7 +1110,7 @@
                 return `
                     <div class="card stat-card" style="border-left: 4px solid ${corCategoria};">
                         <div class="stat-number" style="font-size: 1.5rem; color: ${corCategoria};">
-                            ${cat.peso_total.toFixed(2)} kg
+                            ${fmtKg(cat.peso_total, 2)} kg
                         </div>
                         <div class="stat-label" style="font-weight: bold; color: var(--gray-700);">${cat.categoria_label}</div>
                         <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
@@ -1113,7 +1118,7 @@
                         </div>
                         ${showPrices && cat.media_geral > 0 ? `
                             <div style="font-size: 0.85rem; color: #8b5cf6; margin-top: 0.5rem; font-weight: bold;">
-                                <i class="fas fa-coins"></i> R$ ${cat.media_geral.toFixed(2)}/kg
+                                <i class="fas fa-coins"></i> ${fmtRS(cat.media_geral)}/kg
                             </div>
                         ` : ''}
                     </div>
@@ -1157,9 +1162,9 @@
                                 <td style="padding: 0.75rem 0.75rem 0.75rem 2rem; font-weight: bold;">${escapeHtml(item.nome)}</td>
                                 <td style="padding: 0.75rem; text-align: center;"><span style="font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:999px;background:${corCategoria}20;color:${corCategoria};border:1px solid ${corCategoria}40;">${cat.categoria_label}</span></td>
                                 <td style="padding: 0.75rem; text-align: center;">${fornecedorHtml}</td>
-                                <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${item.peso_kg.toFixed(3)} kg</td>
-                                <td style="padding: 0.75rem; text-align: right; color: #8b5cf6;">R$ ${(item.media_preco || 0).toFixed(2)}</td>
-                                <td style="padding: 0.75rem; text-align: right; color: #059669; font-weight: bold;">R$ ${(item.total_valor || 0).toFixed(2)}</td>
+                                <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${fmtKg(item.peso_kg)} kg</td>
+                                <td style="padding: 0.75rem; text-align: right; color: #8b5cf6;">${fmtRS(item.media_preco)}</td>
+                                <td style="padding: 0.75rem; text-align: right; color: #059669; font-weight: bold;">${fmtRS(item.total_valor)}</td>
                             </tr>
                         `;
                     } else {
@@ -1168,7 +1173,7 @@
                                 <td style="padding: 0.75rem 0.75rem 0.75rem 2rem; font-weight: bold;">${escapeHtml(item.nome)}</td>
                                 <td style="padding: 0.75rem; text-align: center;"><span style="font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:999px;background:${corCategoria}20;color:${corCategoria};border:1px solid ${corCategoria}40;">${cat.categoria_label}</span></td>
                                 <td style="padding: 0.75rem; text-align: center;">${fornecedorHtml}</td>
-                                <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${item.peso_kg.toFixed(3)} kg</td>
+                                <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${fmtKg(item.peso_kg)} kg</td>
                             </tr>
                         `;
                     }
@@ -1189,15 +1194,15 @@
                                     </div>
                                     <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
                                         <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Peso Total</div>
-                                        <div style="font-weight: bold; color: ${corCategoria}; font-size: 1rem;">${cat.peso_total.toFixed(2)} kg</div>
+                                        <div style="font-weight: bold; color: ${corCategoria}; font-size: 1rem;">${fmtKg(cat.peso_total, 2)} kg</div>
                                     </div>
                                     <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
                                         <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Valor Pago</div>
-                                        <div style="font-weight: bold; color: #059669; font-size: 1rem;">R$ ${totalValor.toFixed(2)}</div>
+                                        <div style="font-weight: bold; color: #059669; font-size: 1rem;">${fmtRS(totalValor)}</div>
                                     </div>
                                     <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
                                         <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Média/kg</div>
-                                        <div style="font-weight: bold; color: #8b5cf6; font-size: 1rem;">R$ ${mediaGeral.toFixed(2)}</div>
+                                        <div style="font-weight: bold; color: #8b5cf6; font-size: 1rem;">${fmtRS(mediaGeral)}</div>
                                     </div>
                                 </div>
                             </td>
@@ -1210,7 +1215,7 @@
                                 <i class="fas fa-calculator" style="margin-right: 0.5rem;"></i> Total ${cat.categoria_label}
                             </td>
                             <td style="padding: 0.75rem 1rem; text-align: right; font-weight: bold; font-size: 1.1rem; color: ${corCategoria};">
-                                ${cat.peso_total.toFixed(3)} kg
+                                ${fmtKg(cat.peso_total)} kg
                             </td>
                         </tr>
                     `;
@@ -1286,7 +1291,7 @@
                             ${bag.itens_por_classificacao.map(item => `
                                 <div style="display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.8rem;">
                                     <span>${item.nome}</span>
-                                    <span style="font-weight: bold;">${item.peso_total_kg.toFixed(2)} kg</span>
+                                    <span style="font-weight: bold;">${fmtKg(item.peso_total_kg, 2)} kg</span>
                                 </div>
                             `).join('')}
                         </div>
@@ -1309,7 +1314,7 @@
                         <span class="badge ${getBagBadgeClass(bag.status)}">${getBagStatusLabel(bag.status)}</span>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem; margin-top: 1rem; font-size: 0.875rem;">
-                        <div><strong>Peso Total:</strong> ${parseFloat(bag.peso_acumulado || 0).toFixed(2)} kg</div>
+                        <div><strong>Peso Total:</strong> ${fmtKg(bag.peso_acumulado, 2)} kg</div>
                         <div><strong>Itens:</strong> ${bag.quantidade_itens || 0}</div>
                     </div>
                     ${bag.status === 'cheio' && bag.ordem_exportacao ? `
@@ -1359,7 +1364,7 @@
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 0.75rem;">
                                             <span style="font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 999px; background: ${itemCatCor}20; color: ${itemCatCor}; border: 1px solid ${itemCatCor}40;">${itemCatNome}</span>
-                                            <span style="font-size: 0.78rem; font-weight: bold; color: var(--gray-800);">${parseFloat(item.peso_kg || 0).toFixed(3)} kg</span>
+                                            <span style="font-size: 0.78rem; font-weight: bold; color: var(--gray-800);">${fmtKg(item.peso_kg)} kg</span>
                                             ${bag.status === 'aberto' ? `
                                             <button onclick="removerItemBagAction(${bag.id}, ${item.id})" title="Remover item e devolver ao estoque original" style="background: #ef4444; color: white; padding: 0.3rem 0.5rem; border: none; border-radius: 4px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">
                                                 <i class="fas fa-trash"></i>
@@ -1632,18 +1637,18 @@
                 let cardContent = `
                     <div class="card stat-card" style="border-left: 4px solid ${corCategoria};">
                         <div class="stat-number" style="font-size: 1.5rem; color: ${corCategoria};">
-                            ${cat.peso_total.toFixed(2)} kg
+                            ${fmtKg(cat.peso_total, 2)} kg
                         </div>
                         <div class="stat-label" style="font-weight: bold; color: var(--gray-700);">${cat.categoria_label}</div>
                         <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
                             ${cat.materiais.length} materiais
                         </div>
                 `;
-                
+
                 if (isAdminOrGestor) {
                     cardContent += `
                         <div style="font-size: 0.85rem; color: #8b5cf6; margin-top: 0.5rem; font-weight: bold;">
-                            <i class="fas fa-coins"></i> R$ ${cat.media_geral.toFixed(2)}/kg
+                            <i class="fas fa-coins"></i> ${fmtRS(cat.media_geral)}/kg
                         </div>
                     `;
                 }
@@ -1690,13 +1695,13 @@
                         <tr style="border-bottom: 1px solid var(--gray-200); border-left: 4px solid ${corCategoria}20;">
                             <td style="padding: 0.75rem 0.75rem 0.75rem 2rem;">${mat.nome}</td>
                             <td style="padding: 0.75rem;">${cat.categoria_label}</td>
-                            <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${mat.peso.toFixed(2)} kg</td>
-                            <td style="padding: 0.75rem; text-align: right; color: #059669; font-weight: bold;">R$ ${(mat.valor || 0).toFixed(2)}</td>
+                            <td style="padding: 0.75rem; text-align: right; color: var(--success-color); font-weight: bold;">${fmtKg(mat.peso, 2)} kg</td>
+                            <td style="padding: 0.75rem; text-align: right; color: #059669; font-weight: bold;">${fmtRS(mat.valor)}</td>
                     `;
-                    
+
                     if (isAdminOrGestor) {
                         rows += `
-                            <td style="padding: 0.75rem; text-align: right; color: #8b5cf6; font-weight: bold;">R$ ${(mat.media_real || 0).toFixed(2)}</td>
+                            <td style="padding: 0.75rem; text-align: right; color: #8b5cf6; font-weight: bold;">${fmtRS(mat.media_real)}</td>
                         `;
                     }
                     
@@ -1707,14 +1712,14 @@
                 const valorPagoHtml = `
                     <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
                         <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Valor Pago</div>
-                        <div style="font-weight: bold; color: #059669; font-size: 1rem;">R$ ${(cat.total_valor || 0).toFixed(2)}</div>
+                        <div style="font-weight: bold; color: #059669; font-size: 1rem;">${fmtRS(cat.total_valor)}</div>
                     </div>
                 `;
 
                 const mediaGeralHtml = isAdminOrGestor ? `
                     <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
                         <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Média/kg</div>
-                        <div style="font-weight: bold; color: #8b5cf6; font-size: 1rem;">R$ ${(cat.media_geral || 0).toFixed(2)}</div>
+                        <div style="font-weight: bold; color: #8b5cf6; font-size: 1rem;">${fmtRS(cat.media_geral)}</div>
                     </div>
                 ` : '';
 
@@ -1728,7 +1733,7 @@
                                 </div>
                                 <div style="text-align: center; padding: 0.5rem; background: white; border-radius: 6px;">
                                     <div style="font-size: 0.7rem; color: var(--gray-500); text-transform: uppercase;">Peso Total</div>
-                                    <div style="font-weight: bold; color: ${corCategoria}; font-size: 1rem;">${cat.peso_total.toFixed(2)} kg</div>
+                                    <div style="font-weight: bold; color: ${corCategoria}; font-size: 1rem;">${fmtKg(cat.peso_total, 2)} kg</div>
                                 </div>
                                 ${valorPagoHtml}
                                 ${mediaGeralHtml}
@@ -1780,9 +1785,9 @@
                         item.nome,
                         item.classificacao || dados.categoria_label,
                         item.fornecedor || 'N/A',
-                        `${item.peso_kg.toFixed(3)} kg`,
-                        `R$ ${(item.media_preco || 0).toFixed(2)}`,
-                        `R$ ${(item.total_valor || 0).toFixed(2)}`
+                        `${fmtKg(item.peso_kg)} kg`,
+                        fmtRS(item.media_preco),
+                        fmtRS(item.total_valor)
                     ]);
                 } else {
                     head = [['Material', 'Classificação', 'Fornecedor', 'Quantidade']];
@@ -1790,7 +1795,7 @@
                         item.nome,
                         item.classificacao || dados.categoria_label,
                         item.fornecedor || 'N/A',
-                        `${item.peso_kg.toFixed(3)} kg`
+                        `${fmtKg(item.peso_kg)} kg`
                     ]);
                 }
             } else {
@@ -1799,9 +1804,9 @@
                 body = dados.materiais.map(item => [
                     item.nome,
                     dados.categoria_label,
-                    `${item.peso.toFixed(2)} kg`,
-                    `R$ ${(item.valor || 0).toFixed(2)}`,
-                    `R$ ${(item.media_real || 0).toFixed(2)}`
+                    `${fmtKg(item.peso, 2)} kg`,
+                    fmtRS(item.valor),
+                    fmtRS(item.media_real)
                 ]);
             }
 
@@ -1837,14 +1842,14 @@
             if (showPrices) {
                 columns = [
                     { title: "TIPO", value: sucataLabel, color: corCategoria },
-                    { title: "PESO TOTAL", value: `${dados.peso_total.toFixed(2)} kg`, color: corCategoria },
-                    { title: "VALOR PAGO", value: `R$ ${(dados.total_valor || 0).toFixed(2)}`, color: [22, 163, 74] },
-                    { title: "MÉDIA/KG", value: `R$ ${(dados.media_geral || 0).toFixed(2)}`, color: [139, 92, 246] }
+                    { title: "PESO TOTAL", value: `${fmtKg(dados.peso_total, 2)} kg`, color: corCategoria },
+                    { title: "VALOR PAGO", value: fmtRS(dados.total_valor), color: [22, 163, 74] },
+                    { title: "MÉDIA/KG", value: `${fmtRS(dados.media_geral)}/kg`, color: [139, 92, 246] }
                 ];
             } else {
                 columns = [
                     { title: "TIPO", value: sucataLabel, color: corCategoria },
-                    { title: "PESO TOTAL", value: `${dados.peso_total.toFixed(2)} kg`, color: corCategoria }
+                    { title: "PESO TOTAL", value: `${fmtKg(dados.peso_total, 2)} kg`, color: corCategoria }
                 ];
             }
 
@@ -1972,10 +1977,10 @@
                 <div class="separado-card">
                     <div>
                         <strong>${item.nome_item}</strong>
-                        <div style="font-size:0.75rem;color:var(--gray-500);">${item.classificacao_nome} - R$ ${item.valor_estimado.toFixed(2)}</div>
+                        <div style="font-size:0.75rem;color:var(--gray-500);">${item.classificacao_nome} - ${fmtRS(item.valor_estimado)}</div>
                     </div>
                     <div style="display:flex;align-items:center;gap:0.75rem;">
-                        <span style="font-weight:bold;color:var(--success-color);">${item.peso_kg.toFixed(3)} kg</span>
+                        <span style="font-weight:bold;color:var(--success-color);">${fmtKg(item.peso_kg)} kg</span>
                         <button onclick="removerItemSeparado(${det.sublote_id}, ${item.id})" style="background:#ef4444;color:white;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:0.75rem;"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
@@ -1983,14 +1988,14 @@
 
             document.getElementById('producaoBody').innerHTML = `
                 <div class="producao-stat">
-                    <div class="producao-stat-item"><div class="value" style="color:var(--primary-color);">${det.peso_original.toFixed(3)}</div><div class="label">kg Total Original</div></div>
-                    <div class="producao-stat-item"><div class="value" style="color:#f59e0b;">${det.peso_separado.toFixed(3)}</div><div class="label">kg Separados</div></div>
-                    <div class="producao-stat-item"><div class="value" style="color:var(--success-color);">${det.peso_restante.toFixed(3)}</div><div class="label">kg Restante</div></div>
+                    <div class="producao-stat-item"><div class="value" style="color:var(--primary-color);">${fmtKg(det.peso_original)}</div><div class="label">kg Total Original</div></div>
+                    <div class="producao-stat-item"><div class="value" style="color:#f59e0b;">${fmtKg(det.peso_separado)}</div><div class="label">kg Separados</div></div>
+                    <div class="producao-stat-item"><div class="value" style="color:var(--success-color);">${fmtKg(det.peso_restante)}</div><div class="label">kg Restante</div></div>
                 </div>
                 <div style="background:var(--gray-50);border-radius:12px;padding:1rem;margin-bottom:1.5rem;">
                     <h4 style="margin:0 0 0.5rem 0;"><i class="fas fa-tag"></i> ${det.nome_material}</h4>
                     <p style="margin:0;font-size:0.85rem;color:var(--gray-600);">Fornecedor: ${det.fornecedor_nome} | Lote: ${det.numero_lote}</p>
-                    ${det.valor_por_kg > 0 ? `<p style="margin:0.25rem 0 0;font-size:0.85rem;color:#8b5cf6;">Valor OC: R$ ${det.valor_por_kg.toFixed(2)}/kg</p>` : ''}
+                    ${det.valor_por_kg > 0 ? `<p style="margin:0.25rem 0 0;font-size:0.85rem;color:#8b5cf6;">Valor OC: ${fmtRS(det.valor_por_kg)}/kg</p>` : ''}
                 </div>
                 <h4 style="margin:0 0 0.5rem;"><i class="fas fa-list"></i> Itens Separados (${det.total_itens})</h4>
                 <div id="itensSeparadosList">${itensHtml}</div>
@@ -2144,14 +2149,14 @@
                 const nome = el ? el.dataset.nome : 'Material';
                 return `
                     <div style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem;background:var(--gray-50);border-radius:8px;margin-bottom:0.5rem;">
-                        <div style="flex:1;"><strong>${nome}</strong><span style="color:var(--gray-500);font-size:0.8rem;"> (Disponível: ${peso.toFixed(2)} kg)</span></div>
+                        <div style="flex:1;"><strong>${nome}</strong><span style="color:var(--gray-500);font-size:0.8rem;"> (Disponível: ${fmtKg(peso, 2)} kg)</span></div>
                         <input type="number" id="bagPeso_${id}" value="${peso.toFixed(3)}" max="${peso}" min="0.001" step="0.001" style="width:120px;padding:0.5rem;border:1px solid var(--gray-300);border-radius:8px;text-align:center;font-weight:bold;">
                         <span style="font-size:0.85rem;color:var(--gray-500);">kg</span>
                     </div>
                 `;
             }).join('');
 
-            const bagsOptions = bagsAbertos.map(b => `<option value="${b.id}">${b.codigo} (${b.peso_acumulado.toFixed(1)} kg)</option>`).join('');
+            const bagsOptions = bagsAbertos.map(b => `<option value="${b.id}">${b.codigo} (${fmtKg(b.peso_acumulado, 1)} kg)</option>`).join('');
 
             document.getElementById('bagBody').innerHTML = `
                 <div style="margin-bottom:1.5rem;">
@@ -2236,7 +2241,7 @@
                 if (data.sucesso) {
                     const resumo = data.resumo || {};
                     const ordemMsg = resumo.ordem_exportacao ? ` | Ordem: ${resumo.ordem_exportacao}` : '';
-                    const pesoMsg = resumo.peso_total_kg != null ? ` | Peso: ${Number(resumo.peso_total_kg).toFixed(3)} kg` : '';
+                    const pesoMsg = resumo.peso_total_kg != null ? ` | Peso: ${fmtKg(resumo.peso_total_kg)} kg` : '';
                     const itensMsg = resumo.quantidade_itens != null ? ` | ${resumo.quantidade_itens} item(ns)` : '';
                     showNotification(`Bag finalizado com sucesso!${ordemMsg}${pesoMsg}${itensMsg}`, 'success');
                     await sincronizarTodasTelas();
@@ -2297,7 +2302,7 @@
                 if (data.sucesso) {
                     const resumo = data.resumo_estorno || {};
                     const pesoMsg = resumo.peso_total_devolvido_kg != null
-                        ? ` — ${Number(resumo.peso_total_devolvido_kg).toFixed(3)} kg devolvidos ao estoque`
+                        ? ` — ${fmtKg(resumo.peso_total_devolvido_kg)} kg devolvidos ao estoque`
                         : '';
                     showNotification(`Bag excluído com sucesso${pesoMsg}.`, 'success');
                     await sincronizarTodasTelas();
@@ -2419,9 +2424,9 @@
                             <span style="font-size:0.75rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:999px;background:${mCatCor}20;color:${mCatCor};border:1px solid ${mCatCor}40;">${mCatNome}</span>
                         </td>
                         <td style="padding:0.75rem;text-align:center;">${fornecedorDisplay}</td>
-                        <td style="padding:0.75rem;text-align:right;color:var(--success-color);font-weight:bold;">${grupo.peso_kg.toFixed(3)} kg</td>
-                        <td style="padding:0.75rem;text-align:right;color:#8b5cf6;">R$ ${precoKgMedia.toFixed(2)}</td>
-                        <td style="padding:0.75rem;text-align:right;font-weight:bold;color:#059669;">R$ ${grupo.valor_total.toFixed(2)}</td>
+                        <td style="padding:0.75rem;text-align:right;color:var(--success-color);font-weight:bold;">${fmtKg(grupo.peso_kg)} kg</td>
+                        <td style="padding:0.75rem;text-align:right;color:#8b5cf6;">${fmtRS(precoKgMedia)}</td>
+                        <td style="padding:0.75rem;text-align:right;font-weight:bold;color:#059669;">${fmtRS(grupo.valor_total)}</td>
                     </tr>
                 </tbody>
                 <tbody id="sub-materiais-${idx}" style="display:none; background-color: #ffffff;">`;
@@ -2451,9 +2456,9 @@
                             <span style="font-size:0.7rem;font-weight:600;padding:0.1rem 0.4rem;border-radius:999px;background:${subCatCor}10;color:${subCatCor};border:1px solid ${subCatCor}30;">${subCatNome}</span>
                         </td>
                         <td style="padding:0.5rem 0.75rem;text-align:center;">${subFornHtml}</td>
-                        <td style="padding:0.5rem 0.75rem;text-align:right;color:var(--success-color); opacity: 0.9;">${m.peso_kg.toFixed(3)} kg</td>
-                        <td style="padding:0.5rem 0.75rem;text-align:right;color:#8b5cf6; opacity: 0.9;" title="${isEg ? 'Preço Médio Ponderado da baixa do Estoque Geral' : (m.preco_tabela_fornecedor != null ? 'Preço da tabela do fornecedor' : 'Custo do lote')}">R$ ${precoExibir.toFixed(2)}</td>
-                        <td style="padding:0.5rem 0.75rem;text-align:right;color:#059669; opacity: 0.9;">R$ ${valorTotalExibir.toFixed(2)}</td>
+                        <td style="padding:0.5rem 0.75rem;text-align:right;color:var(--success-color); opacity: 0.9;">${fmtKg(m.peso_kg)} kg</td>
+                        <td style="padding:0.5rem 0.75rem;text-align:right;color:#8b5cf6; opacity: 0.9;" title="${isEg ? 'Preço Médio Ponderado da baixa do Estoque Geral' : (m.preco_tabela_fornecedor != null ? 'Preço da tabela do fornecedor' : 'Custo do lote')}">${fmtRS(precoExibir)}</td>
+                        <td style="padding:0.5rem 0.75rem;text-align:right;color:#059669; opacity: 0.9;">${fmtRS(valorTotalExibir)}</td>
                     </tr>`;
                 });
                 
@@ -2474,15 +2479,15 @@
 
                 <div class="producao-stat">
                     <div class="producao-stat-item">
-                        <div class="value" style="color:var(--success-color);">${(bag.total_peso || 0).toFixed(2)}</div>
+                        <div class="value" style="color:var(--success-color);">${fmtKg(bag.total_peso, 2)}</div>
                         <div class="label">Quantidade kg <i class="fas fa-info-circle" style="cursor: pointer; color: var(--gray-400); margin-left: 4px;" title="Soma do peso líquido de todos os itens contidos neste bag."></i></div>
                     </div>
                     <div class="producao-stat-item">
-                        <div class="value" style="color:#059669;">R$ ${totalValorReal.toFixed(2)}</div>
+                        <div class="value" style="color:#059669;">${fmtRS(totalValorReal)}</div>
                         <div class="label">Total Comprado <i class="fas fa-info-circle" style="cursor: pointer; color: var(--gray-400); margin-left: 4px;" title="Soma dos valores de todos os itens. Para cada item: Peso (kg) x Preço Unitário (R$/kg). É dada prioridade ao preço da tabela de preços ativa do fornecedor para o respectivo material. Se não houver preço de tabela cadastrado, é utilizado o preço de custo médio do lote original."></i></div>
                     </div>
                     <div class="producao-stat-item">
-                        <div class="value" style="color:#8b5cf6;">R$ ${realMedia.toFixed(2)}</div>
+                        <div class="value" style="color:#8b5cf6;">${fmtRS(realMedia)}</div>
                         <div class="label">Valor Média R$/kg <i class="fas fa-info-circle" style="cursor: pointer; color: var(--gray-400); margin-left: 4px;" title="Média ponderada do preço por kg do bag: Total Comprado (R$) / Quantidade total (kg)."></i></div>
                     </div>
                 </div>
@@ -2506,9 +2511,9 @@
                         <tfoot>
                             <tr style="background:var(--gray-100);font-weight:bold;">
                                 <td colspan="3" style="padding:0.75rem;">TOTAL</td>
-                                <td style="padding:0.75rem;text-align:right;color:var(--success-color);">${(bag.total_peso || 0).toFixed(3)} kg</td>
-                                <td style="padding:0.75rem;text-align:right;color:#8b5cf6;">R$ ${realMedia.toFixed(2)}</td>
-                                <td style="padding:0.75rem;text-align:right;color:#059669;">R$ ${totalValorReal.toFixed(2)}</td>
+                                <td style="padding:0.75rem;text-align:right;color:var(--success-color);">${fmtKg(bag.total_peso)} kg</td>
+                                <td style="padding:0.75rem;text-align:right;color:#8b5cf6;">${fmtRS(realMedia)}</td>
+                                <td style="padding:0.75rem;text-align:right;color:#059669;">${fmtRS(totalValorReal)}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -2577,9 +2582,9 @@
             
             doc.setFont(undefined, 'normal');
             doc.setFontSize(10);
-            doc.text(`Quantidade total: ${totalPesoReal.toFixed(2)} kg`, 14, 37);
-            doc.text(`Total comprado: R$ ${totalValorReal.toFixed(2)}`, 14, 42);
-            doc.text(`Valor Média R$/kg: R$ ${mediaReal.toFixed(2)}`, 14, 47);
+            doc.text(`Quantidade total: ${fmtKg(totalPesoReal, 2)} kg`, 14, 37);
+            doc.text(`Total comprado: ${fmtRS(totalValorReal)}`, 14, 42);
+            doc.text(`Valor Média R$/kg: ${fmtRS(mediaReal)}`, 14, 47);
             doc.text(`Status: ${getBagStatusLabel(bag.status)}`, 14, 52);
 
             // Table Data (Summary Grouped)
@@ -2587,9 +2592,9 @@
             const body = grouped.map(g => [
                 g.nome,
                 getCategoriaLabel(g.categoria) || g.classificacao || 'N/A',
-                `${g.peso_kg.toFixed(3)} kg`,
-                `R$ ${(g.valor_total / g.peso_kg || 0).toFixed(2)}`,
-                `R$ ${g.valor_total.toFixed(2)}`
+                `${fmtKg(g.peso_kg)} kg`,
+                fmtRS(g.valor_total / g.peso_kg || 0),
+                fmtRS(g.valor_total)
             ]);
 
             doc.autoTable({
@@ -2598,7 +2603,7 @@
                 body: body,
                 theme: 'striped',
                 headStyles: { fillColor: emeraldColor, textColor: 255 },
-                foot: [['TOTAL', '', `${totalPesoReal.toFixed(3)} kg`, `R$ ${mediaReal.toFixed(2)}`, `R$ ${totalValorReal.toFixed(2)}`]],
+                foot: [['TOTAL', '', `${fmtKg(totalPesoReal)} kg`, fmtRS(mediaReal), fmtRS(totalValorReal)]],
                 footStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold' }
             });
 
@@ -2677,15 +2682,15 @@
                         </div>
                         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0.5rem;margin-top:0.75rem;">
                             <div style="text-align:center;padding:0.5rem;background:var(--gray-50);border-radius:8px;">
-                                <div style="font-weight:bold;font-size:1.1rem;color:var(--primary-color);">${item.peso_original.toFixed(2)} kg</div>
+                                <div style="font-weight:bold;font-size:1.1rem;color:var(--primary-color);">${fmtKg(item.peso_original, 2)} kg</div>
                                 <div style="font-size:0.7rem;color:var(--gray-500);">Peso Original</div>
                             </div>
                             <div style="text-align:center;padding:0.5rem;background:var(--gray-50);border-radius:8px;">
-                                <div style="font-weight:bold;font-size:1.1rem;color:#f59e0b;">${item.peso_separado.toFixed(2)} kg</div>
+                                <div style="font-weight:bold;font-size:1.1rem;color:#f59e0b;">${fmtKg(item.peso_separado, 2)} kg</div>
                                 <div style="font-size:0.7rem;color:var(--gray-500);">Já Separado</div>
                             </div>
                             <div style="text-align:center;padding:0.5rem;background:var(--gray-50);border-radius:8px;">
-                                <div style="font-weight:bold;font-size:1.1rem;color:var(--success-color);">${item.peso_restante.toFixed(2)} kg</div>
+                                <div style="font-weight:bold;font-size:1.1rem;color:var(--success-color);">${fmtKg(item.peso_restante, 2)} kg</div>
                                 <div style="font-size:0.7rem;color:var(--gray-500);">Peso Restante</div>
                             </div>
                             <div style="text-align:center;padding:0.5rem;background:var(--gray-50);border-radius:8px;">
@@ -2868,7 +2873,7 @@
                             <div>
                                 <span style="font-size:0.72rem; color:var(--gray-500); text-transform:uppercase; font-weight:700;">Saldo Disponível</span>
                                 <div style="font-size:1.25rem; font-weight:800; color:var(--success-color);">
-                                    ${item.peso_disponivel.toFixed(3)} <span style="font-size:0.85rem; font-weight:normal;">kg</span>
+                                    ${fmtKg(item.peso_disponivel)} <span style="font-size:0.85rem; font-weight:normal;">kg</span>
                                 </div>
                             </div>
                             <div>
@@ -2876,7 +2881,7 @@
                                     Custo Médio Unitário <i class="fas fa-info-circle" style="font-size:0.7rem; color:var(--gray-400);"></i>
                                 </span>
                                 <div style="font-size:1.25rem; font-weight:800; color:#8b5cf6;">
-                                    ${item.show_prices ? `R$ ${item.preco_medio_kg.toFixed(2)}` : '<span style="font-size:0.9rem; color:var(--gray-400);">Confidencial</span>'}
+                                    ${item.show_prices ? fmtRS(item.preco_medio_kg) : '<span style="font-size:0.9rem; color:var(--gray-400);">Confidencial</span>'}
                                     <span style="font-size:0.85rem; font-weight:normal; color:var(--gray-500);">${item.show_prices ? '/kg' : ''}</span>
                                 </div>
                             </div>
@@ -2884,7 +2889,7 @@
                             <div>
                                 <span style="font-size:0.72rem; color:var(--gray-500); text-transform:uppercase; font-weight:700;">Valor Total Saldo</span>
                                 <div style="font-size:1.25rem; font-weight:800; color:#059669;">
-                                    R$ ${item.valor_total.toFixed(2)}
+                                    ${fmtRS(item.valor_total)}
                                 </div>
                             </div>
                             ` : ''}
@@ -2912,8 +2917,8 @@
                                             <span style="color:var(--gray-500); margin-left:0.4rem;"><i class="fas fa-truck" style="font-size:0.7rem;"></i> ${escapeHtml(s.fornecedor || 'N/A')}</span>
                                         </div>
                                         <div style="display:flex; align-items:center; gap:0.75rem;">
-                                            <span style="color:var(--success-color); font-weight:bold;">${s.peso.toFixed(3)} kg</span>
-                                            ${item.show_prices && s.preco_kg ? `<span style="color:#8b5cf6;">R$ ${s.preco_kg.toFixed(2)}/kg</span>` : ''}
+                                            <span style="color:var(--success-color); font-weight:bold;">${fmtKg(s.peso)} kg</span>
+                                            ${item.show_prices && s.preco_kg ? `<span style="color:#8b5cf6;">${fmtRS(s.preco_kg)}/kg</span>` : ''}
                                             <button type="button" onclick="event.stopPropagation(); navegarParaLotes('${escapeHtml(s.numero_lote || '')}')" class="btn btn-sm" style="padding:0.15rem 0.45rem; font-size:0.7rem; background:var(--gray-200); color:var(--gray-700); border-radius:4px;" title="Localizar este lote"><i class="fas fa-arrow-right"></i></button>
                                         </div>
                                     </div>
@@ -3002,7 +3007,7 @@
 
         function renderizarModalBagGeral(bagsAbertos) {
             const matHtml = materiaisGeralSelecionados.map((item, idx) => {
-                const pmTexto = item.show_prices ? `R$ ${item.preco_medio_kg.toFixed(2)}/kg` : 'Preço Médio';
+                const pmTexto = item.show_prices ? `${fmtRS(item.preco_medio_kg)}/kg` : 'Preço Médio';
                 const defaultQtd = (Math.min(item.peso_disponivel, 1.0)).toFixed(3);
                 return `
                     <div style="background:var(--gray-50); border:1px solid var(--gray-200); border-radius:10px; padding:0.9rem; margin-bottom:0.75rem;">
@@ -3019,7 +3024,7 @@
 
                         <div style="display:flex; align-items:center; gap:1rem; margin-top:0.75rem; flex-wrap:wrap;">
                             <div style="flex:1; min-width:180px;">
-                                <span style="font-size:0.8rem; color:var(--gray-600);">Saldo disponível no estoque: <strong>${item.peso_disponivel.toFixed(3)} kg</strong></span>
+                                <span style="font-size:0.8rem; color:var(--gray-600);">Saldo disponível no estoque: <strong>${fmtKg(item.peso_disponivel)} kg</strong></span>
                             </div>
                             <div style="display:flex; align-items:center; gap:0.5rem;">
                                 <label style="font-size:0.85rem; font-weight:700; color:var(--gray-700); margin:0;">Quantidade a retirar:</label>
@@ -3042,7 +3047,7 @@
 
                         ${item.show_prices ? `
                         <div style="margin-top:0.5rem; text-align:right; font-size:0.8rem; color:var(--gray-600);">
-                            Valor estimado da baixa: <strong id="subtotal_geral_${idx}" style="color:#059669; font-size:0.9rem;">R$ ${(parseFloat(defaultQtd) * item.preco_medio_kg).toFixed(2)}</strong>
+                            Valor estimado da baixa: <strong id="subtotal_geral_${idx}" style="color:#059669; font-size:0.9rem;">${fmtRS(parseFloat(defaultQtd) * item.preco_medio_kg)}</strong>
                         </div>
                         ` : ''}
                     </div>
@@ -3050,7 +3055,7 @@
             }).join('');
 
             const bagsOptions = (bagsAbertos || []).map(b => 
-                `<option value="${b.id}">${b.codigo} (${(b.peso_acumulado || 0).toFixed(2)} kg)</option>`
+                `<option value="${b.id}">${b.codigo} (${fmtKg(b.peso_acumulado, 2)} kg)</option>`
             ).join('');
 
             document.getElementById('bagGeralBody').innerHTML = `
@@ -3095,7 +3100,7 @@
             if (!input || !spanSubtotal) return;
             const peso = parseFloat(input.value || 0);
             const pm = parseFloat(input.dataset.matPm || 0);
-            spanSubtotal.textContent = `R$ ${(peso * pm).toFixed(2)}`;
+            spanSubtotal.textContent = fmtRS(peso * pm);
         }
 
         async function enviarMaterialParaBagGeral() {
@@ -3117,7 +3122,7 @@
                     return;
                 }
                 if (peso > saldo + 0.001) {
-                    showNotification(`A quantidade para "${nome}" (${peso.toFixed(3)} kg) excede o saldo disponível (${saldo.toFixed(3)} kg).`, 'error');
+                    showNotification(`A quantidade para "${nome}" (${fmtKg(peso)} kg) excede o saldo disponível (${fmtKg(saldo)} kg).`, 'error');
                     return;
                 }
 
@@ -3137,7 +3142,7 @@
             // 2. Trava de Segurança: Confirmação Explícita (Req. 2.3)
             const confirmado = await confirmarAcao(
                 'Confirmar Baixa para Bag',
-                `Deseja registrar a saída de ${pesoTotalEnviar.toFixed(3)} kg de material(is) do Estoque Ativo aplicando o Preço Médio vigente?`
+                `Deseja registrar a saída de ${fmtKg(pesoTotalEnviar)} kg de material(is) do Estoque Ativo aplicando o Preço Médio vigente?`
             );
             if (!confirmado) return;
 
@@ -3181,7 +3186,7 @@
                 const dataBaixa = await respBaixa.json();
                 if (dataBaixa.sucesso) {
                     const itensAdicionados = (dataBaixa.itens_adicionados || []).length;
-                    const pesoTotal = Number(dataBaixa.peso_adicionado || 0).toFixed(3);
+                    const pesoTotal = fmtKg(dataBaixa.peso_adicionado);
                     showNotification(
                         `${dataBaixa.mensagem || `${itensAdicionados} material(is) adicionado(s)`} — ${pesoTotal} kg baixados do Estoque Ativo.`,
                         'success'
