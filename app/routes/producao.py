@@ -804,12 +804,6 @@ def listar_lotes_estoque():
             'liberado', 'LIBERADO', 'disponivel_producao', 'ATIVO', 'ativo'
         ]
 
-        # Debug: Log de todos os lotes no banco
-        all_lotes = Lote.query.all()
-        logger.info(f"DEBUG: Total de lotes no banco: {len(all_lotes)}")
-        for l in all_lotes:
-            logger.info(f"Lote ID: {l.id}, Numero: {l.numero_lote}, Status: '{l.status}', Bloqueado: {l.bloqueado}")
-
         # Buscar lotes que estão em estoque e disponíveis (inclui sublotes)
         lotes = Lote.query.filter(
             Lote.status.in_(status_disponiveis)
