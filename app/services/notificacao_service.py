@@ -227,7 +227,7 @@ def obter_resumo_pendencias():
         autorizacoes_pendentes = SolicitacaoAutorizacaoPreco.query.filter(
             SolicitacaoAutorizacaoPreco.status == 'pendente'
         ).count()
-    except:
+    except (ValueError, TypeError, KeyError):
         autorizacoes_pendentes = 0
     
     return {

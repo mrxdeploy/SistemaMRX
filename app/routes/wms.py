@@ -54,7 +54,7 @@ def listar_lotes_wms():
             if lote.observacoes and lote.observacoes.startswith('MATERIAL_MANUAL:'):
                 try:
                     nome_material = lote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').strip()
-                except:
+                except (ValueError, TypeError, KeyError):
                     pass
             
             lote_dict['tipo_lote_nome'] = nome_material or (lote.tipo_lote.nome if lote.tipo_lote else None)
@@ -100,7 +100,7 @@ def obter_lote_detalhado(lote_id):
         if lote.observacoes and lote.observacoes.startswith('MATERIAL_MANUAL:'):
             try:
                 nome_material = lote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').strip()
-            except:
+            except (ValueError, TypeError, KeyError):
                 pass
         
         if nome_material:
@@ -159,7 +159,7 @@ def obter_sublotes_lote(lote_id):
             if sublote.observacoes and sublote.observacoes.startswith('MATERIAL_MANUAL:'):
                 try:
                     nome_material = sublote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').strip()
-                except:
+                except (ValueError, TypeError, KeyError):
                     pass
             
             sublote_dict['tipo_lote_nome'] = nome_material or (sublote.tipo_lote.nome if sublote.tipo_lote else None)
@@ -205,7 +205,7 @@ def obter_lote_por_numero(numero_lote):
         if lote.observacoes and lote.observacoes.startswith('MATERIAL_MANUAL:'):
             try:
                 nome_material = lote.observacoes.split('|')[0].replace('MATERIAL_MANUAL:', '').strip()
-            except:
+            except (ValueError, TypeError, KeyError):
                 pass
         
         if nome_material:

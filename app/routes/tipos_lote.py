@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, send_file
+﻿from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required
 from app.models import TipoLote, TipoLotePreco, db, FornecedorTipoLoteClassificacao, Fornecedor
 from app.auth import admin_required
@@ -17,7 +17,7 @@ def gerar_codigo_automatico():
         try:
             numero = int(ultimo_tipo.codigo.replace('TL', ''))
             return f'TL{numero + 1:03d}'
-        except:
+        except (ValueError, TypeError, KeyError):
             pass
     
     proximo_id = TipoLote.query.count() + 1
@@ -323,7 +323,7 @@ def importar_excel():
                             )
                             db.session.add(preco_obj)
                             precos_criados += 1
-                    except:
+                    except (ValueError, TypeError, KeyError):
                         pass
                     
                     try:
@@ -337,7 +337,7 @@ def importar_excel():
                             )
                             db.session.add(preco_obj)
                             precos_criados += 1
-                    except:
+                    except (ValueError, TypeError, KeyError):
                         pass
                     
                     try:
@@ -351,7 +351,7 @@ def importar_excel():
                             )
                             db.session.add(preco_obj)
                             precos_criados += 1
-                    except:
+                    except (ValueError, TypeError, KeyError):
                         pass
             
             except Exception as e:
@@ -411,7 +411,7 @@ def exportar_excel():
                 try:
                     if len(str(cell.value)) > max_length:
                         max_length = len(cell.value)
-                except:
+                except (ValueError, TypeError, KeyError):
                     pass
             adjusted_width = min(max_length + 2, 50)
             ws_tipos.column_dimensions[column[0].column_letter].width = adjusted_width
@@ -448,7 +448,7 @@ def exportar_excel():
                 try:
                     if len(str(cell.value)) > max_length:
                         max_length = len(cell.value)
-                except:
+                except (ValueError, TypeError, KeyError):
                     pass
             adjusted_width = min(max_length + 2, 50)
             ws_estrelas.column_dimensions[column[0].column_letter].width = adjusted_width

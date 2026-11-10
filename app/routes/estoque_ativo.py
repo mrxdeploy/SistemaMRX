@@ -55,7 +55,7 @@ def _calcular_preco_kg_sublote(sublote):
                     preco = float(parte.replace('PRECO_KG:', '').strip())
                     if preco > 0:
                         return preco
-                except:
+                except (ValueError, TypeError):
                     pass
     
     # Prioridade 2: valor_total do sublote / peso
@@ -2086,7 +2086,7 @@ def detalhes_bag(bag_id):
                     meta_eg = json.loads(item.observacoes.replace('ESTOQUE_GERAL:', '', 1))
                     pm_salvo = float(meta_eg.get('pm_kg', 0))
                     fornecedores_consumidos = meta_eg.get('fornecedores_consumidos', [])
-                except:
+                except (ValueError, TypeError, KeyError):
                     pass
 
                 # Se valor é zero ou não foi salvo, usar o Preço Médio do metadado
@@ -2171,7 +2171,8 @@ def detalhes_bag(bag_id):
         # Salvar atualizações de valor (se algum foi recalculado)
         try:
             db.session.commit()
-        except:
+        except Exception as e:
+            logger.warning(f'Erro ao salvar recalculo de valores do bag: {e}')
             db.session.rollback()
         
         media_preco_kg = round(total_valor / total_peso, 2) if total_peso > 0 else 0
