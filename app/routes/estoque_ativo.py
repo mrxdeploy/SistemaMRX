@@ -1,11 +1,28 @@
 ﻿from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import db, Lote, BagProducao, ItemSeparadoProducao, ClassificacaoGrade, ItemSolicitacao, MaterialBase, Usuario, Fornecedor, Solicitacao, OrdemCompra, FornecedorTabelaPrecos
+from app.models import db, Lote, BagProducao, ItemSeparadoProducao, ClassificacaoGrade, ItemSolicitacao, MaterialBase, Usuario, Fornecedor, Solicitacao, OrdemCompra, FornecedorTabelaPrecos, Configuracao
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func
 from datetime import datetime, timedelta
 import logging
 import json
+
+# Cache simples em memória para a flag de versão (evita query a cada sublote)
+_versao_custo_medio_cache = {'valor': None}
+
+def _get_versao_custo_medio() -> str:
+    """Lê a versão do cálculo de custo médio do banco (com cache por requisição)."""
+    if _versao_custo_medio_cache['valor'] is None:
+        try:
+            cfg = Configuracao.query.filter_by(chave='CUSTO_MEDIO_ESTOQUE_GERAL_VERSAO').first()
+            _versao_custo_medio_cache['valor'] = cfg.valor if cfg else 'v2'
+        except Exception:
+            _versao_custo_medio_cache['valor'] = 'v2'
+    return _versao_custo_medio_cache['valor']
+
+def _invalidar_cache_versao():
+    """Invalida o cache após alteração via endpoint."""
+    _versao_custo_medio_cache['valor'] = None
 
 logger = logging.getLogger(__name__)
 
@@ -132,29 +149,30 @@ def _calcular_preco_kg_sublote(sublote):
                         if val_calc > 0 and peso_item > 0:
                             return val_calc / peso_item
             
-            # Prioridade 5: Fallback — filtra pelo material do sublote antes de usar média geral
-            # CORREÇÃO: evita diluir o preço misturando materiais diferentes do mesmo pedido de compra
+            # Prioridade 5: Fallback com suporte a rollback via flag de versão
             itens_todos = ItemSolicitacao.query.filter_by(
                 solicitacao_id=solicitacao_id
             ).all()
             if itens_todos:
-                # Tentar filtrar apenas itens do mesmo material
-                itens_filtrados = []
+                # v1 (legado): média de TODOS os itens da OC (comportamento anterior à correção)
+                # v2 (padrão): filtra pelo material específico antes de usar média geral
+                usar_v2 = _get_versao_custo_medio() != 'v1'
 
-                # 5a: filtrar por tipo_lote_id do sublote
-                if tipo_lote_id:
-                    itens_filtrados = [i for i in itens_todos if i.tipo_lote_id == tipo_lote_id]
-
-                # 5b: filtrar por material_id via nome (match parcial para suportar variações de nome)
-                if not itens_filtrados and nome_material:
-                    mat_b = MaterialBase.query.filter(
-                        func.lower(MaterialBase.nome).like(f'%{nome_material.lower()}%')
-                    ).first()
-                    if mat_b:
-                        itens_filtrados = [i for i in itens_todos if i.material_id == mat_b.id]
-
-                # Usar itens filtrados se encontrou, senão usar todos como último recurso
-                itens_a_usar = itens_filtrados if itens_filtrados else itens_todos
+                itens_a_usar = itens_todos
+                if usar_v2:
+                    itens_filtrados = []
+                    # 5a: filtrar por tipo_lote_id do sublote
+                    if tipo_lote_id:
+                        itens_filtrados = [i for i in itens_todos if i.tipo_lote_id == tipo_lote_id]
+                    # 5b: filtrar por material_id via nome parcial
+                    if not itens_filtrados and nome_material:
+                        mat_b = MaterialBase.query.filter(
+                            func.lower(MaterialBase.nome).like(f'%{nome_material.lower()}%')
+                        ).first()
+                        if mat_b:
+                            itens_filtrados = [i for i in itens_todos if i.material_id == mat_b.id]
+                    if itens_filtrados:
+                        itens_a_usar = itens_filtrados
 
                 precos_snap = [float(i.preco_por_kg_snapshot or 0) for i in itens_a_usar if float(i.preco_por_kg_snapshot or 0) > 0]
                 if precos_snap:

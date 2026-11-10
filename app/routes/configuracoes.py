@@ -1,8 +1,114 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import db, ConfiguracaoPrecoEstrela, Usuario
+from app.models import db, ConfiguracaoPrecoEstrela, Configuracao, Usuario
+from datetime import datetime
 
 bp = Blueprint('configuracoes', __name__, url_prefix='/api/configuracoes')
+
+# ---------------------------------------------------------------------------
+# Chave usada para controlar o cálculo de Custo Médio do Estoque Geral.
+# Valor "v2" (padrão) = filtro por material específico (correção atual).
+# Valor "v1" = comportamento legado (média de todos os itens da OC).
+# ---------------------------------------------------------------------------
+CHAVE_CUSTO_MEDIO_VERSAO = 'CUSTO_MEDIO_ESTOQUE_GERAL_VERSAO'
+
+def get_versao_custo_medio() -> str:
+    """Retorna a versão ativa do cálculo de custo médio ('v1' ou 'v2')."""
+    cfg = Configuracao.query.filter_by(chave=CHAVE_CUSTO_MEDIO_VERSAO).first()
+    return cfg.valor if cfg else 'v2'
+
+
+@bp.route('/versao-custo-medio', methods=['GET'])
+@jwt_required()
+def info_versao_custo_medio():
+    """
+    GET /api/configuracoes/versao-custo-medio
+    Retorna a versão ativa do cálculo de Custo Médio no Estoque Geral
+    e um resumo do que cada versão faz.
+    """
+    usuario_id = get_jwt_identity()
+    usuario = Usuario.query.get(usuario_id)
+    if not usuario or usuario.tipo not in ('admin', 'gestor'):
+        return jsonify({'erro': 'Acesso negado'}), 403
+
+    versao_atual = get_versao_custo_medio()
+
+    return jsonify({
+        'versao_ativa': versao_atual,
+        'commit_v2': '00787d2',
+        'commit_v1': 'd996719',
+        'descricao': {
+            'v2': (
+                'VERSÃO ATUAL (corrigida) — '
+                'Prioridade 5 do _calcular_preco_kg_sublote filtra itens da OC '
+                'pelo material específico do sublote antes de calcular a média. '
+                'Evita misturar preços de materiais diferentes do mesmo pedido de compra.'
+            ),
+            'v1': (
+                'VERSÃO LEGADA — '
+                'Prioridade 5 usava média ponderada de TODOS os itens da OC '
+                '(ex: OC #27 com R$8551,75 ÷ 62,40 kg = R$137/kg para qualquer material).'
+            ),
+        },
+        'como_reverter': (
+            'POST /api/configuracoes/versao-custo-medio  '
+            'com body {"versao": "v1"} para reverter ao comportamento anterior. '
+            'Use {"versao": "v2"} para restaurar a correção.'
+        )
+    })
+
+
+@bp.route('/versao-custo-medio', methods=['POST'])
+@jwt_required()
+def alterar_versao_custo_medio():
+    """
+    POST /api/configuracoes/versao-custo-medio
+    Body: {"versao": "v1"} para reverter ao legado, {"versao": "v2"} para manter a correção.
+    Apenas administradores podem alterar.
+    """
+    usuario_id = get_jwt_identity()
+    usuario = Usuario.query.get(usuario_id)
+    if not usuario or usuario.tipo != 'admin':
+        return jsonify({'erro': 'Apenas administradores podem alterar esta configuração'}), 403
+
+    data = request.get_json() or {}
+    versao = data.get('versao', '').strip().lower()
+
+    if versao not in ('v1', 'v2'):
+        return jsonify({'erro': 'Versão inválida. Use "v1" (legado) ou "v2" (corrigido)'}), 400
+
+    cfg = Configuracao.query.filter_by(chave=CHAVE_CUSTO_MEDIO_VERSAO).first()
+    if cfg:
+        cfg.valor = versao
+        cfg.data_atualizacao = datetime.utcnow()
+    else:
+        cfg = Configuracao(
+            chave=CHAVE_CUSTO_MEDIO_VERSAO,
+            valor=versao,
+            descricao='Versão do cálculo de Custo Médio no Estoque Geral (v1=legado, v2=corrigido)',
+            tipo='texto'
+        )
+        db.session.add(cfg)
+
+    db.session.commit()
+
+    # Invalida o cache em memória do módulo estoque_ativo
+    try:
+        from app.routes.estoque_ativo import _invalidar_cache_versao
+        _invalidar_cache_versao()
+    except Exception:
+        pass
+
+    mensagens = {
+        'v1': '⚠️  Revertido para v1 (legado): Custo Médio calculado com média de TODOS os itens da OC.',
+        'v2': '✅ Restaurado para v2 (corrigido): Custo Médio filtrado pelo material específico do sublote.',
+    }
+
+    return jsonify({
+        'sucesso': True,
+        'versao_ativa': versao,
+        'mensagem': mensagens[versao]
+    })
 
 @bp.route('/precos-estrelas', methods=['GET'])
 @jwt_required()
