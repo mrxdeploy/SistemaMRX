@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, render_template, send_file
+﻿from flask import Blueprint, jsonify, request, render_template, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import (
     db, Usuario, Fornecedor, Lote, ClassificacaoGrade,
@@ -6,6 +6,7 @@ from app.models import (
 )
 from app.auth import admin_required
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 from decimal import Decimal
 from io import BytesIO
 import pandas as pd
@@ -409,7 +410,7 @@ def iniciar_separacao(id):
             return jsonify({'erro': 'Apenas ordens abertas podem iniciar separação'}), 400
 
         ordem.status = 'em_separacao'
-        ordem.data_inicio_separacao = datetime.utcnow()
+        ordem.data_inicio_separacao = now_brasilia()
 
         db.session.commit()
         return jsonify(ordem.to_dict())
@@ -451,7 +452,7 @@ def finalizar_ordem(id):
                 status='cheio',
                 criado_por_id=current_user_id,
                 responsavel_id=current_user_id,
-                data_criacao=datetime.utcnow(),
+                data_criacao=now_brasilia(),
                 categoria_manual=categoria_manual,
                 categorias_mistas=True
             )
@@ -510,7 +511,7 @@ def finalizar_ordem(id):
         ordem.lucro_prejuizo = Decimal(str(lucro_prejuizo))
         ordem.status = 'finalizada'
         ordem.finalizado_por_id = current_user_id
-        ordem.data_finalizacao = datetime.utcnow()
+        ordem.data_finalizacao = now_brasilia()
 
         # Atualizar bags - Fechar bags da OP ou apenas marcar status
         bag_ids = set(item.bag_id for item in ordem.itens_separados if item.bag_id)
@@ -519,7 +520,7 @@ def finalizar_ordem(id):
             if bag:
                 if bag.status == 'aberto':
                     bag.status = 'cheio'
-                    bag.data_atualizacao = datetime.utcnow()
+                    bag.data_atualizacao = now_brasilia()
                 
                 # Se foi modo misto, já setamos acima. Se modo separado, verificar se precisa marcar misto (caso raro aceito)
                 if modo_criacao == 'separado' and categoria_manual and len(bag_ids) == 1:
@@ -645,7 +646,7 @@ def adicionar_item(op_id):
 
         if ordem.status == 'aberta':
             ordem.status = 'em_separacao'
-            ordem.data_inicio_separacao = datetime.utcnow()
+            ordem.data_inicio_separacao = now_brasilia()
 
         db.session.add(item)
         db.session.commit()
@@ -749,7 +750,7 @@ def encontrar_ou_criar_bag(classificacao, usuario_id):
             status='aberto',
             criado_por_id=usuario_id,
             responsavel_id=usuario_id,
-            data_criacao=datetime.utcnow()
+            data_criacao=now_brasilia()
         )
         db.session.add(bag)
         db.session.flush()
@@ -1195,7 +1196,7 @@ def devolver_bag_estoque(bag_id):
             return jsonify({'erro': 'Apenas bags abertos ou cheios podem ser devolvidos ao estoque'}), 400
             
         bag.status = 'devolvido_estoque'
-        bag.data_atualizacao = datetime.utcnow()
+        bag.data_atualizacao = now_brasilia()
         
         db.session.commit()
         return jsonify(bag.to_dict())

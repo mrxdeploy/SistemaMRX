@@ -1,8 +1,9 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, Lote, ItemSolicitacao, Fornecedor, MovimentacaoEstoque, MaterialBase, Usuario, Inventario, InventarioContagem
 from app.auth import admin_required
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 from sqlalchemy.orm import joinedload, selectinload
 
 bp = Blueprint('wms', __name__, url_prefix='/api/wms')
@@ -258,7 +259,7 @@ def bloquear_lote(lote_id):
         lote.tipo_bloqueio = tipo_bloqueio
         lote.motivo_bloqueio = motivo
         lote.bloqueado_por_id = usuario_id
-        lote.bloqueado_em = datetime.utcnow()
+        lote.bloqueado_em = now_brasilia()
 
         auditoria = lote.auditoria or []
         auditoria.append({
@@ -267,7 +268,7 @@ def bloquear_lote(lote_id):
             'usuario_nome': usuario.nome if usuario else 'Desconhecido',
             'tipo_bloqueio': tipo_bloqueio,
             'motivo': motivo,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now_brasilia().isoformat(),
             'ip': request.remote_addr,
             'dados_before': dados_before
         })
@@ -314,7 +315,7 @@ def desbloquear_lote(lote_id):
             'usuario_id': usuario_id,
             'usuario_nome': usuario.nome if usuario else 'Desconhecido',
             'tipo_bloqueio_anterior': tipo_bloqueio_anterior,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now_brasilia().isoformat(),
             'ip': request.remote_addr,
             'dados_before': dados_before
         })
@@ -359,7 +360,7 @@ def reservar_lote(lote_id):
         lote.reservado = True
         lote.reservado_para = reservado_para
         lote.reservado_por_id = usuario_id
-        lote.reservado_em = datetime.utcnow()
+        lote.reservado_em = now_brasilia()
 
         auditoria = lote.auditoria or []
         auditoria.append({
@@ -367,7 +368,7 @@ def reservar_lote(lote_id):
             'usuario_id': usuario_id,
             'usuario_nome': usuario.nome if usuario else 'Desconhecido',
             'reservado_para': reservado_para,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now_brasilia().isoformat(),
             'ip': request.remote_addr,
             'dados_before': dados_before
         })
@@ -415,7 +416,7 @@ def liberar_reserva_lote(lote_id):
             'usuario_id': usuario_id,
             'usuario_nome': usuario.nome if usuario else 'Desconhecido',
             'reservado_para_anterior': reservado_para_anterior,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now_brasilia().isoformat(),
             'ip': request.remote_addr,
             'dados_before': dados_before
         })
@@ -483,7 +484,7 @@ def movimentar_lote(lote_id):
         auditoria_mov = [{
             'usuario_id': usuario_id,
             'usuario_nome': usuario.nome if usuario else 'Desconhecido',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now_brasilia().isoformat(),
             'ip': request.remote_addr,
             'gps': gps,
             'device_id': data.get('device_id')
@@ -498,7 +499,7 @@ def movimentar_lote(lote_id):
             'tipo': tipo,
             'localizacao_origem': movimentacao.localizacao_origem,
             'localizacao_destino': localizacao_destino,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now_brasilia().isoformat(),
             'ip': request.remote_addr,
             'gps': gps
         })
@@ -585,7 +586,7 @@ def reverter_movimentacao(mov_id):
             'acao': 'REVERSAO',
             'movimentacao_revertida_id': mov_id,
             'motivo': motivo,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now_brasilia().isoformat(),
             'ip': request.remote_addr
         }]
         nova_movimentacao.auditoria = auditoria_mov
@@ -625,7 +626,7 @@ def iniciar_inventario():
         auditoria = [{
             'acao': 'CRIAR_INVENTARIO',
             'usuario_id': usuario_id,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now_brasilia().isoformat(),
             'ip': request.remote_addr,
             'tipo': tipo,
             'localizacao': localizacao
@@ -642,7 +643,7 @@ def iniciar_inventario():
             lote.tipo_bloqueio = 'INVENTARIO'
             lote.motivo_bloqueio = f'Inventário {inventario.numero_inventario}'
             lote.bloqueado_por_id = usuario_id
-            lote.bloqueado_em = datetime.utcnow()
+            lote.bloqueado_em = now_brasilia()
 
         db.session.add(inventario)
         db.session.commit()
@@ -740,7 +741,7 @@ def finalizar_inventario(inv_id):
         usuario_id = get_jwt_identity()
 
         inventario.status = 'FINALIZADO'
-        inventario.data_finalizacao = datetime.utcnow()
+        inventario.data_finalizacao = now_brasilia()
         inventario.finalizado_por_id = usuario_id
 
         if inventario.localizacao:
@@ -765,7 +766,7 @@ def finalizar_inventario(inv_id):
         auditoria.append({
             'acao': 'FINALIZAR_INVENTARIO',
             'usuario_id': usuario_id,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now_brasilia().isoformat(),
             'ip': request.remote_addr,
             'lotes_desbloqueados': len(lotes)
         })
@@ -836,7 +837,7 @@ def consolidar_inventario(inv_id):
         auditoria.append({
             'acao': 'CONSOLIDAR_INVENTARIO',
             'usuario_id': get_jwt_identity(),
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now_brasilia().isoformat(),
             'ip': request.remote_addr,
             'total_divergencias': len(divergencias)
         })

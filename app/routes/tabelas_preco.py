@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, send_file
+﻿from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required
 from app.models import db, TabelaPreco, TabelaPrecoItem, MaterialBase
 from app.auth import admin_required
@@ -6,6 +6,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 
 bp = Blueprint('tabelas_preco', __name__, url_prefix='/api/tabelas-preco')
 
@@ -106,7 +107,7 @@ def atualizar_preco_individual(tabela_id, material_id):
             db.session.add(preco_item)
         else:
             preco_item.preco_por_kg = preco_por_kg
-            preco_item.data_atualizacao = datetime.utcnow()
+            preco_item.data_atualizacao = now_brasilia()
         
         db.session.commit()
         
@@ -155,7 +156,7 @@ def atualizar_precos_massa(id):
                 
                 if preco_item:
                     preco_item.preco_por_kg = preco_por_kg
-                    preco_item.data_atualizacao = datetime.utcnow()
+                    preco_item.data_atualizacao = now_brasilia()
                     atualizados += 1
             
             except Exception as e:
@@ -232,7 +233,7 @@ def importar_precos_excel(id):
                     db.session.add(preco_item)
                 else:
                     preco_item.preco_por_kg = preco_valor
-                    preco_item.data_atualizacao = datetime.utcnow()
+                    preco_item.data_atualizacao = now_brasilia()
                 
                 precos_atualizados += 1
             

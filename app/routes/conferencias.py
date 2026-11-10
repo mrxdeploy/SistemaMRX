@@ -1,8 +1,9 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, ConferenciaRecebimento, OrdemServico, OrdemCompra, Usuario, Notificacao, EntradaEstoque, Lote
 from app.auth import admin_required
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 import os
 from werkzeug.utils import secure_filename
 
@@ -17,7 +18,7 @@ def registrar_auditoria_conferencia(conferencia, acao, usuario_id, detalhes=None
     entrada_auditoria = {
         'acao': acao,
         'usuario_id': usuario_id,
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': now_brasilia().isoformat(),
         'detalhes': detalhes or {},
         'ip': request.remote_addr,
         'user_agent': request.headers.get('User-Agent'),
@@ -104,7 +105,7 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
             auditoria=[{
                 'acao': 'LOTE_CRIADO_APOS_CONFERENCIA',
                 'usuario_id': usuario_id,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': now_brasilia().isoformat(),
                 'ip': request.remote_addr,
                 'device_id': conferencia.device_id_conferencia or device_id,
                 'gps': conferencia.gps_conferencia or gps,
@@ -117,7 +118,7 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
                     'tipo_divergencia': conferencia.tipo_divergencia
                 }
             }],
-            data_criacao=datetime.utcnow()
+            data_criacao=now_brasilia()
         )
         
         # Gera o número do lote com proteção de concorrência (já faz o db.session.add e flush do lote)
@@ -132,7 +133,7 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
             status='recebido',
             admin_id=usuario_id,
             observacoes=f'Entrada automática após conferência aprovada. Decisão: {decisao}',
-            data_entrada=datetime.utcnow()
+            data_entrada=now_brasilia()
         )
         db.session.add(entrada_estoque)
         
@@ -153,13 +154,13 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
             auditoria=[{
                 'acao': 'MOVIMENTACAO_CRIADA',
                 'usuario_id': usuario_id,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': now_brasilia().isoformat(),
                 'ip': request.remote_addr,
                 'user_agent': request.headers.get('User-Agent'),
                 'gps': gps,
                 'device_id': device_id
             }],
-            data_movimentacao=datetime.utcnow()
+            data_movimentacao=now_brasilia()
         )
         db.session.add(movimentacao)
         
@@ -169,7 +170,7 @@ def criar_lote_apos_conferencia(conferencia, usuario_id, decisao='ACEITAR', perc
             auditoria=[{
                 'acao': 'SEPARACAO_CRIADA_AUTOMATICAMENTE',
                 'usuario_id': usuario_id,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': now_brasilia().isoformat(),
                 'ip': request.remote_addr,
                 'user_agent': request.headers.get('User-Agent'),
                 'gps': gps,
@@ -509,7 +510,7 @@ def decisao_adm(id):
         
         conferencia.decisao_adm = decisao
         conferencia.decisao_adm_por = usuario_id
-        conferencia.decisao_adm_em = datetime.utcnow()
+        conferencia.decisao_adm_em = now_brasilia()
         conferencia.decisao_adm_motivo = data.get('motivo', '')
         
         lote_criado = None

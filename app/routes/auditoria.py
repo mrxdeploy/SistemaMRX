@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from app.models import db, AuditoriaLog, Usuario
 from app.auth import permission_required
 from datetime import datetime, timedelta
+from app.utils.datetime_br import now_brasilia
 
 bp = Blueprint('auditoria', __name__, url_prefix='/api/auditoria')
 
@@ -82,7 +83,7 @@ def listar_logs_entidade(entidade_tipo, entidade_id):
 @permission_required('visualizar_auditoria')
 def estatisticas():
     periodo_dias = request.args.get('dias', 30, type=int)
-    data_inicio = datetime.utcnow() - timedelta(days=periodo_dias)
+    data_inicio = now_brasilia() - timedelta(days=periodo_dias)
     
     total_logs = AuditoriaLog.query.filter(
         AuditoriaLog.data_acao >= data_inicio

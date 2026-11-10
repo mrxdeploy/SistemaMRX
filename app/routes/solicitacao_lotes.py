@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import (
     db, Solicitacao, ItemSolicitacao, Fornecedor, TipoLote, 
@@ -6,6 +6,7 @@ from app.models import (
 )
 from app.auth import admin_required
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 import os
 import base64
 from werkzeug.utils import secure_filename
@@ -434,7 +435,7 @@ def aprovar_solicitacao(id):
         return jsonify({'erro': 'Apenas solicitações aguardando aprovação podem ser aprovadas'}), 400
     
     solicitacao.status = 'aprovado'
-    solicitacao.data_confirmacao = datetime.utcnow()
+    solicitacao.data_confirmacao = now_brasilia()
     solicitacao.admin_id = usuario_id
     
     db.session.commit()
@@ -460,7 +461,7 @@ def rejeitar_solicitacao(id):
         return jsonify({'erro': 'Apenas solicitações aguardando aprovação podem ser rejeitadas'}), 400
     
     solicitacao.status = 'rejeitado'
-    solicitacao.data_confirmacao = datetime.utcnow()
+    solicitacao.data_confirmacao = now_brasilia()
     solicitacao.observacoes = f"{solicitacao.observacoes}\n\nMotivo da rejeição: {motivo}"
     
     db.session.commit()
@@ -530,7 +531,7 @@ def registrar_entrada(id):
         quantidade_itens=len(solicitacao.itens),
         classificacao_predominante=primeiro_item.classificacao,
         status='aprovado',
-        data_aprovacao=datetime.utcnow()
+        data_aprovacao=now_brasilia()
     )
     
     db.session.add(lote)
@@ -543,7 +544,7 @@ def registrar_entrada(id):
         lote_id=lote.id,
         admin_id=usuario_id,
         status='processado',
-        data_processamento=datetime.utcnow(),
+        data_processamento=now_brasilia(),
         observacoes=data.get('observacoes', '')
     )
     
@@ -604,7 +605,7 @@ def gerenciar_configuracao_classificacao(fornecedor_id, tipo_lote_id):
         if 'ativo' in data:
             config.ativo = data['ativo']
         
-        config.data_atualizacao = datetime.utcnow()
+        config.data_atualizacao = now_brasilia()
         
         db.session.commit()
         

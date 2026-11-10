@@ -1,7 +1,8 @@
-from flask_sqlalchemy import SQLAlchemy
+﻿from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import uuid
 from typing import Any
+from app.utils.datetime_br import now_brasilia
 
 db = SQLAlchemy()
 
@@ -13,8 +14,8 @@ class Perfil(db.Model):  # type: ignore
     descricao = db.Column(db.Text)
     permissoes = db.Column(db.JSON, nullable=False, default=dict)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     usuarios = db.relationship('Usuario', backref='perfil', lazy=True)
 
@@ -44,7 +45,7 @@ class Usuario(db.Model):  # type: ignore
     senha_hash = db.Column(db.String(255), nullable=False)
     tipo = db.Column(db.String(20), nullable=False)
     perfil_id = db.Column(db.Integer, db.ForeignKey('perfis.id'), nullable=True)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
     criado_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
     foto_path = db.Column(db.String(255), nullable=True)
@@ -53,7 +54,7 @@ class Usuario(db.Model):  # type: ignore
     percentual_comissao = db.Column(db.Float, nullable=True, default=0.0)
     telefone = db.Column(db.String(20), nullable=True)
     cpf = db.Column(db.String(14), nullable=True)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     solicitacoes = db.relationship('Solicitacao', backref='funcionario', lazy=True, cascade='all, delete-orphan', foreign_keys='Solicitacao.funcionario_id')
     notificacoes = db.relationship('Notificacao', backref='usuario', lazy=True, cascade='all, delete-orphan')
@@ -92,7 +93,7 @@ class Vendedor(db.Model):  # type: ignore
     email = db.Column(db.String(120), unique=True)
     telefone = db.Column(db.String(20))
     cpf = db.Column(db.String(14), unique=True)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
 
     fornecedores = db.relationship('Fornecedor', backref='vendedor', lazy=True)
@@ -120,8 +121,8 @@ class TipoLote(db.Model):  # type: ignore
     codigo = db.Column(db.String(20), unique=True)
     classificacao = db.Column(db.String(10), default=None, nullable=True)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     fornecedor_precos = db.relationship('FornecedorTipoLotePreco', backref='tipo_lote', lazy=True, cascade='all, delete-orphan')
     itens_solicitacao = db.relationship('ItemSolicitacao', backref='tipo_lote', lazy=True)
@@ -168,8 +169,8 @@ class TipoLotePreco(db.Model):  # type: ignore
     estrelas = db.Column(db.Integer, nullable=False)
     preco_por_kg = db.Column(db.Float, nullable=False, default=0.0)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     def __init__(self, **kwargs: Any) -> None:
         if 'classificacao' in kwargs and kwargs['classificacao'] not in ['leve', 'medio', 'pesado', 'high', 'mg1', 'mg2', 'low']:
@@ -204,7 +205,7 @@ class FornecedorTipoLote(db.Model):  # type: ignore
     fornecedor_id = db.Column(db.Integer, db.ForeignKey('fornecedores.id'), nullable=False)
     tipo_lote_id = db.Column(db.Integer, db.ForeignKey('tipos_lote.id'), nullable=False)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
 
     def to_dict(self):
         return {
@@ -227,8 +228,8 @@ class FornecedorClassificacaoEstrela(db.Model):  # type: ignore
     classificacao = db.Column(db.String(10), nullable=False)
     estrelas = db.Column(db.Integer, nullable=False)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     def __init__(self, **kwargs: Any) -> None:
         if 'classificacao' in kwargs and kwargs['classificacao'] not in ['leve', 'medio', 'pesado', 'high', 'mg1', 'mg2', 'low']:
@@ -294,7 +295,7 @@ class Fornecedor(db.Model):  # type: ignore
 
     observacoes = db.Column(db.Text)
 
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
 
     tabela_preco_status = db.Column(db.String(50), default='pendente', nullable=True)
@@ -376,7 +377,7 @@ class FornecedorFuncionarioAtribuicao(db.Model):  # type: ignore
     id = db.Column(db.Integer, primary_key=True)
     fornecedor_id = db.Column(db.Integer, db.ForeignKey('fornecedores.id'), nullable=False)
     funcionario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
-    data_atribuicao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_atribuicao = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     atribuido_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
 
     fornecedor = db.relationship('Fornecedor', backref='atribuicoes')
@@ -408,8 +409,8 @@ class FornecedorTipoLotePreco(db.Model):  # type: ignore
     estrelas = db.Column(db.Integer, nullable=False)
     preco_por_kg = db.Column(db.Float, nullable=False, default=0.0)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     def __init__(self, **kwargs: Any) -> None:
         if 'estrelas' in kwargs and (kwargs['estrelas'] < 1 or kwargs['estrelas'] > 5):
@@ -449,8 +450,8 @@ class FornecedorTabelaPrecos(db.Model):  # type: ignore
     created_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
     updated_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
     arquivo_origem_id = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_brasilia, nullable=False)
 
     fornecedor = db.relationship('Fornecedor', backref='tabela_precos_materiais')
     material = db.relationship('MaterialBase', backref='precos_fornecedores')
@@ -505,7 +506,7 @@ class AuditoriaFornecedorTabelaPrecos(db.Model):  # type: ignore
     dados_novos = db.Column(db.JSON, nullable=True)
     ip_address = db.Column(db.String(50), nullable=True)
     user_agent = db.Column(db.String(500), nullable=True)
-    data_acao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_acao = db.Column(db.DateTime, default=now_brasilia, nullable=False)
 
     usuario = db.relationship('Usuario', backref='auditorias_tabela_precos')
 
@@ -543,8 +544,8 @@ class FornecedorTipoLoteClassificacao(db.Model):  # type: ignore
     medio_estrelas = db.Column(db.Integer, nullable=False, default=3)
     pesado_estrelas = db.Column(db.Integer, nullable=False, default=5)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     fornecedor = db.relationship('Fornecedor', backref='classificacoes_tipo_lote')
     tipo_lote = db.relationship('TipoLote', backref='classificacoes_fornecedor')
@@ -591,7 +592,7 @@ class Solicitacao(db.Model):  # type: ignore
     modalidade_frete = db.Column(db.String(10), default='FOB', nullable=True)
     status = db.Column(db.String(20), default='pendente', nullable=False)
     observacoes = db.Column(db.Text)
-    data_envio = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_envio = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     data_confirmacao = db.Column(db.DateTime, nullable=True)
     admin_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
 
@@ -669,7 +670,7 @@ class ItemSolicitacao(db.Model):  # type: ignore
     preco_oferecido = db.Column(db.Float, nullable=True)
     imagem_url = db.Column(db.String(500))
     observacoes = db.Column(db.Text)
-    data_registro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_registro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     lote_id = db.Column(db.Integer, db.ForeignKey('lotes.id'), nullable=True)
 
     material = db.relationship('MaterialBase', backref='itens_solicitacao')
@@ -760,7 +761,7 @@ class Lote(db.Model):  # type: ignore
     ip_inicio = db.Column(db.String(50), nullable=True)
     device_id = db.Column(db.String(255), nullable=True)
 
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_criacao = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     data_fechamento = db.Column(db.DateTime, nullable=True)
     data_aprovacao = db.Column(db.DateTime, nullable=True)
 
@@ -884,7 +885,7 @@ class EntradaEstoque(db.Model):  # type: ignore
     admin_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
 
     status = db.Column(db.String(20), default='pendente', nullable=False)
-    data_entrada = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_entrada = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     data_processamento = db.Column(db.DateTime, nullable=True)
     observacoes = db.Column(db.Text)
 
@@ -916,7 +917,7 @@ class Notificacao(db.Model):  # type: ignore
     tipo = db.Column(db.String(50), nullable=True, default=None)
     url = db.Column(db.String(500), nullable=True, default=None)
     lida = db.Column(db.Boolean, default=False, nullable=False)
-    data_envio = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_envio = db.Column(db.DateTime, default=now_brasilia, nullable=False)
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -941,7 +942,7 @@ class Configuracao(db.Model):  # type: ignore
     valor = db.Column(db.Text, nullable=False)
     descricao = db.Column(db.String(200))
     tipo = db.Column(db.String(50), default='texto')
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -968,8 +969,8 @@ class Veiculo(db.Model):  # type: ignore
     modelo = db.Column(db.String(50))
     ano = db.Column(db.Integer)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
     criado_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
 
     motoristas = db.relationship('Motorista', backref='veiculo', lazy=True)
@@ -1006,8 +1007,8 @@ class Motorista(db.Model):  # type: ignore
     categoria_cnh = db.Column(db.String(5))
     veiculo_id = db.Column(db.Integer, db.ForeignKey('veiculos.id'), nullable=True)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
     criado_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
 
     usuario = db.relationship('Usuario', foreign_keys=[usuario_id], backref='motorista_profile')
@@ -1050,7 +1051,7 @@ class AuditoriaLog(db.Model):  # type: ignore
     detalhes = db.Column(db.JSON)
     ip_address = db.Column(db.String(50))
     user_agent = db.Column(db.String(500))
-    data_acao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    data_acao = db.Column(db.DateTime, default=now_brasilia, nullable=False, index=True)
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -1087,7 +1088,7 @@ class OrdemCompra(db.Model):  # type: ignore
     ip_aprovacao = db.Column(db.String(50))
     gps_aprovacao = db.Column(db.String(100))
     device_info = db.Column(db.String(100))
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    criado_em = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     criado_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
 
     solicitacao = db.relationship('Solicitacao', back_populates='ordem_compra', foreign_keys=[solicitacao_id], uselist=False)
@@ -1138,7 +1139,7 @@ class AuditoriaOC(db.Model):  # type: ignore
     ip = db.Column(db.String(50))
     gps = db.Column(db.String(100))
     dispositivo = db.Column(db.String(500))
-    data = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    data = db.Column(db.DateTime, default=now_brasilia, nullable=False, index=True)
 
     usuario = db.relationship('Usuario', backref='auditorias_oc', foreign_keys=[usuario_id])
 
@@ -1179,8 +1180,8 @@ class OrdemServico(db.Model):  # type: ignore
     attachments = db.Column(db.JSON, default=lambda: [], nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     auditoria = db.Column(db.JSON, default=lambda: [], nullable=True)
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    criado_em = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    atualizado_em = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     ordem_compra = db.relationship('OrdemCompra', backref=db.backref('ordens_servico', cascade='all, delete-orphan'), foreign_keys=[oc_id])
     motorista = db.relationship('Motorista', backref='ordens_servico', foreign_keys=[motorista_id])
@@ -1232,7 +1233,7 @@ class RotaOperacional(db.Model):  # type: ignore
     pontos = db.Column(db.JSON, nullable=False)
     km_estimado = db.Column(db.Float, nullable=True)
     km_real = db.Column(db.Float, nullable=True)
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    criado_em = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     finalizado_em = db.Column(db.DateTime, nullable=True)
 
     motorista = db.relationship('Motorista', backref='rotas_operacionais', foreign_keys=[motorista_id])
@@ -1265,7 +1266,7 @@ class GPSLog(db.Model):  # type: ignore
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
     precisao = db.Column(db.Float, nullable=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = db.Column(db.DateTime, default=now_brasilia, nullable=False, index=True)
     device_id = db.Column(db.String(255), nullable=True)
     ip = db.Column(db.String(50), nullable=True)
     dados_adicionais = db.Column(db.JSON, nullable=True)
@@ -1306,8 +1307,8 @@ class ConferenciaRecebimento(db.Model):  # type: ignore
     conferencia_status = db.Column(db.String(50), default='PENDENTE', nullable=False)
     conferente_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
     auditoria = db.Column(db.JSON, default=lambda: [], nullable=True)
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    criado_em = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    atualizado_em = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
     decisao_adm = db.Column(db.String(50), nullable=True)
     decisao_adm_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
     decisao_adm_em = db.Column(db.DateTime, nullable=True)
@@ -1363,7 +1364,7 @@ class MovimentacaoEstoque(db.Model):  # type: ignore
     quantidade = db.Column(db.Float, nullable=True)
     peso = db.Column(db.Float, nullable=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
-    data_movimentacao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_movimentacao = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     observacoes = db.Column(db.Text, nullable=True)
     dados_before = db.Column(db.JSON, nullable=True)
     dados_after = db.Column(db.JSON, nullable=True)
@@ -1454,7 +1455,7 @@ class Residuo(db.Model):  # type: ignore
     aprovado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
     data_aprovacao = db.Column(db.DateTime, nullable=True)
     motivo_decisao = db.Column(db.Text, nullable=True)
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    criado_em = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     auditoria = db.Column(db.JSON, default=lambda: [], nullable=True)
 
     aprovador = db.relationship('Usuario', backref='residuos_aprovados')
@@ -1492,7 +1493,7 @@ class Inventario(db.Model):  # type: ignore
     tipo = db.Column(db.String(50), default='GERAL', nullable=False)
     localizacao = db.Column(db.String(100), nullable=True)
     status = db.Column(db.String(50), default='EM_ANDAMENTO', nullable=False)
-    data_inicio = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_inicio = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     data_finalizacao = db.Column(db.DateTime, nullable=True)
     criado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     finalizado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
@@ -1543,7 +1544,7 @@ class InventarioContagem(db.Model):  # type: ignore
     peso_contado = db.Column(db.Float, nullable=True)
     localizacao_encontrada = db.Column(db.String(100), nullable=True)
     contador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
-    data_contagem = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_contagem = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     observacoes = db.Column(db.Text, nullable=True)
     fotos = db.Column(db.JSON, default=lambda: [], nullable=True)
     gps = db.Column(db.JSON, nullable=True)
@@ -1591,8 +1592,8 @@ class MaterialBase(db.Model):  # type: ignore
     classificacao = db.Column(db.String(10), nullable=False)
     descricao = db.Column(db.Text, nullable=True)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     precos = db.relationship('TabelaPrecoItem', backref='material', lazy=True, cascade='all, delete-orphan')
     autorizacoes = db.relationship('SolicitacaoAutorizacaoPreco', backref='material', lazy=True)
@@ -1630,7 +1631,7 @@ class TabelaPreco(db.Model):  # type: ignore
     nome = db.Column(db.String(50), unique=True, nullable=False)
     nivel_estrelas = db.Column(db.Integer, unique=True, nullable=False)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_criacao = db.Column(db.DateTime, default=now_brasilia, nullable=False)
 
     itens = db.relationship('TabelaPrecoItem', backref='tabela_preco', lazy=True, cascade='all, delete-orphan')
 
@@ -1663,7 +1664,7 @@ class TabelaPrecoItem(db.Model):  # type: ignore
     material_id = db.Column(db.Integer, db.ForeignKey('materiais_base.id', ondelete='CASCADE'), nullable=False)
     preco_por_kg = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     def __init__(self, **kwargs: Any) -> None:
         if 'preco_por_kg' in kwargs and kwargs['preco_por_kg'] < 0:
@@ -1713,7 +1714,7 @@ class SolicitacaoAutorizacaoPreco(db.Model):  # type: ignore
     nova_tabela_atribuida_id = db.Column(db.Integer, db.ForeignKey('tabelas_preco.id'), nullable=True)
     motivo_decisao = db.Column(db.Text, nullable=True)
 
-    data_solicitacao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_solicitacao = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     data_decisao = db.Column(db.DateTime, nullable=True)
 
     comprador = db.relationship('Usuario', foreign_keys=[comprador_id], backref='solicitacoes_preco')
@@ -1782,8 +1783,8 @@ class Conquista(db.Model):  # type: ignore
     prioridade = db.Column(db.Integer, nullable=False, default=1)
     cor = db.Column(db.String(7), nullable=True, default='#8b5cf6')
     icone = db.Column(db.String(50), nullable=True, default='fa-trophy')
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     usuario = db.relationship('Usuario', backref='conquistas', lazy=True)
     aportes = db.relationship('AporteConquista', backref='conquista', lazy=True, cascade='all, delete-orphan')
@@ -1855,7 +1856,7 @@ class AporteConquista(db.Model):  # type: ignore
     valor = db.Column(db.Numeric(12, 2), nullable=False)
     data_aporte = db.Column(db.Date, nullable=False)
     observacao = db.Column(db.Text, nullable=True)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -1883,7 +1884,7 @@ class ConversaBot(db.Model):  # type: ignore
     tipo_consulta = db.Column(db.String(50), nullable=True)
     fonte_dados = db.Column(db.String(100), nullable=True)
     dados_adicionais = db.Column(db.JSON, nullable=True)
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_criacao = db.Column(db.DateTime, default=now_brasilia, nullable=False)
 
     usuario = db.relationship('Usuario', backref='conversas_bot', lazy=True)
 
@@ -1917,8 +1918,8 @@ class ScannerConfig(db.Model):  # type: ignore
     price_high_min = db.Column(db.Float, default=60.0, nullable=False)
     price_high_max = db.Column(db.Float, default=150.0, nullable=False)
     prompt_rules = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
     updated_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1956,7 +1957,7 @@ class ScannerAnalysis(db.Model):  # type: ignore
     image_data = db.Column(db.LargeBinary, nullable=True)
     image_mimetype = db.Column(db.String(50), nullable=True)
     raw_response = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_brasilia, nullable=False)
 
     usuario = db.relationship('Usuario', backref='scanner_analyses', lazy=True)
 
@@ -2000,9 +2001,9 @@ class VisitaFornecedor(db.Model):  # type: ignore
     longitude = db.Column(db.Numeric(11, 8), nullable=True)
     observacoes = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(30), default='pendente', nullable=False)
-    data_visita = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_visita = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     fornecedor_id = db.Column(db.Integer, db.ForeignKey('fornecedores.id'), nullable=True)
 
@@ -2052,8 +2053,8 @@ class ClassificacaoGrade(db.Model):  # type: ignore
     ativo = db.Column(db.Boolean, default=True, nullable=False)
     is_teste = db.Column(db.Boolean, default=False, nullable=False)  # Se é um nome de teste
     criado_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
-    data_cadastro = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     criador = db.relationship('Usuario', backref='classificacoes_grade_criadas')
 
@@ -2123,10 +2124,10 @@ class OrdemProducao(db.Model):  # type: ignore
     finalizado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
     
     # Datas
-    data_abertura = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_abertura = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     data_inicio_separacao = db.Column(db.DateTime, nullable=True)
     data_finalizacao = db.Column(db.DateTime, nullable=True)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
     
     # Observações e auditoria
     observacoes = db.Column(db.Text, nullable=True)
@@ -2225,7 +2226,7 @@ class ItemSeparadoProducao(db.Model):  # type: ignore
     
     # Rastreabilidade
     separado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
-    data_separacao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_separacao = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     observacoes = db.Column(db.Text, nullable=True)
     
     # Controle de estoque
@@ -2297,8 +2298,8 @@ class BagProducao(db.Model):  # type: ignore
     # Controle
     criado_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     responsavel_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
-    data_criacao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data_criacao = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
     observacoes = db.Column(db.Text, nullable=True)
     
     # Categoria manual para bags com categorias mistas
@@ -2390,8 +2391,8 @@ class ModeloTabelaPreco(db.Model):  # type: ignore
     status = db.Column(db.String(50), default='PENDENTE_APROVACAO', nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
     updated_by = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     itens = db.relationship('ModeloTabelaPrecoItem', backref='modelo', lazy=True, cascade='all, delete-orphan')
     criador = db.relationship('Usuario', foreign_keys=[created_by], backref='modelos_tabela_criados')
@@ -2435,7 +2436,7 @@ class ModeloTabelaPrecoItem(db.Model):  # type: ignore
     modelo_id = db.Column(db.Integer, db.ForeignKey('modelos_tabela_preco.id', ondelete='CASCADE'), nullable=False)
     material_id = db.Column(db.Integer, db.ForeignKey('materiais_base.id'), nullable=False)
     preco_por_kg = db.Column(db.Numeric(10, 2), nullable=False, default=0.00)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_brasilia, nullable=False)
 
     material = db.relationship('MaterialBase', backref='modelos_itens')
 

@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, ModeloTabelaPreco, ModeloTabelaPrecoItem, MaterialBase, Usuario
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 import logging
 
 logger = logging.getLogger(__name__)
@@ -268,7 +269,7 @@ def atualizar_modelo(modelo_id):
                     erros.append(f'Item {idx + 1}: {str(e)}')
 
         modelo.updated_by = usuario_id
-        modelo.updated_at = datetime.utcnow()
+        modelo.updated_at = now_brasilia()
         db.session.commit()
 
         logger.info(f'Modelo de tabela "{modelo.nome}" atualizado por {usuario.nome}')
@@ -301,7 +302,7 @@ def excluir_modelo(modelo_id):
 
         modelo.ativo = False
         modelo.updated_by = usuario_id
-        modelo.updated_at = datetime.utcnow()
+        modelo.updated_at = now_brasilia()
         db.session.commit()
 
         logger.info(f'Modelo de tabela "{modelo.nome}" desativado por {usuario.nome}')
@@ -331,7 +332,7 @@ def ativar_modelo(modelo_id):
 
         modelo.ativo = True
         modelo.updated_by = usuario_id
-        modelo.updated_at = datetime.utcnow()
+        modelo.updated_at = now_brasilia()
         db.session.commit()
 
         logger.info(f'Modelo de tabela "{modelo.nome}" reativado por {usuario.nome}')
@@ -425,7 +426,7 @@ def aprovar_modelo(modelo_id):
 
         modelo.status = 'APROVADO'
         modelo.updated_by = usuario_id
-        modelo.updated_at = datetime.utcnow()
+        modelo.updated_at = now_brasilia()
         db.session.commit()
 
         logger.info(f'Modelo de tabela "{modelo.nome}" aprovado por {usuario.nome}')
@@ -455,7 +456,7 @@ def rejeitar_modelo(modelo_id):
 
         modelo.status = 'REJEITADO'
         modelo.updated_by = usuario_id
-        modelo.updated_at = datetime.utcnow()
+        modelo.updated_at = now_brasilia()
         db.session.commit()
 
         logger.info(f'Modelo de tabela "{modelo.nome}" rejeitado por {usuario.nome}')

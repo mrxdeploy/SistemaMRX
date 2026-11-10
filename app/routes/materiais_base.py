@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, send_file
+﻿from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, MaterialBase, TabelaPreco, TabelaPrecoItem, Usuario
 from app.auth import admin_required
@@ -7,6 +7,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from io import BytesIO
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 import logging # Import the logging module
 
 # Configure logging
@@ -260,7 +261,7 @@ def atualizar_material(id):
                         )
                         db.session.add(novo_preco)
 
-        material.data_atualizacao = datetime.utcnow()
+        material.data_atualizacao = now_brasilia()
         db.session.commit()
 
         return jsonify({

@@ -1,8 +1,9 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, SolicitacaoAutorizacaoPreco, Fornecedor, MaterialBase, TabelaPreco, Usuario, AuditoriaLog
 from app.auth import admin_required
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 from app import socketio
 
 bp = Blueprint('autorizacoes_preco', __name__, url_prefix='/api/autorizacoes-preco')
@@ -182,7 +183,7 @@ def aprovar_autorizacao(id):
         
         autorizacao.status = 'aprovada'
         autorizacao.decisao_adm_id = usuario_id
-        autorizacao.data_decisao = datetime.utcnow()
+        autorizacao.data_decisao = now_brasilia()
         autorizacao.motivo_decisao = motivo_decisao
         
         if promover_fornecedor and nova_tabela_id:
@@ -253,7 +254,7 @@ def rejeitar_autorizacao(id):
         
         autorizacao.status = 'rejeitada'
         autorizacao.decisao_adm_id = usuario_id
-        autorizacao.data_decisao = datetime.utcnow()
+        autorizacao.data_decisao = now_brasilia()
         autorizacao.motivo_decisao = motivo_decisao
         
         db.session.commit()

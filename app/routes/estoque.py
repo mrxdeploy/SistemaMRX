@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, Lote, MovimentacaoEstoque, Usuario
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 
 bp = Blueprint('estoque', __name__, url_prefix='/api/estoque')
 
@@ -233,11 +234,11 @@ def criar_movimentacao():
             auditoria=[{
                 'acao': 'MOVIMENTACAO_CRIADA',
                 'usuario_id': usuario_id,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': now_brasilia().isoformat(),
                 'ip': request.remote_addr,
                 'user_agent': request.headers.get('User-Agent')
             }],
-            data_movimentacao=datetime.utcnow()
+            data_movimentacao=now_brasilia()
         )
 
         db.session.add(movimentacao)

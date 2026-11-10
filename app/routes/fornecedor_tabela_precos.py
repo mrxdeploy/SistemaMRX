@@ -1,10 +1,11 @@
-from flask import Blueprint, request, jsonify, send_file
+﻿from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, FornecedorTabelaPrecos, AuditoriaFornecedorTabelaPrecos, Fornecedor, MaterialBase, Usuario, Notificacao, TabelaPrecoItem, FornecedorFuncionarioAtribuicao
 from app.auth import admin_required
 import pandas as pd
 from io import BytesIO
 from datetime import datetime, timedelta
+from app.utils.datetime_br import now_brasilia
 import logging
 
 logger = logging.getLogger(__name__)
@@ -1018,7 +1019,7 @@ def admin_editar_preco(preco_id):
         preco_anterior = float(preco.preco_fornecedor) if preco.preco_fornecedor else 0
         preco.preco_fornecedor = float(novo_preco)
         preco.updated_by = usuario_id
-        preco.updated_at = datetime.utcnow()
+        preco.updated_at = now_brasilia()
         
         auditoria = AuditoriaFornecedorTabelaPrecos(
             preco_id=preco.id,
@@ -1166,12 +1167,12 @@ def aprovar_tabela_completa(fornecedor_id):
         for preco in precos_pendentes:
             preco.status = 'ativo'
             preco.updated_by = usuario_id
-            preco.updated_at = datetime.utcnow()
+            preco.updated_at = now_brasilia()
             if preco.created_by:
                 criadores_ids.add(preco.created_by)
         
         fornecedor.tabela_preco_status = 'aprovada'
-        fornecedor.tabela_preco_aprovada_em = datetime.utcnow()
+        fornecedor.tabela_preco_aprovada_em = now_brasilia()
         fornecedor.tabela_preco_aprovada_por_id = usuario_id
         
         db.session.commit()
@@ -1225,7 +1226,7 @@ def rejeitar_tabela_completa(fornecedor_id):
         for preco in precos_pendentes:
             preco.status = 'pendente_reenvio'
             preco.updated_by = usuario_id
-            preco.updated_at = datetime.utcnow()
+            preco.updated_at = now_brasilia()
             if preco.created_by:
                 criadores_ids.add(preco.created_by)
         
@@ -1400,7 +1401,7 @@ def exportar_pdf_fornecedor(fornecedor_id):
             tz_brasilia = pytz.timezone('America/Sao_Paulo')
             agora = datetime.now(tz_brasilia)
         except:
-            agora = datetime.utcnow() - timedelta(hours=3)
+            agora = now_brasilia()
 
         data_formatada = agora.strftime('%d/%m/%Y %H:%M:%S')
         

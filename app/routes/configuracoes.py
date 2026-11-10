@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, ConfiguracaoPrecoEstrela, Configuracao, Usuario
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 
 bp = Blueprint('configuracoes', __name__, url_prefix='/api/configuracoes')
 
@@ -80,7 +81,7 @@ def alterar_versao_custo_medio():
     cfg = Configuracao.query.filter_by(chave=CHAVE_CUSTO_MEDIO_VERSAO).first()
     if cfg:
         cfg.valor = versao
-        cfg.data_atualizacao = datetime.utcnow()
+        cfg.data_atualizacao = now_brasilia()
     else:
         cfg = Configuracao(
             chave=CHAVE_CUSTO_MEDIO_VERSAO,

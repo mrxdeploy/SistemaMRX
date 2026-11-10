@@ -1,9 +1,10 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import OrdemCompra, Solicitacao, Fornecedor, Usuario, OrdemServico, db
 from app.auth import admin_required
 from app.utils.auditoria import registrar_auditoria_oc
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 
 bp = Blueprint('ordens_compra', __name__, url_prefix='/api/ordens-compra')
 
@@ -31,7 +32,7 @@ def registrar_auditoria_os(os, acao, usuario_id, detalhes=None):
     entrada_auditoria = {
         'acao': acao,
         'usuario_id': usuario_id,
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': now_brasilia().isoformat(),
         'detalhes': detalhes or {},
         'ip': request.remote_addr,
         'user_agent': request.headers.get('User-Agent')
@@ -256,7 +257,7 @@ def aprovar_oc(oc_id):
         with db.session.begin_nested():
             oc.status = 'aprovada'
             oc.aprovado_por = usuario_id
-            oc.aprovado_em = datetime.utcnow()
+            oc.aprovado_em = now_brasilia()
             oc.observacao = data.get('observacao', oc.observacao)
             oc.ip_aprovacao = request.headers.get('X-Forwarded-For', request.remote_addr)
             oc.gps_aprovacao = data.get('gps')
@@ -384,7 +385,7 @@ def reprovar_oc(oc_id):
         with db.session.begin_nested():
             oc.status = 'rejeitada'
             oc.aprovado_por = usuario_id
-            oc.aprovado_em = datetime.utcnow()
+            oc.aprovado_em = now_brasilia()
             oc.observacao = data.get('observacao')
             oc.ip_aprovacao = request.headers.get('X-Forwarded-For', request.remote_addr)
             oc.gps_aprovacao = data.get('gps')

@@ -1,6 +1,7 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import get_jwt_identity
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 from app.models import db, Solicitacao, Placa, Entrada, Notificacao
 from app.auth import admin_required
 from app import socketio
@@ -44,19 +45,19 @@ def aprovar_solicitacao(id):
             solicitacao_id=id,
             admin_id=usuario_id,
             status='aprovada',
-            data_processamento=datetime.utcnow()
+            data_processamento=now_brasilia()
         )
         db.session.add(entrada)
     else:
         entrada_existente.status = 'aprovada'
         entrada_existente.admin_id = usuario_id
-        entrada_existente.data_processamento = datetime.utcnow()
+        entrada_existente.data_processamento = now_brasilia()
         entrada = entrada_existente
     
     for placa in solicitacao.placas:
         if placa.status == 'em_analise':
             placa.status = 'aprovada'
-            placa.data_aprovacao = datetime.utcnow()
+            placa.data_aprovacao = now_brasilia()
     
     solicitacao.status = 'aprovada'
     
@@ -102,14 +103,14 @@ def reprovar_solicitacao(id):
             solicitacao_id=id,
             admin_id=usuario_id,
             status='reprovada',
-            data_processamento=datetime.utcnow(),
+            data_processamento=now_brasilia(),
             observacoes=observacoes
         )
         db.session.add(entrada)
     else:
         entrada_existente.status = 'reprovada'
         entrada_existente.admin_id = usuario_id
-        entrada_existente.data_processamento = datetime.utcnow()
+        entrada_existente.data_processamento = now_brasilia()
         entrada_existente.observacoes = observacoes
         entrada = entrada_existente
     
@@ -148,7 +149,7 @@ def aprovar_placa_individual(id):
         return jsonify({'erro': 'Placa não encontrada'}), 404
     
     placa.status = 'aprovada'
-    placa.data_aprovacao = datetime.utcnow()
+    placa.data_aprovacao = now_brasilia()
     
     db.session.commit()
     

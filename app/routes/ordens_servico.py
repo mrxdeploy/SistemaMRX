@@ -1,8 +1,9 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, OrdemServico, OrdemCompra, Fornecedor, Motorista, Veiculo, Usuario, Notificacao, GPSLog, ConferenciaRecebimento
 from app.auth import admin_required
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 
 bp = Blueprint('ordens_servico', __name__)
 
@@ -27,7 +28,7 @@ def registrar_auditoria_os(os, acao, usuario_id, detalhes=None):
     entrada_auditoria = {
         'acao': acao,
         'usuario_id': usuario_id,
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': now_brasilia().isoformat(),
         'detalhes': detalhes or {},
         'ip': request.remote_addr,
         'user_agent': request.headers.get('User-Agent')
@@ -448,7 +449,7 @@ def registrar_evento(id):
                         auditoria=[{
                             'acao': 'CRIACAO_AUTOMATICA',
                             'usuario_id': usuario_id,
-                            'timestamp': datetime.utcnow().isoformat(),
+                            'timestamp': now_brasilia().isoformat(),
                             'detalhes': {'os_id': os.id, 'oc_id': os.oc_id, 'criado_por': 'FINALIZACAO_OS'},
                             'ip': request.remote_addr,
                             'user_agent': request.headers.get('User-Agent')
@@ -690,7 +691,7 @@ def marcar_recebido(id):
                 auditoria=[{
                     'acao': 'CRIACAO_RECEBIMENTO_FORNECEDOR',
                     'usuario_id': usuario_id,
-                    'timestamp': datetime.utcnow().isoformat(),
+                    'timestamp': now_brasilia().isoformat(),
                     'detalhes': {'os_id': os.id, 'oc_id': os.oc_id, 'criado_por': 'RECEBIMENTO_FORNECEDOR_ENTREGA'},
                     'ip': request.remote_addr,
                     'user_agent': request.headers.get('User-Agent')
@@ -787,7 +788,7 @@ def admin_avancar_status(id):
                         auditoria=[{
                             'acao': 'CRIACAO_AUTOMATICA_ADMIN',
                             'usuario_id': usuario_id,
-                            'timestamp': datetime.utcnow().isoformat(),
+                            'timestamp': now_brasilia().isoformat(),
                             'detalhes': {'os_id': os.id, 'oc_id': os.oc_id, 'criado_por': 'FINALIZACAO_ADMIN'},
                             'ip': request.remote_addr,
                             'user_agent': request.headers.get('User-Agent')

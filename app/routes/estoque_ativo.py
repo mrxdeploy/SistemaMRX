@@ -4,6 +4,7 @@ from app.models import db, Lote, BagProducao, ItemSeparadoProducao, Classificaca
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func
 from datetime import datetime, timedelta
+from app.utils.datetime_br import now_brasilia
 import logging
 import json
 
@@ -1069,7 +1070,7 @@ def enviar_para_producao():
             sublote.reservado = True
             sublote.reservado_para = 'Produção'
             sublote.reservado_por_id = current_user_id
-            sublote.reservado_em = datetime.utcnow()
+            sublote.reservado_em = now_brasilia()
             sublotes_enviados.append(sublote.numero_lote)
         
         db.session.commit()
@@ -1219,7 +1220,7 @@ def adicionar_item_separado(sublote_id):
             valor_estimado=round(preco_kg * peso_kg, 2),
             custo_proporcional=round(preco_kg * peso_kg, 2),
             separado_por_id=current_user_id,
-            data_separacao=datetime.utcnow(),
+            data_separacao=now_brasilia(),
             observacoes=observacoes,
             entrada_estoque_id=sublote_id
         )
@@ -1345,7 +1346,7 @@ def devolver_sublote_estoque(sublote_id):
                 lote_pai_id=lote_pai.id,
                 observacoes=f"MATERIAL:{item.nome_item}|CLASSIFICACAO:{item.classificacao_grade.nome if item.classificacao_grade else 'N/A'}|PRECO_KG:{float(item.valor_estimado or 0) / float(item.peso_kg) if float(item.peso_kg) > 0 else 0:.2f}",
                 classificacao_predominante=item.classificacao_grade.categoria if item.classificacao_grade else None,
-                data_criacao=datetime.utcnow()
+                data_criacao=now_brasilia()
             )
             gerar_numero_lote_uuid_com_lock(novo_sublote)
             novos_sublotes.append(novo_sublote)
@@ -1443,7 +1444,7 @@ def autocomplete_classificacoes():
                     nome=cat_info['nome'],
                     categoria=cat_info['categoria'],
                     ativo=True,
-                    data_cadastro=datetime.utcnow()
+                    data_cadastro=now_brasilia()
                 )
                 db.session.add(nova)
         
@@ -1506,7 +1507,7 @@ def criar_bag():
             status='aberto',
             criado_por_id=current_user_id,
             categoria_manual=nome if nome else None,
-            data_criacao=datetime.utcnow()
+            data_criacao=now_brasilia()
         )
         db.session.add(nova_bag)
         db.session.commit()
@@ -1645,7 +1646,7 @@ def adicionar_materiais_bag():
                 valor_estimado=round(preco_kg * peso_enviar, 2),
                 custo_proporcional=round(preco_kg * peso_enviar, 2),
                 separado_por_id=current_user_id,
-                data_separacao=datetime.utcnow(),
+                data_separacao=now_brasilia(),
                 bag_id=bag_id,
                 entrada_estoque_id=sublote_id,
                 observacoes=f"Fornecedor: {sublote.fornecedor.nome if sublote.fornecedor else 'N/A'}"
@@ -1675,7 +1676,7 @@ def adicionar_materiais_bag():
         # Atualizar bag
         bag.peso_acumulado = float(bag.peso_acumulado or 0) + total_peso_adicionado
         bag.quantidade_itens = (bag.quantidade_itens or 0) + total_itens_adicionados
-        bag.data_atualizacao = datetime.utcnow()
+        bag.data_atualizacao = now_brasilia()
         
         db.session.commit()
         
@@ -1735,7 +1736,7 @@ def fechar_bag(bag_id):
 
         # ---- 3. Geração segura da ordem_exportacao sequencial diária ----
         # Formato: YYYY-MM-DD-XXXX  (ex: 2026-10-12-0001)
-        hoje_br = datetime.utcnow() - timedelta(hours=3)
+        hoje_br = now_brasilia()
         prefixo_dia = hoje_br.strftime('%Y-%m-%d-')
 
         # Busca a maior sequência já existente para este dia (excluindo o próprio bag)
@@ -1780,7 +1781,7 @@ def fechar_bag(bag_id):
         bag.status = 'cheio'
         bag.ordem_exportacao = ordem_ex
         bag.peso_acumulado = peso_consolidado
-        bag.data_atualizacao = datetime.utcnow()
+        bag.data_atualizacao = now_brasilia()
 
         db.session.commit()
 
@@ -1823,7 +1824,7 @@ def reabrir_bag(bag_id):
         bag.numero_remessa = None
         bag.data_envio_refinaria = None
         bag.enviado_por_id = None
-        bag.data_atualizacao = datetime.utcnow()
+        bag.data_atualizacao = now_brasilia()
         
         db.session.commit()
         
@@ -2015,7 +2016,7 @@ def remover_item_bag(bag_id, item_id):
         # ---- Recalcular totais do bag após remoção ----
         bag.peso_acumulado = max(0.0, round(float(bag.peso_acumulado or 0) - peso_item, 4))
         bag.quantidade_itens = max(0, (bag.quantidade_itens or 1) - 1)
-        bag.data_atualizacao = datetime.utcnow()
+        bag.data_atualizacao = now_brasilia()
 
         # ---- Deletar o item ----
         db.session.delete(item)
@@ -2740,7 +2741,7 @@ def adicionar_materiais_bag_estoque_geral():
                 valor_estimado=valor_item_bag,
                 custo_proporcional=valor_item_bag,
                 separado_por_id=current_user_id,
-                data_separacao=datetime.utcnow(),
+                data_separacao=now_brasilia(),
                 bag_id=bag_id,
                 entrada_estoque_id=mapa_consumo[0]['sid'] if mapa_consumo else None,
                 observacoes=f"ESTOQUE_GERAL:{consumo_json}"
@@ -2765,7 +2766,7 @@ def adicionar_materiais_bag_estoque_geral():
         # ---- PASSO 9: Atualizar totais do bag ----
         bag.peso_acumulado = round(float(bag.peso_acumulado or 0) + total_peso_adicionado, 4)
         bag.quantidade_itens = (bag.quantidade_itens or 0) + total_itens_adicionados
-        bag.data_atualizacao = datetime.utcnow()
+        bag.data_atualizacao = now_brasilia()
 
         db.session.commit()
 

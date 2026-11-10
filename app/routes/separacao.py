@@ -1,8 +1,9 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, Lote, LoteSeparacao, Residuo, Usuario, Notificacao
 from app.auth import admin_required
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 from decimal import Decimal
 import logging
 
@@ -14,7 +15,7 @@ def registrar_auditoria_separacao(separacao, acao, usuario_id, detalhes=None, gp
     entrada_auditoria = {
         'acao': acao,
         'usuario_id': usuario_id,
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': now_brasilia().isoformat(),
         'detalhes': detalhes or {},
         'ip': request.remote_addr,
         'user_agent': request.headers.get('User-Agent'),
@@ -113,7 +114,7 @@ def iniciar_separacao(id):
 
         separacao.status = 'EM_SEPARACAO'
         separacao.operador_id = usuario_id
-        separacao.data_inicio = datetime.utcnow()
+        separacao.data_inicio = now_brasilia()
         separacao.gps_inicio = data.get('gps')
         separacao.ip_inicio = request.remote_addr
         separacao.device_id = data.get('device_id')
@@ -273,7 +274,7 @@ def criar_sublote(id):
             auditoria=[{
                 'acao': 'SUBLOTE_CRIADO_NA_SEPARACAO',
                 'usuario_id': usuario_id,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': now_brasilia().isoformat(),
                 'ip': request.remote_addr,
                 'user_agent': request.headers.get('User-Agent'),
                 'gps': data.get('gps'),
@@ -283,7 +284,7 @@ def criar_sublote(id):
                 'lote_pai_numero': lote_pai.numero_lote,
                 'valor_proporcional': float(valor_sublote)
             }],
-            data_criacao=datetime.utcnow()
+            data_criacao=now_brasilia()
         )
 
         gerar_numero_lote_ano_com_lock(sublote)
@@ -362,13 +363,13 @@ def criar_residuo(id):
             auditoria=[{
                 'acao': 'RESIDUO_CRIADO',
                 'usuario_id': usuario_id,
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': now_brasilia().isoformat(),
                 'ip': request.remote_addr,
                 'user_agent': request.headers.get('User-Agent'),
                 'gps': data.get('gps'),
                 'device_id': data.get('device_id') or separacao.device_id
             }],
-            criado_em=datetime.utcnow()
+            criado_em=now_brasilia()
         )
 
         db.session.add(residuo)
@@ -471,7 +472,7 @@ def finalizar_separacao(id):
             separacao.percentual_aproveitamento = percentual
 
         separacao.status = 'FINALIZADA'
-        separacao.data_finalizacao = datetime.utcnow()
+        separacao.data_finalizacao = now_brasilia()
         separacao.gps_fim = data.get('gps')
         separacao.observacoes = data.get('observacoes', '')
 
@@ -526,7 +527,7 @@ def aprovar_residuo(id):
 
         residuo.status = 'APROVADO' if decisao == 'APROVAR' else 'REJEITADO'
         residuo.aprovado_por_id = usuario_id
-        residuo.data_aprovacao = datetime.utcnow()
+        residuo.data_aprovacao = now_brasilia()
         residuo.motivo_decisao = data.get('motivo', '')
 
         if residuo.auditoria is None:
@@ -534,7 +535,7 @@ def aprovar_residuo(id):
         residuo.auditoria.append({
             'acao': f'RESIDUO_{decisao}',
             'usuario_id': usuario_id,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now_brasilia().isoformat(),
             'ip': request.remote_addr,
             'motivo': data.get('motivo', '')
         })
@@ -736,10 +737,10 @@ def sincronizar_sublotes(id):
                 auditoria=[{
                     'acao': 'SUBLOTE_AUTO_CRIADO',
                     'usuario_id': usuario_id,
-                    'timestamp': datetime.utcnow().isoformat(),
+                    'timestamp': now_brasilia().isoformat(),
                     'origem': 'SYNC_PEDIDO_COMPRA'
                 }],
-                data_criacao=datetime.utcnow()
+                data_criacao=now_brasilia()
             )
             
             seq = gerar_numero_lote_ano_com_lock(sublote, base_seq=seq)
@@ -813,7 +814,7 @@ def editar_sublote(id):
         auditoria.append({
             'acao': 'EDICAO_SUBLOTE',
             'usuario_id': usuario_id,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now_brasilia().isoformat(),
             'alteracoes': data
         })
         sublote.auditoria = auditoria

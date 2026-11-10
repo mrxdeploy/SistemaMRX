@@ -1,8 +1,9 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import EntradaEstoque, Lote, Usuario, db
 from app.auth import admin_required
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 
 bp = Blueprint('entradas', __name__, url_prefix='/api/entradas')
 
@@ -101,7 +102,7 @@ def processar_entrada(id):
         data = request.get_json()
         
         entrada.status = 'processada'
-        entrada.data_processamento = datetime.utcnow()
+        entrada.data_processamento = now_brasilia()
         entrada.admin_id = admin.id if admin else None
         
         if data and 'observacoes' in data:
@@ -109,7 +110,7 @@ def processar_entrada(id):
         
         if entrada.lote:
             entrada.lote.status = 'estoque'
-            entrada.lote.data_fechamento = datetime.utcnow()
+            entrada.lote.data_fechamento = now_brasilia()
         
         db.session.commit()
         

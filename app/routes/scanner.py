@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, render_template
+﻿from flask import Blueprint, request, jsonify, render_template
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, Usuario, ScannerConfig, ScannerAnalysis
 from app.services.pcb_analyzer import (
@@ -11,6 +11,7 @@ from app.services.perplexity_formatter import (
     is_perplexity_configured
 )
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 import base64
 
 bp = Blueprint('scanner', __name__)
@@ -195,7 +196,7 @@ def update_admin_config():
         if 'prompt_rules' in data:
             config.prompt_rules = str(data['prompt_rules'])
         
-        config.updated_at = datetime.utcnow()
+        config.updated_at = now_brasilia()
         config.updated_by = int(usuario_id)
         db.session.commit()
         

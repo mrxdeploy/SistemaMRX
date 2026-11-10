@@ -1,5 +1,6 @@
-from app.models import db, Notificacao, Usuario, Fornecedor, OrdemCompra
+﻿from app.models import db, Notificacao, Usuario, Fornecedor, OrdemCompra
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 
 def obter_admins():
     return Usuario.query.filter(
@@ -23,7 +24,7 @@ def criar_notificacao_admin(titulo, mensagem, tipo, url):
             notificacao_principal.mensagem = mensagem
             notificacao_principal.url = url
             notificacao_principal.lida = False
-            notificacao_principal.data_envio = datetime.utcnow()
+            notificacao_principal.data_envio = now_brasilia()
             
             for duplicada in notificacoes_existentes[1:]:
                 db.session.delete(duplicada)

@@ -1,8 +1,9 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from app.models import Lote, Solicitacao, EntradaEstoque, db
 from app.auth import admin_required
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 import uuid
 
 bp = Blueprint('lotes', __name__, url_prefix='/api/lotes')
@@ -141,7 +142,7 @@ def atualizar_lote(id):
             lote.status = data['status']
             
             if data['status'] == 'fechado' and not lote.data_fechamento:
-                lote.data_fechamento = datetime.utcnow()
+                lote.data_fechamento = now_brasilia()
         
         db.session.commit()
         
@@ -164,7 +165,7 @@ def aprovar_lote(id):
             return jsonify({'erro': 'Lote já foi aprovado'}), 400
         
         lote.status = 'aprovado'
-        lote.data_aprovacao = datetime.utcnow()
+        lote.data_aprovacao = now_brasilia()
         
         entrada_existente = EntradaEstoque.query.filter_by(lote_id=lote.id).first()
         if not entrada_existente:

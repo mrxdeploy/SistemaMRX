@@ -1,6 +1,7 @@
-import uuid
+﻿import uuid
 import logging
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 from sqlalchemy.exc import IntegrityError
 from app.models import db, Lote
 
@@ -38,7 +39,7 @@ def gerar_numero_lote_ano_com_lock(modelo_instancia, base_seq=None, limite_tenta
     :param limite_tentativas: Tentativas antes de lançar exceção
     :return: A sequência que deu certo.
     """
-    ano = datetime.now().year
+    ano = now_brasilia().year
     
     if base_seq is None:
         base_seq = obter_max_sequencial_ano(ano)
@@ -68,7 +69,7 @@ def gerar_codigo_compra_com_lock(modelo_instancia, limite_tentativas=10):
     """
     Insere o lote de compra no formato AAAAMMDD-SEQ.
     """
-    hoje = datetime.now()
+    hoje = now_brasilia()
     data_str = hoje.strftime('%Y%m%d')
     
     ultimo_lote = db.session.query(Lote).filter(
@@ -102,7 +103,7 @@ def gerar_numero_lote_uuid_com_lock(modelo_instancia, limite_tentativas=5):
     """
     Insere um lote com sufixo UUID seguro contra colisões raras.
     """
-    ano = datetime.now().year
+    ano = now_brasilia().year
     
     for tentativa in range(limite_tentativas):
         numero_proposto = f"{ano}-{str(uuid.uuid4().hex[:5]).upper()}"

@@ -1,10 +1,11 @@
-from flask import Blueprint, request, jsonify
+﻿from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Solicitacao, ItemSolicitacao, Fornecedor, TipoLote, FornecedorTipoLoteClassificacao, db, Usuario, Lote, OrdemCompra, Notificacao, Perfil, MaterialBase, TabelaPreco
 from app.auth import admin_required
 from app.utils.auditoria import registrar_auditoria_oc
 from app import socketio
 from datetime import datetime
+from app.utils.datetime_br import now_brasilia
 from sqlalchemy import inspect as sa_inspect
 
 bp = Blueprint('solicitacoes', __name__, url_prefix='/api/solicitacoes')
@@ -603,7 +604,7 @@ def criar_solicitacao():
             return jsonify(sol_dict), 201
         else:
             solicitacao.status = 'aprovada'
-            solicitacao.data_confirmacao = datetime.utcnow()
+            solicitacao.data_confirmacao = now_brasilia()
             print(f"\n{'='*60}")
             print(f" STATUS FINAL: APROVADA AUTOMATICAMENTE")
             print(f" Motivo: Todos os itens usam preço da tabela ou preço oferecido ≤ tabela")
@@ -819,7 +820,7 @@ def editar_solicitacao(id):
             db.session.commit()
         else:
             solicitacao.status = 'aprovada'
-            solicitacao.data_confirmacao = datetime.utcnow()
+            solicitacao.data_confirmacao = now_brasilia()
             
             # Sincronizar itens e status antes de criar a OC
             db.session.flush()
@@ -907,7 +908,7 @@ def aprovar_solicitacao(id):
         
         print(f"\n ETAPA 1: Atualizando status da solicitação...")
         solicitacao.status = 'aprovada'
-        solicitacao.data_confirmacao = datetime.utcnow()
+        solicitacao.data_confirmacao = now_brasilia()
         solicitacao.admin_id = usuario_id
         print(f" Status atualizado para: aprovada")
         
@@ -1072,7 +1073,7 @@ def aprovar_e_promover_solicitacao(id):
         data = request.get_json(silent=True) or {}
         
         solicitacao.status = 'aprovada'
-        solicitacao.data_confirmacao = datetime.utcnow()
+        solicitacao.data_confirmacao = now_brasilia()
         solicitacao.admin_id = usuario_id
         
         # Criar Ordem de Compra
@@ -1187,7 +1188,7 @@ def rejeitar_solicitacao(id):
         motivo = data.get('motivo', '') if data else ''
 
         solicitacao.status = 'rejeitada'
-        solicitacao.data_confirmacao = datetime.utcnow()
+        solicitacao.data_confirmacao = now_brasilia()
         if motivo:
             solicitacao.observacoes = (solicitacao.observacoes or '') + f'\nMotivo da rejeição: {motivo}'
 
