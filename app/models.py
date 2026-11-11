@@ -54,7 +54,7 @@ class Usuario(db.Model):  # type: ignore
     percentual_comissao = db.Column(db.Float, nullable=True, default=0.0)
     telefone = db.Column(db.String(20), nullable=True)
     cpf = db.Column(db.String(14), nullable=True)
-    is_comprador = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
+    is_comprador = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
     data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     solicitacoes = db.relationship('Solicitacao', backref='funcionario', lazy=True, cascade='all, delete-orphan', foreign_keys='Solicitacao.funcionario_id')
@@ -624,7 +624,10 @@ class Solicitacao(db.Model):  # type: ignore
         if self.ordem_compra:
             oc_status = self.ordem_compra.status
             oc_id = self.ordem_compra.id
-            oc_comprador_nome = self.ordem_compra.comprador.nome if self.ordem_compra.comprador else None
+            try:
+                oc_comprador_nome = self.ordem_compra.comprador.nome if self.ordem_compra.comprador else None
+            except Exception:
+                oc_comprador_nome = None
 
         return {
             'id': self.id,

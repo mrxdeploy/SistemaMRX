@@ -109,8 +109,11 @@ def listar_ocs():
 @jwt_required()
 def listar_compradores():
     """Retorna usuários ativos marcados como comprador para o dropdown da OC."""
-    compradores = Usuario.query.filter_by(is_comprador=True, ativo=True).order_by(Usuario.nome).all()
-    return jsonify([{'id': u.id, 'nome': u.nome} for u in compradores]), 200
+    try:
+        compradores = Usuario.query.filter_by(is_comprador=True, ativo=True).order_by(Usuario.nome).all()
+        return jsonify([{'id': u.id, 'nome': u.nome} for u in compradores]), 200
+    except Exception as e:
+        return jsonify({'erro': f'Erro ao listar compradores: {str(e)}'}), 500
 
 
 @bp.route('/solicitacao/<int:sc_id>', methods=['POST'])
@@ -158,7 +161,7 @@ def criar_oc(sc_id):
         data = request.get_json() or {}
 
         # Determinar comprador_id
-        if usuario.is_comprador:
+        if getattr(usuario, 'is_comprador', False):
             comprador_id = usuario_id
         else:
             comprador_id = data.get('comprador_id')
@@ -166,7 +169,7 @@ def criar_oc(sc_id):
                 return jsonify({'erro': 'Campo comprador_id é obrigatório para usuários não compradores'}), 400
             comprador_id = int(comprador_id)
             comprador = Usuario.query.get(comprador_id)
-            if not comprador or not comprador.ativo or not comprador.is_comprador:
+            if not comprador or not comprador.ativo or not getattr(comprador, 'is_comprador', False):
                 return jsonify({'erro': 'Comprador inválido ou inativo'}), 400
 
         with db.session.begin_nested():
