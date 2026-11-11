@@ -1,8 +1,6 @@
 ﻿import logging
 from flask import Blueprint, jsonify, request
-logger = logging.getLogger(__name__)
 from flask_jwt_extended import jwt_required, get_jwt_identity
-logger = logging.getLogger(__name__)
 from datetime import datetime
 import requests
 import os
@@ -16,6 +14,7 @@ from app.models import (
 from app.routes.metais import fetch_metals_data
 
 bp = Blueprint('assistente', __name__, url_prefix='/api/assistente')
+logger = logging.getLogger(__name__)
 
 
 def verificar_usuario(usuario_id):
@@ -531,7 +530,6 @@ def sugestoes():
 @jwt_required()
 def exportar_conversa(sessao_id):
     from flask import Response
-logger = logging.getLogger(__name__)
     try:
         usuario_id = get_jwt_identity()
         usuario, erro_response, status_code = verificar_usuario(usuario_id)

@@ -1,13 +1,12 @@
 ﻿import logging
 from flask import Blueprint, jsonify
-logger = logging.getLogger(__name__)
 from flask_jwt_extended import jwt_required, get_jwt_identity
-logger = logging.getLogger(__name__)
 from app.models import db, Notificacao, Usuario
 from app.auth import admin_required
 
 bp = Blueprint('notificacoes', __name__, url_prefix='/api/notificacoes')
 
+logger = logging.getLogger(__name__)
 @bp.route('', methods=['GET'])
 @jwt_required()
 def listar_notificacoes():

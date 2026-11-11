@@ -1,8 +1,6 @@
 ﻿import logging
 from flask import Blueprint, request, jsonify, render_template
-logger = logging.getLogger(__name__)
 from flask_jwt_extended import jwt_required, get_jwt_identity
-logger = logging.getLogger(__name__)
 from app.models import db, Usuario, ScannerConfig, ScannerAnalysis
 from app.services.pcb_analyzer import (
     analyze_pcb_image as opencv_analyze_pcb,
@@ -19,6 +17,7 @@ import base64
 
 bp = Blueprint('scanner', __name__)
 
+logger = logging.getLogger(__name__)
 def get_scanner_config():
     config = ScannerConfig.query.first()
     if not config:
@@ -288,7 +287,6 @@ def get_analysis_image(analysis_id):
             return jsonify({'erro': 'Imagem nao encontrada'}), 404
         
         from flask import Response
-logger = logging.getLogger(__name__)
         return Response(
             analysis.image_data,
             mimetype=analysis.image_mimetype or 'image/jpeg'

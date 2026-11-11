@@ -1,8 +1,6 @@
 ﻿import logging
 from flask import Blueprint, request, jsonify
-logger = logging.getLogger(__name__)
 from flask_jwt_extended import jwt_required, get_jwt_identity
-logger = logging.getLogger(__name__)
 from app.models import db, Lote, ItemSolicitacao, Fornecedor, MovimentacaoEstoque, MaterialBase, Usuario, Inventario, InventarioContagem
 from app.auth import admin_required
 from datetime import datetime
@@ -11,6 +9,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 bp = Blueprint('wms', __name__, url_prefix='/api/wms')
 
+logger = logging.getLogger(__name__)
 # ==================== LOTES WMS ====================
 
 @bp.route('/lotes', methods=['GET'])

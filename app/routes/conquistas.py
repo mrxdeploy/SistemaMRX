@@ -1,14 +1,13 @@
 ﻿import logging
 from flask import Blueprint, jsonify, request
-logger = logging.getLogger(__name__)
 from flask_jwt_extended import jwt_required, get_jwt_identity
-logger = logging.getLogger(__name__)
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from app.models import db, Conquista, AporteConquista, Usuario
 
 bp = Blueprint('conquistas', __name__, url_prefix='/api/conquistas')
 
+logger = logging.getLogger(__name__)
 @bp.route('', methods=['GET'])
 @jwt_required()
 def listar_conquistas():
