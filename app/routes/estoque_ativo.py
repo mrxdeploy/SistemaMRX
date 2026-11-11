@@ -2462,24 +2462,33 @@ def listar_estoque_geral():
             )
         ).order_by(Lote.data_criacao.asc()).all()
 
-        # Buscar valor_estimado/peso_kg dos itens separados (uma única query)
-        sublote_ids = [s.id for s in sublotes_ativos]
-        itens_bag = ItemSeparadoProducao.query.filter(
-            ItemSeparadoProducao.entrada_estoque_id.in_(sublote_ids)
-        ).with_entities(
-            ItemSeparadoProducao.entrada_estoque_id,
-            ItemSeparadoProducao.valor_estimado,
-            ItemSeparadoProducao.peso_kg
-        ).all()
-
-        # Agregar por sublote: sum(valor_estimado) e sum(peso_kg)
-        ve_por_sublote = {}
-        for row in itens_bag:
-            sid = row.entrada_estoque_id
-            if sid not in ve_por_sublote:
-                ve_por_sublote[sid] = [0.0, 0.0]
-            ve_por_sublote[sid][0] += float(row.valor_estimado or 0)
-            ve_por_sublote[sid][1] += float(row.peso_kg or 0)
+        # ----------------------------------------------------------------
+        # Preço por sublote: usa preco_por_kg_snapshot do ItemSolicitacao
+        # (mesma fonte e fórmula da aba "Total Compra").
+        # Fórmula: Σ(preco_por_kg_snapshot × peso_kg) / Σ(peso_kg)
+        # agrupado por (solicitacao_id, tipo_lote_id).
+        # Uma única query batch — sem N+1.
+        # ----------------------------------------------------------------
+        solic_ids = {s.solicitacao_origem_id for s in sublotes_ativos if s.solicitacao_origem_id}
+        preco_oc = {}
+        if solic_ids:
+            rows_oc = db.session.query(
+                ItemSolicitacao.solicitacao_id,
+                ItemSolicitacao.tipo_lote_id,
+                func.sum(ItemSolicitacao.preco_por_kg_snapshot * ItemSolicitacao.peso_kg).label('vpeso'),
+                func.sum(ItemSolicitacao.peso_kg).label('peso')
+            ).filter(
+                ItemSolicitacao.solicitacao_id.in_(solic_ids),
+                ItemSolicitacao.preco_por_kg_snapshot > 0,
+                ItemSolicitacao.peso_kg > 0
+            ).group_by(
+                ItemSolicitacao.solicitacao_id,
+                ItemSolicitacao.tipo_lote_id
+            ).all()
+            for row in rows_oc:
+                p = float(row.peso or 0)
+                if p > 0:
+                    preco_oc[(row.solicitacao_id, row.tipo_lote_id)] = float(row.vpeso) / p
 
         # Agrupar por (material_nome, categoria)
         materiais_agrupados = {}
@@ -2499,12 +2508,11 @@ def listar_estoque_geral():
             if peso <= 0.001:
                 continue
 
-            # Calcular preço/kg: usar valor_estimado/peso_kg dos itens (mesmo das bags)
-            # Fallback para cadeia de prioridades quando o sublote não tem itens associados
-            ve_data = ve_por_sublote.get(sublote.id)
-            if ve_data and ve_data[1] > 0 and ve_data[0] > 0:
-                preco_kg = round(ve_data[0] / ve_data[1], 2)
-            else:
+            # Preço/kg: OC item snapshot (mesmo critério do Total Compra)
+            # Fallback para cadeia de prioridades em sublotes sem solicitação de origem
+            key = (sublote.solicitacao_origem_id, sublote.tipo_lote_id)
+            preco_kg = preco_oc.get(key, 0.0)
+            if preco_kg <= 0:
                 preco_kg = _calcular_preco_kg_sublote(sublote)
             valor = preco_kg * peso
 
