@@ -2885,15 +2885,6 @@
                                     <span style="font-size:0.85rem; font-weight:normal; color:var(--gray-500);">${item.show_prices ? '/kg' : ''}</span>
                                 </div>
                             </div>
-                            <div>
-                                <span style="font-size:0.72rem; color:var(--gray-500); text-transform:uppercase; font-weight:700;" title="Preço Médio Aritmético: média simples do preço/kg de cada sublote — cada fornecedor tem peso igual, independente do volume">
-                                    Preço Médio Aritmético <i class="fas fa-info-circle" style="font-size:0.7rem; color:var(--gray-400);"></i>
-                                </span>
-                                <div style="font-size:1.25rem; font-weight:800; color:#0ea5e9;">
-                                    ${item.show_prices ? fmtRS(item.preco_medio_aritmetico) : '<span style="font-size:0.9rem; color:var(--gray-400);">Confidencial</span>'}
-                                    <span style="font-size:0.85rem; font-weight:normal; color:var(--gray-500);">${item.show_prices ? '/kg' : ''}</span>
-                                </div>
-                            </div>
                             ${item.show_prices ? `
                             <div>
                                 <span style="font-size:0.72rem; color:var(--gray-500); text-transform:uppercase; font-weight:700;">Valor Total Saldo</span>

@@ -2524,20 +2524,12 @@ def listar_estoque_geral():
             # ============================================================
             preco_medio = round(valor_total / peso_total, 2) if peso_total > 0 else 0.0
 
-            # ============================================================
-            # CÁLCULO DO PREÇO MÉDIO ARITMÉTICO (peso = 1 por sublote)
-            # PM_arit = Σ(Preco_kg_i) / N — cada fornecedor tem peso igual
-            # ============================================================
-            precos_sublotes = [s['preco_kg'] for s in grupo['sublotes'] if s['preco_kg'] > 0]
-            preco_medio_aritmetico = round(sum(precos_sublotes) / len(precos_sublotes), 2) if precos_sublotes else 0.0
-
             item = {
                 'material_nome': grupo['material_nome'],
                 'categoria': grupo['categoria'],
                 'peso_disponivel': round(peso_total, 3),
                 'valor_total': round(valor_total, 2) if is_admin_or_gestor else 0,
                 'preco_medio_kg': preco_medio if is_admin_or_gestor else 0,
-                'preco_medio_aritmetico': preco_medio_aritmetico if is_admin_or_gestor else 0,
                 'show_prices': is_admin_or_gestor,
                 'qtd_sublotes': len(grupo['sublotes']),
                 'fornecedores': sorted(list(grupo['fornecedores'])),
