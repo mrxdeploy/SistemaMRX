@@ -105,6 +105,14 @@ def listar_ocs():
         traceback.print_exc()
         return jsonify({'erro': f'Erro ao listar ordens de compra: {str(e)}'}), 500
 
+@bp.route('/compradores', methods=['GET'])
+@jwt_required()
+def listar_compradores():
+    """Retorna usuários ativos marcados como comprador para o dropdown da OC."""
+    compradores = Usuario.query.filter_by(is_comprador=True, ativo=True).order_by(Usuario.nome).all()
+    return jsonify([{'id': u.id, 'nome': u.nome} for u in compradores]), 200
+
+
 @bp.route('/solicitacao/<int:sc_id>', methods=['POST'])
 @jwt_required()
 def criar_oc(sc_id):
@@ -148,7 +156,19 @@ def criar_oc(sc_id):
             return jsonify({'erro': 'Valor total da OC não pode ser negativo'}), 400
         
         data = request.get_json() or {}
-        
+
+        # Determinar comprador_id
+        if usuario.is_comprador:
+            comprador_id = usuario_id
+        else:
+            comprador_id = data.get('comprador_id')
+            if not comprador_id:
+                return jsonify({'erro': 'Campo comprador_id é obrigatório para usuários não compradores'}), 400
+            comprador_id = int(comprador_id)
+            comprador = Usuario.query.get(comprador_id)
+            if not comprador or not comprador.ativo or not comprador.is_comprador:
+                return jsonify({'erro': 'Comprador inválido ou inativo'}), 400
+
         with db.session.begin_nested():
             oc = OrdemCompra(
                 solicitacao_id=sc_id,
@@ -156,6 +176,7 @@ def criar_oc(sc_id):
                 valor_total=valor_total,
                 status='em_analise',
                 criado_por=usuario_id,
+                comprador_id=comprador_id,
                 observacao=data.get('observacao', '')
             )
             

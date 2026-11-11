@@ -51,6 +51,7 @@ def criar_usuario():
         senha_hash=hash_senha(data['senha']),
         tipo=tipo,
         perfil_id=data['perfil_id'],
+        is_comprador=bool(data.get('is_comprador', False)),
         criado_por=get_jwt_identity()
     )
     
@@ -97,12 +98,17 @@ def atualizar_usuario(id):
         perfil = Perfil.query.get(data['perfil_id'])
         if not perfil:
             return jsonify({'erro': 'Perfil não encontrado'}), 404
-        
+
         alteracoes['perfil_anterior'] = usuario.perfil.nome if usuario.perfil else None
         usuario.perfil_id = data['perfil_id']
         usuario.tipo = 'admin' if perfil.nome == 'Administrador' else 'funcionario'
         alteracoes['perfil_novo'] = perfil.nome
-    
+
+    if 'is_comprador' in data:
+        alteracoes['is_comprador_anterior'] = usuario.is_comprador
+        usuario.is_comprador = bool(data['is_comprador'])
+        alteracoes['is_comprador_novo'] = usuario.is_comprador
+
     db.session.commit()
     
     from app.utils.auditoria import registrar_atualizacao

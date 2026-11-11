@@ -1782,9 +1782,10 @@
                 const fornDocLabel = forn.tipo_documento === 'cpf' ? 'CPF:' : 'CNPJ:';
                 const fornDocValor = (forn.tipo_documento === 'cpf' ? forn.cpf : forn.cnpj) || '-';
 
+                const compradorNomePDF = solicitacaoAtual.oc_comprador_nome || solicitacaoAtual.funcionario_nome || "-";
                 const infoGeral = [
                     ["ID do Pedido:", `#${solicitacaoAtual.id}`, "Data de Envio:", formatDate(solicitacaoAtual.data_envio)],
-                    ["Funcionário:", solicitacaoAtual.funcionario_nome || "-", "Retirada:", solicitacaoAtual.tipo_retirada === 'buscar' ? 'Buscar no fornecedor' : 'Fornecedor entrega'],
+                    ["Comprador:", compradorNomePDF, "Retirada:", solicitacaoAtual.tipo_retirada === 'buscar' ? 'Buscar no fornecedor' : 'Fornecedor entrega'],
                     ["Fornecedor:", solicitacaoAtual.fornecedor_nome || "-", "Frete:", solicitacaoAtual.modalidade_frete || "FOB"],
                     [fornDocLabel, fornDocValor, "GPS:", solicitacaoAtual.localizacao_lat ? `${solicitacaoAtual.localizacao_lat.toFixed(6)}, ${solicitacaoAtual.localizacao_lng.toFixed(6)}` : "Não capturado"],
                     ["Endereço:", solicitacaoAtual.endereco_completo || "Não informado", "", ""]
@@ -2361,12 +2362,41 @@
         }
 
         async function gerarOC(solicitacaoId) {
-            if (!confirm('Gerar Ordem de Compra para este pedido aprovado?')) return;
-
             try {
+                let compradorId = null;
+
+                if (!usuarioAtual.is_comprador) {
+                    // Busca lista de compradores para o dropdown
+                    const compResp = await fetchAPI('/ordens-compra/compradores');
+                    if (!compResp || !compResp.ok) {
+                        showAlert('Erro ao buscar compradores', 'error');
+                        return;
+                    }
+                    const compradores = await compResp.json();
+                    if (!compradores || compradores.length === 0) {
+                        showAlert('Nenhum comprador ativo cadastrado. Configure um usuário como Comprador primeiro.', 'error');
+                        return;
+                    }
+
+                    // Mini-modal inline via prompt estruturado
+                    const opcoes = compradores.map(c => `${c.id} — ${c.nome}`).join('\n');
+                    const escolha = prompt(`Selecione o Comprador responsável (informe o número do ID):\n\n${opcoes}`);
+                    if (!escolha) return;
+                    const idDigitado = parseInt(escolha.trim().split(' ')[0]);
+                    const compradorValido = compradores.find(c => c.id === idDigitado);
+                    if (!compradorValido) {
+                        showAlert('ID de comprador inválido', 'error');
+                        return;
+                    }
+                    compradorId = compradorValido.id;
+                }
+
+                if (!confirm('Gerar Ordem de Compra para este pedido aprovado?')) return;
+
+                const payload = compradorId ? { comprador_id: compradorId } : {};
                 const response = await fetchAPI(`/ordens-compra/solicitacao/${solicitacaoId}`, {
                     method: 'POST',
-                    body: JSON.stringify({})
+                    body: JSON.stringify(payload)
                 });
 
                 if (response && response.ok) {

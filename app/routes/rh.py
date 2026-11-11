@@ -120,6 +120,10 @@ def criar_usuario_rh():
         except ValueError:
             percentual = 0.0
     
+    is_comprador_val = data.get('is_comprador', False)
+    if isinstance(is_comprador_val, str):
+        is_comprador_val = is_comprador_val.lower() in ('true', '1', 'yes', 'on')
+
     usuario = Usuario(
         nome=data['nome'],
         email=data['email'],
@@ -130,6 +134,7 @@ def criar_usuario_rh():
         telefone=data.get('telefone'),
         cpf=data.get('cpf'),
         percentual_comissao=percentual,
+        is_comprador=bool(is_comprador_val),
         criado_por=admin_id
     )
     
@@ -252,6 +257,14 @@ def atualizar_usuario_rh(id):
         alteracoes['antes']['percentual_comissao'] = usuario.percentual_comissao
         usuario.percentual_comissao = percentual
         alteracoes['depois']['percentual_comissao'] = percentual
+
+    if 'is_comprador' in data:
+        is_comprador_val = data['is_comprador']
+        if isinstance(is_comprador_val, str):
+            is_comprador_val = is_comprador_val.lower() in ('true', '1', 'yes', 'on')
+        alteracoes['antes']['is_comprador'] = usuario.is_comprador
+        usuario.is_comprador = bool(is_comprador_val)
+        alteracoes['depois']['is_comprador'] = usuario.is_comprador
     
     if 'foto' in request.files:
         file = request.files['foto']

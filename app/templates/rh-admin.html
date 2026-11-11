@@ -677,6 +677,13 @@
                     </div>
                 </div>
 
+                <div class="form-group" style="margin-top: 0.75rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-weight: 500;">
+                        <input type="checkbox" id="isCompradorUsuario" style="width: 1rem; height: 1rem; accent-color: #059669;">
+                        É Comprador — pode ser responsável por Ordens de Compra
+                    </label>
+                </div>
+
                 <div style="display: flex; gap: 1rem; margin-top: 1rem;">
                     <button type="button" class="btn btn-secondary" onclick="fecharModalUsuario()" style="flex: 1;">Cancelar</button>
                     <button type="submit" class="btn btn-primary" style="flex: 1;">Salvar</button>
@@ -1577,6 +1584,7 @@
                     document.getElementById('perfilUsuario').value = usuarioAtual.perfil_id || '';
                     document.getElementById('comissaoUsuario').value = usuarioAtual.percentual_comissao || 0;
                     document.getElementById('statusUsuario').value = usuarioAtual.ativo ? 'true' : 'false';
+                    document.getElementById('isCompradorUsuario').checked = !!usuarioAtual.is_comprador;
                     document.getElementById('senhaUsuario').value = '';
                     
                     if (usuarioAtual.foto_path) {
@@ -1614,6 +1622,7 @@
             formData.append('perfil_id', document.getElementById('perfilUsuario').value);
             formData.append('percentual_comissao', document.getElementById('comissaoUsuario').value || '0');
             formData.append('ativo', document.getElementById('statusUsuario').value);
+            formData.append('is_comprador', document.getElementById('isCompradorUsuario').checked ? 'true' : 'false');
             
             const senha = document.getElementById('senhaUsuario').value;
             if (senha) {

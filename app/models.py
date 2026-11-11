@@ -54,6 +54,7 @@ class Usuario(db.Model):  # type: ignore
     percentual_comissao = db.Column(db.Float, nullable=True, default=0.0)
     telefone = db.Column(db.String(20), nullable=True)
     cpf = db.Column(db.String(14), nullable=True)
+    is_comprador = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
     data_atualizacao = db.Column(db.DateTime, default=now_brasilia, onupdate=now_brasilia)
 
     solicitacoes = db.relationship('Solicitacao', backref='funcionario', lazy=True, cascade='all, delete-orphan', foreign_keys='Solicitacao.funcionario_id')
@@ -77,7 +78,8 @@ class Usuario(db.Model):  # type: ignore
             'telefone': self.telefone,
             'cpf': self.cpf,
             'percentual_comissao': float(self.percentual_comissao) if self.percentual_comissao else 0.0,
-            'foto_path': self.foto_path
+            'foto_path': self.foto_path,
+            'is_comprador': bool(self.is_comprador)
         }
 
     def has_permission(self, permission: str) -> bool:
@@ -618,9 +620,11 @@ class Solicitacao(db.Model):  # type: ignore
         # Buscar status da OC vinculada (se existir)
         oc_status = None
         oc_id = None
+        oc_comprador_nome = None
         if self.ordem_compra:
             oc_status = self.ordem_compra.status
             oc_id = self.ordem_compra.id
+            oc_comprador_nome = self.ordem_compra.comprador.nome if self.ordem_compra.comprador else None
 
         return {
             'id': self.id,
@@ -647,7 +651,8 @@ class Solicitacao(db.Model):  # type: ignore
             'total_peso_kg': round(total_peso, 2),
             'total_valor': round(total_valor, 2),
             'oc_id': oc_id,
-            'oc_status': oc_status
+            'oc_status': oc_status,
+            'oc_comprador_nome': oc_comprador_nome
         }
 
 class ItemSolicitacao(db.Model):  # type: ignore
@@ -1090,11 +1095,13 @@ class OrdemCompra(db.Model):  # type: ignore
     device_info = db.Column(db.String(100))
     criado_em = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     criado_por = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    comprador_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
 
     solicitacao = db.relationship('Solicitacao', back_populates='ordem_compra', foreign_keys=[solicitacao_id], uselist=False)
     fornecedor = db.relationship('Fornecedor', backref='ordens_compra', foreign_keys=[fornecedor_id])
     aprovador = db.relationship('Usuario', foreign_keys=[aprovado_por], backref='ocs_aprovadas')
     criador = db.relationship('Usuario', foreign_keys=[criado_por], backref='ocs_criadas')
+    comprador = db.relationship('Usuario', foreign_keys=[comprador_id], backref='ocs_comprador')
     auditorias = db.relationship('AuditoriaOC', backref='ordem_compra', lazy=True, cascade='all, delete-orphan')
 
     def __init__(self, **kwargs: Any) -> None:
@@ -1120,7 +1127,9 @@ class OrdemCompra(db.Model):  # type: ignore
             'device_info': self.device_info,
             'criado_em': self.criado_em.isoformat() if self.criado_em else None,
             'criado_por': self.criado_por,
-            'criador_nome': self.criador.nome if self.criador else None
+            'criador_nome': self.criador.nome if self.criador else None,
+            'comprador_id': self.comprador_id,
+            'comprador_nome': self.comprador.nome if self.comprador else None
         }
 
 class AuditoriaOC(db.Model):  # type: ignore
