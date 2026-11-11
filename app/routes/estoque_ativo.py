@@ -2462,6 +2462,25 @@ def listar_estoque_geral():
             )
         ).order_by(Lote.data_criacao.asc()).all()
 
+        # Buscar valor_estimado/peso_kg dos itens separados (uma única query)
+        sublote_ids = [s.id for s in sublotes_ativos]
+        itens_bag = ItemSeparadoProducao.query.filter(
+            ItemSeparadoProducao.entrada_estoque_id.in_(sublote_ids)
+        ).with_entities(
+            ItemSeparadoProducao.entrada_estoque_id,
+            ItemSeparadoProducao.valor_estimado,
+            ItemSeparadoProducao.peso_kg
+        ).all()
+
+        # Agregar por sublote: sum(valor_estimado) e sum(peso_kg)
+        ve_por_sublote = {}
+        for row in itens_bag:
+            sid = row.entrada_estoque_id
+            if sid not in ve_por_sublote:
+                ve_por_sublote[sid] = [0.0, 0.0]
+            ve_por_sublote[sid][0] += float(row.valor_estimado or 0)
+            ve_por_sublote[sid][1] += float(row.peso_kg or 0)
+
         # Agrupar por (material_nome, categoria)
         materiais_agrupados = {}
 
@@ -2480,8 +2499,13 @@ def listar_estoque_geral():
             if peso <= 0.001:
                 continue
 
-            # Calcular preço/kg usando a função existente do sistema
-            preco_kg = _calcular_preco_kg_sublote(sublote)
+            # Calcular preço/kg: usar valor_estimado/peso_kg dos itens (mesmo das bags)
+            # Fallback para cadeia de prioridades quando o sublote não tem itens associados
+            ve_data = ve_por_sublote.get(sublote.id)
+            if ve_data and ve_data[1] > 0 and ve_data[0] > 0:
+                preco_kg = round(ve_data[0] / ve_data[1], 2)
+            else:
+                preco_kg = _calcular_preco_kg_sublote(sublote)
             valor = preco_kg * peso
 
             # Chave de agrupamento: material + categoria
