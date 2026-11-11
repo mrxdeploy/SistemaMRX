@@ -162,7 +162,47 @@ def create_app():
                 print(f"Migration check: {e}")
 
         run_hr_migration()
-        
+
+        def run_comprador_migration():
+            try:
+                from sqlalchemy import text
+                with db.engine.connect() as conn:
+                    # 1. is_comprador em usuarios
+                    r = conn.execute(text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name='usuarios' AND column_name='is_comprador'"
+                    ))
+                    if r.fetchone() is None:
+                        conn.execute(text(
+                            "ALTER TABLE usuarios ADD COLUMN is_comprador BOOLEAN NOT NULL DEFAULT FALSE"
+                        ))
+                        # marca compradores existentes pelo perfil
+                        conn.execute(text(
+                            "UPDATE usuarios u SET is_comprador = TRUE "
+                            "FROM perfis p WHERE u.perfil_id = p.id AND p.nome = 'Comprador (PJ)'"
+                        ))
+                        conn.commit()
+                        print("✓ Migration: usuarios.is_comprador adicionado")
+
+                    # 2. comprador_id em ordens_compra
+                    r2 = conn.execute(text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name='ordens_compra' AND column_name='comprador_id'"
+                    ))
+                    if r2.fetchone() is None:
+                        conn.execute(text(
+                            "ALTER TABLE ordens_compra ADD COLUMN comprador_id INTEGER REFERENCES usuarios(id)"
+                        ))
+                        conn.execute(text(
+                            "UPDATE ordens_compra SET comprador_id = criado_por WHERE comprador_id IS NULL"
+                        ))
+                        conn.commit()
+                        print("✓ Migration: ordens_compra.comprador_id adicionado")
+            except Exception as e:
+                print(f"Migration comprador: {e}")
+
+        run_comprador_migration()
+
         def run_profiles_migration():
             try:
                 from app.models import Perfil
