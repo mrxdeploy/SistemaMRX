@@ -58,16 +58,22 @@ def _calcular_preco_kg_sublote(sublote):
                 except (ValueError, TypeError):
                     pass
     
-    # Prioridade 2: valor_total do sublote / peso
+    # Prioridade 2: valor_total do sublote / peso ORIGINAL de entrada
+    # Usar peso_bruto_recebido (imutável) em vez de peso_liquido (decresce com consumo),
+    # evitando inflação artificial do preço à medida que material é retirado para bags.
     val_sublote = float(sublote.valor_total or 0)
-    if val_sublote > 0 and peso_atual > 0:
-        return val_sublote / peso_atual
+    if val_sublote > 0:
+        peso_ref = float(sublote.peso_bruto_recebido or 0)
+        if peso_ref <= 0:
+            peso_ref = peso_atual  # fallback: sublotes sem peso_bruto_recebido
+        if peso_ref > 0:
+            return val_sublote / peso_ref
     
-    # Prioridade 3: valor_total do lote pai / peso do pai  
+    # Prioridade 3: valor_total do lote pai / peso ORIGINAL do pai
     lote_pai = sublote.lote_pai if sublote.lote_pai_id else None
     if lote_pai:
         pai_val = float(lote_pai.valor_total or 0)
-        pai_peso = float(lote_pai.peso_liquido or lote_pai.peso_total_kg or 0)
+        pai_peso = float(lote_pai.peso_bruto_recebido or lote_pai.peso_total_kg or lote_pai.peso_liquido or 0)
         if pai_val > 0 and pai_peso > 0:
             return pai_val / pai_peso
     
