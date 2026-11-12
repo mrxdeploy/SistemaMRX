@@ -513,9 +513,16 @@
             <form id="formSolicitacao">
                 <div class="form-group">
                     <label>Fornecedor *</label>
-                    <select id="fornecedorSolicitacao" required onchange="carregarPrecosFornecedor()">
-                        <option value="">Selecione um fornecedor...</option>
-                    </select>
+                    <div class="fornecedor-combo" style="position:relative">
+                        <input type="text" id="fornecedorBusca"
+                               placeholder="Digite o nome, CPF ou CNPJ do fornecedor..."
+                               autocomplete="off" style="width:100%">
+                        <input type="hidden" id="fornecedorSolicitacao" name="fornecedor_id">
+                        <ul id="fornecedorLista" hidden style="margin:0;padding:0"></ul>
+                    </div>
+                    <div id="fornecedorErro" style="display:none;color:#ef4444;font-size:.875rem;margin-top:4px">
+                        Selecione um fornecedor da lista.
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -669,6 +676,7 @@
     <script src="/static/js/app.js"></script>
     <script src="/static/js/chat-widget.js"></script>
     <script src="/static/js/scanner-widget.js"></script>
+    <script src="/static/js/components/autocomplete.js"></script>
     <script>
         let usuarioAtual = null;
         let solicitacaoAtual = null;
@@ -676,6 +684,7 @@
         let gpsAtual = null;
         let itensSolicitacao = [];
         let todosFornecedores = [];
+        let _acFornecedor = null;
         let todosTiposLote = [];
         let precosFornecedorSelecionado = {};
         // Controle do modo de edição
@@ -765,27 +774,35 @@
 
         async function carregarFornecedores() {
             try {
-                // Carregar apenas fornecedores com tabela de preços APROVADA
                 const response = await fetchAPI('/fornecedor-tabela-precos/fornecedores-aprovados');
                 if (response && response.ok) {
                     todosFornecedores = await response.json();
-                    const select = document.getElementById('fornecedorSolicitacao');
-                    if (todosFornecedores.length === 0) {
-                        select.innerHTML = '<option value="">Nenhum fornecedor com tabela aprovada...</option>';
-                    } else {
-                        select.innerHTML = '<option value="">Selecione um fornecedor...</option>' +
-                            todosFornecedores.map(f => `<option value="${f.id}">${f.nome}</option>`).join('');
-                    }
+                    // Ordena no front por segurança (locale pt-BR, accent-insensitive)
+                    todosFornecedores.sort((a, b) =>
+                        (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' })
+                    );
                 } else {
                     console.error('Erro ao carregar fornecedores aprovados');
-                    const select = document.getElementById('fornecedorSolicitacao');
-                    select.innerHTML = '<option value="">Erro ao carregar fornecedores...</option>';
                 }
             } catch (error) {
                 console.error('Erro ao carregar fornecedores:', error);
-                const select = document.getElementById('fornecedorSolicitacao');
-                select.innerHTML = '<option value="">Erro ao carregar fornecedores...</option>';
             }
+
+            // Inicializa (ou reinicializa) o autocomplete
+            _acFornecedor = criarAutocomplete({
+                input: document.getElementById('fornecedorBusca'),
+                hidden: document.getElementById('fornecedorSolicitacao'),
+                lista: document.getElementById('fornecedorLista'),
+                dados: todosFornecedores,
+                campoTexto: 'nome',
+                campoSecundario: 'documento',
+                placeholder: 'Digite o nome, CPF ou CNPJ do fornecedor...',
+                onSelect: (item) => {
+                    document.getElementById('fornecedorErro').style.display = 'none';
+                    document.getElementById('fornecedorBusca').style.borderColor = '';
+                    carregarPrecosFornecedor();
+                },
+            });
         }
 
         async function carregarTiposLote() {
@@ -1125,11 +1142,7 @@
                 // Reset form
                 document.getElementById('formSolicitacao').reset();
 
-                // Preencher fornecedor
-                const selectForn = document.getElementById('fornecedorSolicitacao');
-                selectForn.value = sol.fornecedor_id;
-
-                // Aguardar carregamento dos preços do fornecedor
+                // Aguardar carregamento dos preços do fornecedor (preenche hidden + texto)
                 await carregarPrecosFornecedorParaEdicao(sol.fornecedor_id);
 
                 // Preencher campos básicos
@@ -1208,15 +1221,17 @@
         }
 
         async function carregarPrecosFornecedorParaEdicao(fornecedorId) {
-            // Selecionar o fornecedor no select
-            const selectForn = document.getElementById('fornecedorSolicitacao');
-            selectForn.value = fornecedorId;
-            // Chamar carregarPrecosFornecedor para atualizar precosFornecedorSelecionado e todosTiposLote
+            document.getElementById('fornecedorSolicitacao').value = fornecedorId;
+            const f = todosFornecedores.find(f => f.id === parseInt(fornecedorId));
+            if (_acFornecedor && f) _acFornecedor.setValor(fornecedorId, f.nome);
             await carregarPrecosFornecedor();
         }
 
         function fecharModalSolicitacao() {
             document.getElementById('modalNovaSolicitacao').classList.remove('active');
+            if (_acFornecedor) _acFornecedor.limpar();
+            document.getElementById('fornecedorErro').style.display = 'none';
+            document.getElementById('fornecedorBusca').style.borderColor = '';
         }
 
         let itemIdCounter = 0;
@@ -1636,6 +1651,16 @@
 
         document.getElementById('formSolicitacao').addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            const hiddenForn = document.getElementById('fornecedorSolicitacao');
+            if (!hiddenForn.value) {
+                const inputBusca = document.getElementById('fornecedorBusca');
+                inputBusca.style.borderColor = '#ef4444';
+                document.getElementById('fornecedorErro').style.display = 'block';
+                inputBusca.focus();
+                return;
+            }
+            document.getElementById('fornecedorErro').style.display = 'none';
 
             if (itensSolicitacao.length === 0) {
                 showAlert('Adicione pelo menos um item ao pedido', 'error');

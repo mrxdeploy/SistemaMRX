@@ -1,8 +1,21 @@
 ﻿from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import validates
 from datetime import datetime
 import uuid
+import unicodedata
 from typing import Any
 from app.utils.datetime_br import now_brasilia
+
+
+def normalizar_nome_fornecedor(valor: str) -> str:
+    """MAIÚSCULAS + sem espaços duplicados/pontas. Mantém acentos."""
+    return " ".join((valor or "").split()).upper()
+
+
+def nome_busca_fornecedor(valor: str) -> str:
+    """Lowercase sem acento — para busca e ordenação accent-insensitive."""
+    s = normalizar_nome_fornecedor(valor).lower()
+    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
 
 db = SQLAlchemy()
 
@@ -296,7 +309,7 @@ class Fornecedor(db.Model):  # type: ignore
     forma_pagamento = db.Column(db.String(50), default='pix')
 
     observacoes = db.Column(db.Text)
-    nome_normalizado = db.Column(db.String(200), nullable=True, index=True)
+    nome_busca = db.Column(db.String(200), nullable=True, index=True)
 
     data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
@@ -316,14 +329,23 @@ class Fornecedor(db.Model):  # type: ignore
     tabela_preco_aprovada_por = db.relationship('Usuario', foreign_keys=[tabela_preco_aprovada_por_id], backref='tabelas_preco_aprovadas')
     autorizacoes_preco = db.relationship('SolicitacaoAutorizacaoPreco', backref='fornecedor', lazy=True)
 
+    @validates('nome')
+    def validates_nome(self, key, value):
+        normed = normalizar_nome_fornecedor(value)
+        self.nome_busca = nome_busca_fornecedor(normed)
+        return normed
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
     def to_dict(self):
+        documento = self.cnpj or self.cpf
         return {
             'id': self.id,
             'nome': self.nome,
+            'nome_busca': self.nome_busca or '',
             'nome_social': self.nome_social,
+            'documento': documento,
             'tipo_documento': self.tipo_documento,
             'cnpj': self.cnpj,
             'cpf': self.cpf,

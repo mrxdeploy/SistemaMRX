@@ -228,28 +228,45 @@ def create_app():
 
         run_movimentacoes_bag_migration()
 
-        def run_fornecedor_nome_normalizado_migration():
+        def run_nome_busca_migration():
             try:
                 from sqlalchemy import text
+                from app.models import Fornecedor, normalizar_nome_fornecedor, nome_busca_fornecedor
                 with db.engine.connect() as conn:
+                    # Adiciona nome_busca se não existir
                     r = conn.execute(text(
                         "SELECT column_name FROM information_schema.columns "
-                        "WHERE table_name='fornecedores' AND column_name='nome_normalizado'"
+                        "WHERE table_name='fornecedores' AND column_name='nome_busca'"
                     ))
                     if not r.fetchone():
-                        conn.execute(text(
-                            "ALTER TABLE fornecedores ADD COLUMN nome_normalizado VARCHAR(200)"
-                        ))
-                        # Popula com nome em lowercase (sem dependência de unaccent)
-                        conn.execute(text(
-                            "UPDATE fornecedores SET nome_normalizado = lower(nome)"
-                        ))
+                        conn.execute(text("ALTER TABLE fornecedores ADD COLUMN nome_busca VARCHAR(200)"))
                         conn.commit()
-                        print("✓ Migration: fornecedores.nome_normalizado adicionado")
-            except Exception as e:
-                print(f"Migration fornecedor nome_normalizado: {e}")
+                        print("✓ Migration: fornecedores.nome_busca adicionado")
 
-        run_fornecedor_nome_normalizado_migration()
+                # Normaliza TODOS os registros via Python (preserva acentos em UPPER, sem depender de UPPER() do SQL)
+                todos = Fornecedor.query.all()
+                alterados = 0
+                duplicatas = {}
+                for f in todos:
+                    novo_nome = normalizar_nome_fornecedor(f.nome)
+                    novo_busca = nome_busca_fornecedor(novo_nome)
+                    if f.nome != novo_nome or f.nome_busca != novo_busca:
+                        f.nome = novo_nome        # @validates também seta nome_busca
+                        alterados += 1
+                    duplicatas.setdefault(novo_nome, []).append(f.id)
+
+                db.session.flush()
+                db.session.commit()
+                print(f"✓ Migration nomes: {alterados} registros normalizados para MAIÚSCULAS")
+
+                dups = {k: v for k, v in duplicatas.items() if len(v) > 1}
+                if dups:
+                    print(f"⚠️  Nomes duplicados após normalização (NÃO mesclados): {dups}")
+            except Exception as e:
+                db.session.rollback()
+                print(f"Migration nome_busca: {e}")
+
+        run_nome_busca_migration()
 
         def run_profiles_migration():
             try:

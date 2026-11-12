@@ -1289,10 +1289,13 @@ def listar_fornecedores_aprovados():
         if usuario.tipo != 'admin' and not is_gestor:
             query = query.filter(Fornecedor.comprador_responsavel_id == usuario_id)
         
-        fornecedores = query.all()
-        
+        from sqlalchemy import func as _func
+        fornecedores = query.order_by(
+            _func.coalesce(Fornecedor.nome_busca, _func.lower(Fornecedor.nome))
+        ).all()
+
         return jsonify([f.to_dict() for f in fornecedores]), 200
-        
+
     except Exception as e:
         logger.error(f'Erro ao listar fornecedores aprovados: {str(e)}')
         return jsonify({'erro': f'Erro ao listar fornecedores aprovados: {str(e)}'}), 500

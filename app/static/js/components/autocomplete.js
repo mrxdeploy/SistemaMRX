@@ -1,244 +1,265 @@
 /**
- * FornecedorAutocomplete — combobox reutilizável para seleção de fornecedor.
+ * criarAutocomplete — combobox reutilizável de busca com digitar.
  *
- * Uso mínimo:
- *   const ac = new FornecedorAutocomplete('#meu-input', {
- *     onSelect: (item) => { console.log(item.id, item.nome); }
- *   });
- *
- * API:
- *   ac.setValue(id, nome)  — preenche programaticamente (ex: ao editar)
- *   ac.clear()             — limpa seleção
- *   ac.getSelected()       — retorna { id, nome } ou null
+ * @param {object} opts
+ *   input        {HTMLInputElement}  campo de texto visível
+ *   hidden       {HTMLInputElement}  campo hidden que recebe o id selecionado
+ *   lista        {HTMLElement}       <ul> ou <div> que será o dropdown
+ *   dados        {Array}             lista estática [{id, nome, nome_busca, documento?, cidade?}, ...]
+ *   url          {string}            (alternativo a dados) endpoint GET ?q=
+ *   campoTexto   {string}            chave do item para exibição (default 'nome')
+ *   campoSecundario {string}         chave do item para linha secundária (default 'documento')
+ *   onSelect     {Function}          callback(item) chamado ao selecionar
+ *   placeholder  {string}            placeholder do input (opcional)
+ *   semResultadoCadastrar {Function} callback ao clicar "+ Cadastrar..." (opcional)
  */
-class FornecedorAutocomplete {
-  constructor(inputSelector, options = {}) {
-    this._input = typeof inputSelector === 'string'
-      ? document.querySelector(inputSelector)
-      : inputSelector;
+function criarAutocomplete(opts) {
+  const {
+    input, hidden, lista,
+    dados: dadosEstaticos,
+    url,
+    campoTexto = 'nome',
+    campoSecundario = 'documento',
+    onSelect,
+    placeholder,
+    semResultadoCadastrar,
+  } = opts;
 
-    if (!this._input) throw new Error(`FornecedorAutocomplete: elemento não encontrado: ${inputSelector}`);
+  if (!input || !hidden || !lista) throw new Error('criarAutocomplete: input, hidden e lista são obrigatórios');
 
-    this._opts = Object.assign({
-      apiUrl: '/api/fornecedores/buscar',
-      limit: 20,
-      debounceMs: 250,
-      placeholder: 'Buscar fornecedor...',
-      onSelect: null,
-      onClear: null,
-      apenasAtivos: true,
-    }, options);
+  let _dados = dadosEstaticos || [];
+  let _debounce = null;
+  let _activeIdx = -1;
+  let _itensVisiveis = [];
 
-    this._selected = null;
-    this._debounceTimer = null;
-    this._results = [];
-    this._activeIndex = -1;
+  // ── Setup inicial ───────────────────────────────────────────────────────────
 
-    this._setup();
-  }
+  if (placeholder) input.placeholder = placeholder;
+  input.setAttribute('autocomplete', 'off');
+  input.setAttribute('role', 'combobox');
+  input.setAttribute('aria-expanded', 'false');
+  input.setAttribute('aria-haspopup', 'listbox');
+  input.setAttribute('aria-controls', lista.id || 'ac-lista');
+  lista.setAttribute('role', 'listbox');
 
-  // ── Configuração inicial ──────────────────────────────────────────────────
+  // Estilo do dropdown
+  lista.style.cssText = [
+    'position:absolute', 'z-index:9999', 'left:0', 'right:0', 'top:calc(100% + 2px)',
+    'margin:0', 'padding:4px 0', 'list-style:none',
+    'background:#1a2332', 'border:1.5px solid #059669',
+    'border-radius:8px', 'max-height:320px', 'overflow-y:auto',
+    'box-shadow:0 8px 24px rgba(0,0,0,.5)'
+  ].join(';');
 
-  _setup() {
-    // Wrapper para posicionar dropdown
-    const wrapper = document.createElement('div');
-    wrapper.className = 'ac-wrapper';
+  // Garantia de position:relative no wrapper
+  const wrapper = input.closest('.fornecedor-combo') || input.parentElement;
+  if (wrapper && getComputedStyle(wrapper).position === 'static') {
     wrapper.style.position = 'relative';
-    this._input.parentNode.insertBefore(wrapper, this._input);
-    wrapper.appendChild(this._input);
-
-    this._input.setAttribute('autocomplete', 'off');
-    this._input.setAttribute('aria-autocomplete', 'list');
-    this._input.setAttribute('aria-haspopup', 'listbox');
-    this._input.setAttribute('role', 'combobox');
-    this._input.setAttribute('aria-expanded', 'false');
-    if (this._opts.placeholder) this._input.placeholder = this._opts.placeholder;
-
-    // Dropdown
-    this._dropdown = document.createElement('ul');
-    this._dropdown.className = 'ac-dropdown';
-    this._dropdown.setAttribute('role', 'listbox');
-    this._dropdown.style.cssText = [
-      'position:absolute', 'z-index:9999', 'left:0', 'right:0', 'top:100%',
-      'margin:2px 0 0', 'padding:0', 'list-style:none',
-      'background:#1e293b', 'border:1px solid #334155',
-      'border-radius:6px', 'max-height:240px', 'overflow-y:auto',
-      'box-shadow:0 4px 16px rgba(0,0,0,.4)', 'display:none'
-    ].join(';');
-    wrapper.appendChild(this._dropdown);
-
-    // Eventos
-    this._input.addEventListener('input', () => this._onInput());
-    this._input.addEventListener('keydown', (e) => this._onKeyDown(e));
-    this._input.addEventListener('blur', () => setTimeout(() => this._close(), 150));
-    this._input.addEventListener('focus', () => {
-      if (this._input.value.trim()) this._search(this._input.value);
-    });
   }
 
-  // ── Eventos de input ─────────────────────────────────────────────────────
+  // ── Eventos ─────────────────────────────────────────────────────────────────
 
-  _onInput() {
-    const val = this._input.value;
-    // Se o campo foi limpo, desseleciona
-    if (!val.trim()) {
-      this._selected = null;
-      this._close();
-      if (this._opts.onClear) this._opts.onClear();
-      return;
+  input.addEventListener('focus', () => _abrir());
+
+  input.addEventListener('input', () => {
+    if (hidden.value) {
+      hidden.value = '';  // usuário alterou texto → invalida seleção anterior
     }
-    // Se o usuário digitou após uma seleção, invalida a seleção
-    if (this._selected) this._selected = null;
+    clearTimeout(_debounce);
+    _debounce = setTimeout(() => _filtrar(input.value), 200);
+  });
 
-    clearTimeout(this._debounceTimer);
-    this._debounceTimer = setTimeout(() => this._search(val), this._opts.debounceMs);
+  input.addEventListener('keydown', (e) => {
+    if (!_visivel()) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); _moverFoco(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); _moverFoco(-1); }
+    else if (e.key === 'Enter')  { e.preventDefault(); if (_activeIdx >= 0) _selecionar(_itensVisiveis[_activeIdx]); }
+    else if (e.key === 'Escape') { _fechar(); }
+  });
+
+  input.addEventListener('blur', () => setTimeout(_fechar, 160));
+
+  document.addEventListener('click', (e) => {
+    if (!lista.contains(e.target) && e.target !== input) _fechar();
+  });
+
+  // ── Busca / filtro ───────────────────────────────────────────────────────────
+
+  async function _abrir() {
+    if (url && !_dados.length) await _carregarURL('');
+    _filtrar(input.value);
   }
 
-  _onKeyDown(e) {
-    if (!this._results.length) return;
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        this._activeIndex = Math.min(this._activeIndex + 1, this._results.length - 1);
-        this._renderHighlight();
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        this._activeIndex = Math.max(this._activeIndex - 1, 0);
-        this._renderHighlight();
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (this._activeIndex >= 0) this._select(this._results[this._activeIndex]);
-        break;
-      case 'Escape':
-        this._close();
-        break;
-    }
-  }
-
-  // ── Busca ─────────────────────────────────────────────────────────────────
-
-  async _search(q) {
+  async function _carregarURL(q) {
     try {
-      const params = new URLSearchParams({
-        q: q.trim(),
-        limit: this._opts.limit,
-        apenas_ativos: this._opts.apenasAtivos ? 'true' : 'false',
-      });
       const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
-      const res = await fetch(`${this._opts.apiUrl}?${params}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      const res = await fetch(`${url}?q=${encodeURIComponent(q)}&limit=200`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
-      if (!res.ok) return;
-      this._results = await res.json();
-      this._activeIndex = -1;
-      this._render(q.trim());
-    } catch (_) {
-      // Silencia erros de rede — evita crash do formulário
-    }
+      if (res.ok) _dados = await res.json();
+    } catch (_) {}
   }
 
-  // ── Renderização ──────────────────────────────────────────────────────────
+  function _normalizar(s) {
+    return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  }
 
-  _render(q) {
-    this._dropdown.innerHTML = '';
-    if (!this._results.length) {
-      const li = document.createElement('li');
-      li.textContent = 'Nenhum fornecedor encontrado';
-      li.style.cssText = 'padding:10px 14px;color:#94a3b8;font-size:.875rem;cursor:default';
-      this._dropdown.appendChild(li);
+  function _filtrar(q) {
+    const qn = _normalizar(q.trim());
+    let resultado;
+
+    if (!qn) {
+      resultado = [..._dados];
     } else {
-      this._results.forEach((item, idx) => {
-        const li = document.createElement('li');
-        li.setAttribute('role', 'option');
+      const comecam = [], contem = [];
+      for (const item of _dados) {
+        const nb = item.nome_busca || _normalizar(item[campoTexto] || '');
+        if (nb.startsWith(qn)) comecam.push(item);
+        else if (nb.includes(qn)) contem.push(item);
+      }
+      // JS sort já mantém a ordem de inserção (estável em V8) — dados já vêm alphabetical do backend
+      resultado = [...comecam, ...contem];
+    }
+
+    _itensVisiveis = resultado;
+    _activeIdx = -1;
+    _renderizar(resultado, q.trim());
+  }
+
+  // ── Renderização ─────────────────────────────────────────────────────────────
+
+  function _renderizar(itens, q) {
+    lista.innerHTML = '';
+
+    if (!itens.length) {
+      const li = _criarLi();
+      li.innerHTML = '<span style="color:#94a3b8;font-size:.875rem">Nenhum fornecedor encontrado</span>';
+      li.style.cursor = 'default';
+      li.style.minHeight = '44px';
+      lista.appendChild(li);
+
+      if (semResultadoCadastrar) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = '+ Cadastrar fornecedor';
+        btn.style.cssText = 'display:block;width:100%;padding:10px 16px;background:none;border:none;color:#059669;font-size:.875rem;font-weight:600;cursor:pointer;text-align:left';
+        btn.addEventListener('click', () => { _fechar(); semResultadoCadastrar(); });
+        lista.appendChild(btn);
+      }
+    } else {
+      const qn = _normalizar(q);
+      itens.forEach((item, idx) => {
+        const li = _criarLi();
         li.dataset.idx = idx;
-        li.style.cssText = 'padding:9px 14px;cursor:pointer;font-size:.875rem;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-        li.innerHTML = this._highlight(item.nome, q);
-        if (item.cnpj) {
-          const small = document.createElement('span');
-          small.textContent = ` — ${item.cnpj}`;
-          small.style.cssText = 'color:#64748b;font-size:.8rem';
-          li.appendChild(small);
-        }
-        li.addEventListener('mousedown', (e) => { e.preventDefault(); this._select(item); });
-        li.addEventListener('mousemove', () => { this._activeIndex = idx; this._renderHighlight(); });
-        this._dropdown.appendChild(li);
+        li.setAttribute('role', 'option');
+        li.setAttribute('aria-selected', 'false');
+
+        const nomeTxt = item[campoTexto] || '';
+        const secundario = item[campoSecundario] || '';
+        const cidade = item.cidade || '';
+
+        li.innerHTML = `
+          <div style="font-size:.9rem;font-weight:500;color:#e2e8f0">${_highlight(nomeTxt, qn)}</div>
+          ${secundario || cidade ? `<div style="font-size:.78rem;color:#64748b;margin-top:1px">${_esc(secundario)}${secundario && cidade ? ' · ' : ''}${_esc(cidade)}</div>` : ''}
+        `;
+
+        li.addEventListener('mousedown', (e) => { e.preventDefault(); _selecionar(item); });
+        li.addEventListener('mousemove', () => { _activeIdx = idx; _destacar(); });
+        lista.appendChild(li);
       });
     }
-    this._open();
+
+    _mostrarLista();
   }
 
-  _highlight(text, q) {
-    if (!q) return this._escapeHtml(text);
-    // Busca accent-insensitive no frontend
-    const norm = this._normalize(text);
-    const qn = this._normalize(q);
-    const idx = norm.indexOf(qn);
-    if (idx < 0) return this._escapeHtml(text);
-    return (
-      this._escapeHtml(text.slice(0, idx)) +
-      `<mark style="background:#3b82f6;color:#fff;border-radius:2px;padding:0 1px">${this._escapeHtml(text.slice(idx, idx + q.length))}</mark>` +
-      this._escapeHtml(text.slice(idx + q.length))
-    );
+  function _criarLi() {
+    const li = document.createElement('li');
+    li.style.cssText = 'padding:10px 16px;cursor:pointer;min-height:44px;display:flex;flex-direction:column;justify-content:center;border-radius:4px;margin:1px 4px';
+    return li;
   }
 
-  _renderHighlight() {
-    const items = this._dropdown.querySelectorAll('li[role="option"]');
-    items.forEach((li, i) => {
-      li.style.background = i === this._activeIndex ? '#1d4ed8' : '';
+  function _destacar() {
+    lista.querySelectorAll('li[role="option"]').forEach((li, i) => {
+      const ativo = i === _activeIdx;
+      li.style.background = ativo ? '#059669' : '';
+      li.style.color = ativo ? '#fff' : '';
+      li.setAttribute('aria-selected', String(ativo));
+      if (ativo) li.querySelectorAll('div').forEach(d => d.style.color = ativo ? '#fff' : '');
     });
   }
 
-  // ── Seleção ───────────────────────────────────────────────────────────────
-
-  _select(item) {
-    this._selected = item;
-    this._input.value = item.nome;
-    this._close();
-    if (this._opts.onSelect) this._opts.onSelect(item);
+  function _moverFoco(dir) {
+    const max = lista.querySelectorAll('li[role="option"]').length - 1;
+    _activeIdx = Math.max(0, Math.min(_activeIdx + dir, max));
+    _destacar();
+    lista.querySelectorAll('li[role="option"]')[_activeIdx]?.scrollIntoView({ block: 'nearest' });
   }
 
-  // ── API pública ───────────────────────────────────────────────────────────
-
-  setValue(id, nome) {
-    this._selected = { id, nome };
-    this._input.value = nome || '';
+  function _highlight(texto, qn) {
+    if (!qn) return _esc(texto);
+    const tn = _normalizar(texto);
+    const idx = tn.indexOf(qn);
+    if (idx < 0) return _esc(texto);
+    return _esc(texto.slice(0, idx))
+      + `<strong>${_esc(texto.slice(idx, idx + qn.length))}</strong>`
+      + _esc(texto.slice(idx + qn.length));
   }
 
-  clear() {
-    this._selected = null;
-    this._input.value = '';
-    this._close();
+  function _esc(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  getSelected() {
-    return this._selected;
+  // ── Seleção ───────────────────────────────────────────────────────────────────
+
+  function _selecionar(item) {
+    input.value = item[campoTexto] || '';
+    hidden.value = item.id;
+    _fechar();
+    if (onSelect) onSelect(item);
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── Abertura / fechamento ─────────────────────────────────────────────────────
 
-  _open() {
-    this._dropdown.style.display = 'block';
-    this._input.setAttribute('aria-expanded', 'true');
+  function _mostrarLista() {
+    lista.hidden = false;
+    lista.style.display = '';
+    input.setAttribute('aria-expanded', 'true');
   }
 
-  _close() {
-    this._dropdown.style.display = 'none';
-    this._input.setAttribute('aria-expanded', 'false');
-    this._results = [];
-    this._activeIndex = -1;
+  function _fechar() {
+    lista.hidden = true;
+    lista.style.display = 'none';
+    input.setAttribute('aria-expanded', 'false');
+    _activeIdx = -1;
   }
 
-  _normalize(str) {
-    return str.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  function _visivel() {
+    return !lista.hidden;
   }
 
-  _escapeHtml(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
+  // ── API pública ───────────────────────────────────────────────────────────────
+
+  return {
+    setDados(novosDados) {
+      _dados = novosDados || [];
+    },
+    setValor(id, texto) {
+      hidden.value = id;
+      input.value = texto || '';
+    },
+    limpar() {
+      hidden.value = '';
+      input.value = '';
+      _fechar();
+    },
+    getSelecionado() {
+      return hidden.value ? _dados.find(d => String(d.id) === String(hidden.value)) || null : null;
+    },
+    focar() {
+      input.focus();
+    },
+  };
 }
 
-// Exporta para uso como módulo (opcional) e torna disponível globalmente
-if (typeof module !== 'undefined' && module.exports) module.exports = FornecedorAutocomplete;
-else window.FornecedorAutocomplete = FornecedorAutocomplete;
+if (typeof module !== 'undefined' && module.exports) module.exports = criarAutocomplete;
+else window.criarAutocomplete = criarAutocomplete;

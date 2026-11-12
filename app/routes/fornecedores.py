@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import Fornecedor, FornecedorTipoLotePreco, FornecedorTipoLoteClassificacao, TipoLote, Usuario, FornecedorFuncionarioAtribuicao, db
+from app.models import Fornecedor, FornecedorTipoLotePreco, FornecedorTipoLoteClassificacao, TipoLote, Usuario, FornecedorFuncionarioAtribuicao, db, nome_busca_fornecedor
 from app.auth import admin_required
 from sqlalchemy import func
 import requests
@@ -11,14 +11,6 @@ import unicodedata
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('fornecedores', __name__, url_prefix='/api/fornecedores')
-
-
-def _normalizar_nome(nome: str) -> str:
-    """Lowercase + remove acentos para ordenação e busca accent-insensitive."""
-    if not nome:
-        return ''
-    nfkd = unicodedata.normalize('NFKD', nome.lower())
-    return ''.join(c for c in nfkd if not unicodedata.combining(c))
 
 def normalizar_cnpj(cnpj):
     if not cnpj:
@@ -317,13 +309,9 @@ def listar_fornecedores():
             subquery = db.session.query(FornecedorTabelaPrecos.fornecedor_id).distinct()
             query = query.filter(~Fornecedor.id.in_(subquery))
         
-        # Ordena por nome_normalizado (accent-insensitive lowercase) se disponível, senão lower(nome)
-        try:
-            fornecedores = query.order_by(
-                func.coalesce(Fornecedor.nome_normalizado, func.lower(Fornecedor.nome))
-            ).all()
-        except Exception:
-            fornecedores = query.order_by(Fornecedor.nome).all()
+        fornecedores = query.order_by(
+            func.coalesce(Fornecedor.nome_busca, func.lower(Fornecedor.nome))
+        ).all()
         return jsonify([fornecedor.to_dict() for fornecedor in fornecedores]), 200
 
     except Exception as e:
@@ -344,19 +332,19 @@ def buscar_fornecedores():
             query = query.filter(Fornecedor.ativo == True)
 
         if q:
-            # Normaliza o termo de busca: lowercase, sem acentos
-            q_norm = unicodedata.normalize('NFKD', q.lower())
-            q_norm = ''.join(c for c in q_norm if not unicodedata.combining(c))
-            # Busca por nome_normalizado ou fallback para lower(nome)
+            q_norm = nome_busca_fornecedor(q)
             query = query.filter(
-                func.coalesce(Fornecedor.nome_normalizado, func.lower(Fornecedor.nome)).like(f'%{q_norm}%')
+                func.coalesce(Fornecedor.nome_busca, func.lower(Fornecedor.nome)).like(f'%{q_norm}%')
             )
 
         fornecedores = query.order_by(
-            func.coalesce(Fornecedor.nome_normalizado, func.lower(Fornecedor.nome))
+            func.coalesce(Fornecedor.nome_busca, func.lower(Fornecedor.nome))
         ).limit(limit).all()
 
-        return jsonify([{'id': f.id, 'nome': f.nome, 'cnpj': f.cnpj} for f in fornecedores]), 200
+        return jsonify([{
+            'id': f.id, 'nome': f.nome, 'nome_busca': f.nome_busca or '',
+            'documento': f.cnpj or f.cpf or '', 'cidade': f.cidade or ''
+        } for f in fornecedores]), 200
     except Exception as e:
         return jsonify({'erro': f'Erro na busca: {str(e)}'}), 500
 
@@ -547,8 +535,7 @@ def criar_fornecedor():
             banco=data.get('banco', ''),
             condicao_pagamento=data.get('condicao_pagamento', 'avista'),
             forma_pagamento=data.get('forma_pagamento', 'pix'),
-            observacoes=data.get('observacoes', ''),
-            nome_normalizado=_normalizar_nome(data['nome'])
+            observacoes=data.get('observacoes', '')
         )
 
         db.session.add(fornecedor)
@@ -632,8 +619,7 @@ def atualizar_fornecedor(id):
             return jsonify({'erro': 'Dados não fornecidos'}), 400
         
         if data.get('nome'):
-            fornecedor.nome = data['nome']
-            fornecedor.nome_normalizado = _normalizar_nome(data['nome'])
+            fornecedor.nome = data['nome']  # @validates seta nome_busca automaticamente
         if 'nome_social' in data:
             fornecedor.nome_social = data['nome_social']
         
