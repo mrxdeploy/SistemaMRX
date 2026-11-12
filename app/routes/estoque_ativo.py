@@ -1,10 +1,11 @@
 ﻿from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models import db, Lote, BagProducao, ItemSeparadoProducao, ClassificacaoGrade, ItemSolicitacao, MaterialBase, Usuario, Fornecedor, Solicitacao, OrdemCompra, FornecedorTabelaPrecos, Configuracao
+from app.models import db, Lote, BagProducao, MovimentacaoBag, ItemSeparadoProducao, ClassificacaoGrade, ItemSolicitacao, MaterialBase, Usuario, Fornecedor, Solicitacao, OrdemCompra, FornecedorTabelaPrecos, Configuracao
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func
 from datetime import datetime, timedelta
 from app.utils.datetime_br import now_brasilia
+from app.services.estoque import calcular_resumo_estoque
 import logging
 import json
 
@@ -436,46 +437,7 @@ def debug_custo_medio():
 @jwt_required()
 def dashboard_estoque_ativo():
     try:
-        # Contar APENAS lotes PRINCIPAIS ativos (sem lote_pai_id)
-        lotes_ativos = Lote.query.filter(
-            Lote.status.in_(LOTES_ATIVOS_STATUS),
-            Lote.bloqueado == False,
-            Lote.lote_pai_id.is_(None)
-        ).count()
-
-        # Contar lotes principais em produção
-        em_producao = Lote.query.filter(
-            Lote.status == 'em_producao',
-            Lote.bloqueado == False,
-            Lote.lote_pai_id.is_(None)
-        ).count()
-
-        bags_estoque = BagProducao.query.filter(
-            BagProducao.status.in_(['devolvido_estoque', 'cheio', 'aberto'])
-        ).count()
-
-        # Somar peso apenas dos LOTES PRINCIPAIS (lote_pai_id IS NULL)
-        # Os sublotes são subdivisões do lote pai — somar ambos causaria duplicação
-        peso_total_lotes = db.session.query(
-            db.func.sum(db.func.coalesce(Lote.peso_liquido, Lote.peso_total_kg))
-        ).filter(
-            Lote.status.in_(LOTES_ATIVOS_STATUS),
-            Lote.bloqueado == False,
-            Lote.lote_pai_id.is_(None)  # APENAS lotes principais, sem sublotes
-        ).scalar() or 0
-
-        peso_total_bags = db.session.query(
-            db.func.sum(BagProducao.peso_acumulado)
-        ).filter(
-            BagProducao.status.in_(['devolvido_estoque', 'cheio'])
-        ).scalar() or 0
-
-        return jsonify({
-            'lotes_ativos': lotes_ativos,
-            'em_producao': em_producao,
-            'bags_estoque': bags_estoque,
-            'peso_total': float(peso_total_lotes) + float(peso_total_bags)
-        })
+        return jsonify(calcular_resumo_estoque())
     except Exception as e:
         logger.error(f'Erro ao carregar dashboard estoque ativo: {str(e)}')
         logger.error(f'Erro interno: {e}', exc_info=True)
@@ -575,6 +537,7 @@ def listar_bags_estoque():
         if status:
             query = query.filter(BagProducao.status == status)
         else:
+            # 'expedido' excluído por padrão — saíram fisicamente do estoque
             query = query.filter(BagProducao.status.in_(['devolvido_estoque', 'cheio', 'aberto', 'enviado_refinaria']))
 
         if categoria:
@@ -1860,6 +1823,107 @@ def reabrir_bag(bag_id):
         logger.error(f'Erro ao reabrir bag {bag_id}: {str(e)}')
         logger.error(f'Erro interno: {e}', exc_info=True)
         return jsonify({'erro': 'Erro interno no servidor'}), 500
+
+
+@bp.route('/bags/<int:bag_id>/expedir', methods=['POST'])
+@jwt_required()
+def expedir_bag(bag_id):
+    """
+    Marca um bag como 'expedido' — saiu fisicamente do estoque para exportação.
+    Só é possível expedir bags com status 'cheio'.
+    Cria registro em MovimentacaoBag para auditoria.
+    """
+    try:
+        bag = BagProducao.query.get_or_404(bag_id)
+
+        if bag.status != 'cheio':
+            return jsonify({'erro': 'Apenas bags com status "cheio" podem ser expedidos'}), 400
+
+        usuario_id = get_jwt_identity()
+        data = request.get_json() or {}
+        observacoes = data.get('observacoes')
+
+        mov = MovimentacaoBag(
+            bag_id=bag.id,
+            tipo='SAIDA_EXPORTACAO',
+            status_anterior=bag.status,
+            status_novo='expedido',
+            ordem_exportacao=bag.ordem_exportacao,
+            peso_kg=bag.peso_acumulado,
+            usuario_id=usuario_id,
+            observacoes=observacoes,
+        )
+        db.session.add(mov)
+
+        bag.status = 'expedido'
+        bag.data_atualizacao = now_brasilia()
+
+        db.session.commit()
+
+        logger.info(f'Bag #{bag_id} expedido | Ordem: {bag.ordem_exportacao} | Peso: {bag.peso_acumulado} kg')
+
+        return jsonify({
+            'sucesso': True,
+            'mensagem': f'Bag {bag.codigo} expedido com sucesso.',
+            'bag': bag.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Erro ao expedir bag {bag_id}: {str(e)}', exc_info=True)
+        return jsonify({'erro': 'Erro interno ao expedir bag'}), 500
+
+
+@bp.route('/bags/<int:bag_id>/estorno-expedicao', methods=['POST'])
+@jwt_required()
+def estornar_expedicao_bag(bag_id):
+    """
+    (Admin) Estorna a expedição de um bag, devolvendo-o ao status 'cheio'.
+    Cria registro de ESTORNO em MovimentacaoBag.
+    """
+    try:
+        usuario_id = get_jwt_identity()
+        usuario = Usuario.query.get(usuario_id)
+        if not usuario or usuario.perfil not in ('admin', 'gerente'):
+            return jsonify({'erro': 'Permissão insuficiente. Apenas admin/gerente pode estornar expedição'}), 403
+
+        bag = BagProducao.query.get_or_404(bag_id)
+
+        if bag.status != 'expedido':
+            return jsonify({'erro': 'Apenas bags com status "expedido" podem ter expedição estornada'}), 400
+
+        data = request.get_json() or {}
+        observacoes = data.get('observacoes', 'Estorno solicitado por admin')
+
+        mov = MovimentacaoBag(
+            bag_id=bag.id,
+            tipo='ESTORNO_EXPEDICAO',
+            status_anterior='expedido',
+            status_novo='cheio',
+            ordem_exportacao=bag.ordem_exportacao,
+            peso_kg=bag.peso_acumulado,
+            usuario_id=usuario_id,
+            observacoes=observacoes,
+        )
+        db.session.add(mov)
+
+        bag.status = 'cheio'
+        bag.data_atualizacao = now_brasilia()
+
+        db.session.commit()
+
+        logger.info(f'Bag #{bag_id} — expedição estornada por usuario {usuario_id}')
+
+        return jsonify({
+            'sucesso': True,
+            'mensagem': f'Expedição do bag {bag.codigo} estornada com sucesso.',
+            'bag': bag.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Erro ao estornar expedição bag {bag_id}: {str(e)}', exc_info=True)
+        return jsonify({'erro': 'Erro interno ao estornar expedição'}), 500
 
 
 @bp.route('/bags/<int:bag_id>', methods=['DELETE'])

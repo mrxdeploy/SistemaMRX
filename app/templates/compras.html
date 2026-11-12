@@ -122,9 +122,8 @@
                 <input type="hidden" id="compraId">
                 <div class="form-group">
                     <label>Fornecedor *</label>
-                    <select id="fornecedorId" required>
-                        <option value="">Selecione...</option>
-                    </select>
+                    <input type="text" id="fornecedorInput" placeholder="Digite para buscar..." autocomplete="off">
+                    <input type="hidden" id="fornecedorId">
                 </div>
                 <div class="form-group">
                     <label>Material/Descrição *</label>
@@ -162,36 +161,38 @@
     <script src="/static/js/app.js"></script>
     <script src="/static/js/chat-widget.js"></script>
     <script src="/static/js/scanner-widget.js"></script>
+    <script src="/static/js/components/autocomplete.js"></script>
     <script>
-        let fornecedores = [];
+        let _acFornecedor = null;
 
         async function carregarPagina() {
             const user = await verificarAuth();
             if (!user) return;
 
-            await carregarFornecedores();
+            await carregarFornecedoresSelect();
             await carregarCompras();
             await carregarEstatisticas();
             await atualizarNotificacoes();
+
+            _acFornecedor = new FornecedorAutocomplete('#fornecedorInput', {
+                onSelect: (item) => {
+                    document.getElementById('fornecedorId').value = item.id;
+                },
+                onClear: () => {
+                    document.getElementById('fornecedorId').value = '';
+                }
+            });
         }
 
-        async function carregarFornecedores() {
+        async function carregarFornecedoresSelect() {
             const response = await fetchAPI('/fornecedores');
-            fornecedores = await response.json();
-            
-            const selectFornecedor = document.getElementById('fornecedorId');
+            const fornecedores = await response.json();
             const filtroFornecedor = document.getElementById('filtroFornecedor');
-            
-            fornecedores.forEach(empresa => {
-                const option1 = document.createElement('option');
-                option1.value = fornecedor.id;
-                option1.textContent = fornecedor.nome;
-                selectFornecedor.appendChild(option1);
-
-                const option2 = document.createElement('option');
-                option2.value = fornecedor.id;
-                option2.textContent = fornecedor.nome;
-                filtroFornecedor.appendChild(option2);
+            fornecedores.forEach(f => {
+                const option = document.createElement('option');
+                option.value = f.id;
+                option.textContent = f.nome;
+                filtroFornecedor.appendChild(option);
             });
         }
 
@@ -273,7 +274,10 @@
 
             document.getElementById('tituloModal').textContent = 'Editar Compra/Despesa';
             document.getElementById('compraId').value = compra.id;
-            document.getElementById('fornecedorId').value = compra.fornecedor_id;
+            document.getElementById('fornecedorId').value = compra.fornecedor_id || '';
+            if (_acFornecedor && compra.fornecedor_id) {
+                _acFornecedor.setValue(compra.fornecedor_id, compra.fornecedor_nome || '');
+            }
             document.getElementById('material').value = compra.material;
             document.getElementById('tipo').value = compra.tipo;
             document.getElementById('valor').value = compra.valor;
@@ -287,8 +291,13 @@
             e.preventDefault();
 
             const compraId = document.getElementById('compraId').value;
+            const fornecedorIdVal = document.getElementById('fornecedorId').value;
+            if (!fornecedorIdVal) {
+                showNotification('Selecione um fornecedor', 'error');
+                return;
+            }
             const data = {
-                fornecedor_id: parseInt(document.getElementById('fornecedorId').value),
+                fornecedor_id: parseInt(fornecedorIdVal),
                 material: document.getElementById('material').value,
                 tipo: document.getElementById('tipo').value,
                 valor: parseFloat(document.getElementById('valor').value),
@@ -328,6 +337,9 @@
 
         function fecharModal() {
             document.getElementById('modalCompra').classList.remove('active');
+            document.getElementById('compraId').value = '';
+            document.getElementById('fornecedorId').value = '';
+            if (_acFornecedor) _acFornecedor.clear();
         }
 
         function limparFiltros() {

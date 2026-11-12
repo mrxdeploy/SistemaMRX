@@ -296,6 +296,7 @@ class Fornecedor(db.Model):  # type: ignore
     forma_pagamento = db.Column(db.String(50), default='pix')
 
     observacoes = db.Column(db.Text)
+    nome_normalizado = db.Column(db.String(200), nullable=True, index=True)
 
     data_cadastro = db.Column(db.DateTime, default=now_brasilia, nullable=False)
     ativo = db.Column(db.Boolean, default=True, nullable=False)
@@ -2324,9 +2325,11 @@ class BagProducao(db.Model):  # type: ignore
     enviado_por = db.relationship('Usuario', foreign_keys=[enviado_por_id], backref='bags_enviados')
     responsavel = db.relationship('Usuario', foreign_keys=[responsavel_id], backref='bags_sob_responsabilidade')
 
+    STATUS_VALIDOS = ['aberto', 'cheio', 'enviado_refinaria', 'devolvido_estoque', 'expedido']
+
     def __init__(self, **kwargs: Any) -> None:
-        if 'status' in kwargs and kwargs['status'] not in ['aberto', 'cheio', 'enviado_refinaria', 'devolvido_estoque']:
-            raise ValueError('Status deve ser: aberto, cheio, enviado_refinaria ou devolvido_estoque')
+        if 'status' in kwargs and kwargs['status'] not in self.STATUS_VALIDOS:
+            raise ValueError(f'Status deve ser um de: {", ".join(self.STATUS_VALIDOS)}')
         super().__init__(**kwargs)
 
     @staticmethod
@@ -2387,6 +2390,45 @@ class BagProducao(db.Model):  # type: ignore
             'data_atualizacao': self.data_atualizacao.isoformat() if self.data_atualizacao else None,
             'observacoes': self.observacoes
         }
+
+
+class MovimentacaoBag(db.Model):  # type: ignore
+    """Auditoria de movimentações de bags (expedição, estorno, etc.)."""
+    __tablename__ = 'movimentacoes_bag'
+
+    id = db.Column(db.Integer, primary_key=True)
+    bag_id = db.Column(db.Integer, db.ForeignKey('bags_producao.id'), nullable=False)
+    tipo = db.Column(db.String(50), nullable=False)  # 'SAIDA_EXPORTACAO', 'ESTORNO_EXPEDICAO'
+    status_anterior = db.Column(db.String(30), nullable=True)
+    status_novo = db.Column(db.String(30), nullable=True)
+    ordem_exportacao = db.Column(db.String(100), nullable=True)
+    peso_kg = db.Column(db.Numeric(10, 3), nullable=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)
+    observacoes = db.Column(db.Text, nullable=True)
+    data_movimentacao = db.Column(db.DateTime, default=now_brasilia, nullable=False)
+
+    bag = db.relationship('BagProducao', backref='movimentacoes')
+    usuario = db.relationship('Usuario', backref='movimentacoes_bag')
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'bag_id': self.bag_id,
+            'bag_codigo': self.bag.codigo if self.bag else None,
+            'tipo': self.tipo,
+            'status_anterior': self.status_anterior,
+            'status_novo': self.status_novo,
+            'ordem_exportacao': self.ordem_exportacao,
+            'peso_kg': float(self.peso_kg) if self.peso_kg else None,
+            'usuario_id': self.usuario_id,
+            'usuario_nome': self.usuario.nome if self.usuario else None,
+            'observacoes': self.observacoes,
+            'data_movimentacao': self.data_movimentacao.isoformat() if self.data_movimentacao else None,
+        }
+
 
 class ModeloTabelaPreco(db.Model):  # type: ignore
     """Modelo/Template reutilizável de tabela de preços para fornecedores"""

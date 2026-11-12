@@ -203,6 +203,54 @@ def create_app():
 
         run_comprador_migration()
 
+        def run_movimentacoes_bag_migration():
+            try:
+                from sqlalchemy import text
+                with db.engine.connect() as conn:
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS movimentacoes_bag (
+                            id SERIAL PRIMARY KEY,
+                            bag_id INTEGER NOT NULL REFERENCES bags_producao(id),
+                            tipo VARCHAR(50) NOT NULL,
+                            status_anterior VARCHAR(30),
+                            status_novo VARCHAR(30),
+                            ordem_exportacao VARCHAR(100),
+                            peso_kg NUMERIC(10, 3),
+                            usuario_id INTEGER REFERENCES usuarios(id),
+                            observacoes TEXT,
+                            data_movimentacao TIMESTAMP NOT NULL DEFAULT NOW()
+                        )
+                    """))
+                    conn.commit()
+                    print("✓ Migration: tabela movimentacoes_bag OK")
+            except Exception as e:
+                print(f"Migration movimentacoes_bag: {e}")
+
+        run_movimentacoes_bag_migration()
+
+        def run_fornecedor_nome_normalizado_migration():
+            try:
+                from sqlalchemy import text
+                with db.engine.connect() as conn:
+                    r = conn.execute(text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name='fornecedores' AND column_name='nome_normalizado'"
+                    ))
+                    if not r.fetchone():
+                        conn.execute(text(
+                            "ALTER TABLE fornecedores ADD COLUMN nome_normalizado VARCHAR(200)"
+                        ))
+                        # Popula com nome em lowercase (sem dependência de unaccent)
+                        conn.execute(text(
+                            "UPDATE fornecedores SET nome_normalizado = lower(nome)"
+                        ))
+                        conn.commit()
+                        print("✓ Migration: fornecedores.nome_normalizado adicionado")
+            except Exception as e:
+                print(f"Migration fornecedor nome_normalizado: {e}")
+
+        run_fornecedor_nome_normalizado_migration()
+
         def run_profiles_migration():
             try:
                 from app.models import Perfil

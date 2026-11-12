@@ -698,7 +698,7 @@
             }
 
             try {
-                const response = await fetchAPI(`/fornecedores?busca=${encodeURIComponent(busca)}`);
+                const response = await fetchAPI(`/fornecedores/buscar?q=${encodeURIComponent(busca)}&limit=20`);
                 if (!response || !response.ok) return;
                 const fornecedores = await response.json();
                 renderizarFornecedores(fornecedores);
