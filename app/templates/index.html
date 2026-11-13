@@ -1,108 +1,696 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Login - MRX Systems</title>
-    <link rel="manifest" href="/static/manifest.json?v=2">
-    <link rel="icon" type="image/png" sizes="192x192" href="/static/images/icon-192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="/static/images/icon-512.png">
-    <link rel="apple-touch-icon" href="/static/images/icon-192.png">
-    <link rel="shortcut icon" href="/static/images/icon-192.png">
-    <meta name="theme-color" content="#059669">
-    <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        /* Remove scroll da tela de login - não permite scroll vertical ou horizontal */
-        html, body {
-            overflow: hidden !important;
-            height: 100vh;
-            width: 100vw;
-            position: fixed;
-            margin: 0;
-            padding: 0;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Login - MRX Systems</title>
+  <link rel="manifest" href="/static/manifest.json?v=2">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/images/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/images/icon-512.png">
+  <link rel="apple-touch-icon" href="/static/images/icon-192.png">
+  <link rel="shortcut icon" href="/static/images/icon-192.png">
+  <meta name="theme-color" content="#0B2E21">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ─── Design tokens ─── */
+    :root {
+      --bg: #FFFFFF;
+      --surface: #F7F6F2;
+      --border: #CDD3CE;
+      --border-f: #0E5C3A;
+      --txt: #17201B;
+      --txt-2: #56605A;
+      --txt-lbl: #3A4440;
+      --txt-gr: #0E5C3A;
+      --accent: #0E5C3A;
+      --ring: rgba(14,92,58,.14);
+      --focus: #F2C230;
+      --info-bg: #EEF1EC;
+      --err-bg: #FDECEC;
+      --err-fg: #8A1F1F;
+      --font-d: 'Poppins', system-ui, sans-serif;
+      --font-b: 'Inter', system-ui, sans-serif;
+      color-scheme: light;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0F1A14; --surface: #172017; --border: #2D4035;
+        --txt: #EDF2EF; --txt-2: #8FA597; --txt-lbl: #B4C4BA;
+        --info-bg: #1A2F22; --err-bg: #2A1217; --err-fg: #F4A0A0;
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #0F1A14; --surface: #172017; --border: #2D4035;
+      --txt: #EDF2EF; --txt-2: #8FA597; --txt-lbl: #B4C4BA;
+      --info-bg: #1A2F22; --err-bg: #2A1217; --err-fg: #F4A0A0;
+      color-scheme: dark;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+    }
+
+    body {
+      font-family: var(--font-b);
+      background: var(--bg);
+      color: var(--txt);
+    }
+
+    /* ─── PWA banner (mantido do original) ─── */
+    .pwa-install-banner {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #0B2E21;
+      color: #fff;
+      padding: 12px 16px;
+      z-index: 1000;
+      align-items: center;
+      gap: 12px;
+    }
+    .pwa-install-banner strong { display: block; font-size: 14px; }
+    .pwa-install-banner p { font-size: 12px; opacity: .8; margin: 0; }
+
+    /* ─── Layout split ─── */
+    .login-wrap {
+      display: flex;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    /* ─── Brand panel ─── */
+    .brand {
+      width: 45%;
+      min-width: 300px;
+      background: #0B2E21;
+      color: #F3F1EA;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .brand-inner {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 48px 52px 36px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo img {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .brand-name { font-family: var(--font-d); font-weight: 800; font-size: 20px; color: #F3F1EA; }
+    .brand-sub  { font-size: 13px; color: #B9C9BF; letter-spacing: .08em; text-transform: uppercase; margin-top: 2px; }
+
+    .brand-mid {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 28px;
+      padding-block: 48px;
+    }
+
+    .bars { display: flex; flex-direction: column; gap: 6px; }
+    .bar  { height: 4px; border-radius: 2px; }
+
+    .brand-title {
+      font-family: var(--font-d);
+      font-weight: 700;
+      font-size: clamp(28px, 3.4vw, 46px);
+      line-height: 1.1;
+      color: #F3F1EA;
+      text-wrap: balance;
+      max-width: 520px;
+    }
+
+    .brand-p {
+      font-size: 17px;
+      color: #C9D6CE;
+      line-height: 1.65;
+      max-width: 440px;
+    }
+
+    .brand-foot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #A9BBB0;
+      flex-wrap: wrap;
+    }
+    .brand-foot-sep { opacity: .4; }
+
+    .deco {
+      position: absolute;
+      bottom: -60px;
+      right: -80px;
+      width: 420px;
+      height: 420px;
+      pointer-events: none;
+    }
+
+    /* ─── Form panel ─── */
+    .form-panel {
+      flex: 1;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px max(24px, env(safe-area-inset-right, 0px)) 48px max(24px, env(safe-area-inset-left, 0px));
+    }
+
+    .form-box {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .form-header { display: flex; flex-direction: column; gap: 4px; }
+
+    #saudacao {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--txt-gr);
+      text-align: center;
+    }
+
+    .form-title {
+      font-family: var(--font-d);
+      font-weight: 700;
+      font-size: 32px;
+      color: var(--txt);
+      line-height: 1.1;
+      margin-top: 4px;
+    }
+
+    .form-desc {
+      font-size: 15px;
+      color: var(--txt-2);
+      line-height: 1.55;
+      margin-top: 6px;
+    }
+
+    /* Error */
+    .err-box {
+      background: var(--err-bg);
+      color: var(--err-fg);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      line-height: 1.5;
+    }
+
+    /* Fields */
+    .fields { display: flex; flex-direction: column; gap: 18px; }
+    .field  { display: flex; flex-direction: column; gap: 7px; }
+
+    .lbl-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .field label, .lbl-row label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--txt-lbl);
+    }
+
+    .forgot-link {
+      background: none;
+      border: none;
+      font-family: var(--font-b);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+      padding: 2px 0;
+    }
+    .forgot-link:hover { opacity: .75; }
+    .forgot-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+
+    .input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .i-icon {
+      position: absolute;
+      left: 15px;
+      pointer-events: none;
+      color: #8FA597;
+      display: flex;
+    }
+
+    .input-wrap input {
+      width: 100%;
+      height: 52px;
+      padding: 0 46px 0 46px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--txt);
+      font-family: var(--font-b);
+      font-size: 15px;
+      outline: none;
+      appearance: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    .input-wrap input:focus {
+      border-color: var(--border-f);
+      box-shadow: 0 0 0 4px var(--ring);
+    }
+
+    .input-wrap input::placeholder { color: #A0AFA7; }
+
+    .eye-btn {
+      position: absolute;
+      right: 0;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #8FA597;
+      border-radius: 10px;
+      transition: color .15s;
+    }
+    .eye-btn:hover { color: var(--accent); }
+    .eye-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+    /* Esqueceu msg */
+    .forgot-msg {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      background: var(--info-bg);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 14px;
+      color: var(--txt-2);
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
+    .fm-icon { flex-shrink: 0; color: var(--accent); margin-top: 1px; }
+
+    .fm-close {
+      margin-left: auto;
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #8FA597;
+      display: flex;
+      padding: 0;
+      border-radius: 4px;
+    }
+    .fm-close:hover { color: var(--txt); }
+
+    /* Checkbox */
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 44px;
+    }
+
+    .check-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .check-row label {
+      font-size: 14px;
+      color: var(--txt-2);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* Submit */
+    .btn-submit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 54px;
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-family: var(--font-d);
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      transition: filter .15s;
+    }
+    .btn-submit:hover:not(:disabled) { filter: brightness(.88); }
+    .btn-submit:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .btn-submit:disabled { opacity: .7; cursor: not-allowed; }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(255,255,255,.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .65s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 900px) {
+      .login-wrap { flex-direction: column; min-height: auto; }
+      .brand { width: 100%; min-width: 0; }
+      .brand-inner { padding: 32px max(16px, env(safe-area-inset-left, 0px)) 24px; }
+      .brand-mid { padding-block: 24px; gap: 20px; }
+      .brand-title { font-size: clamp(22px, 5vw, 32px); }
+      .brand-p { font-size: 15px; }
+      .deco { width: 220px; height: 220px; bottom: -20px; right: -40px; }
+      .form-panel {
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
+        padding-top: 40px;
+        padding-bottom: 48px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
 </head>
 <body>
-    <div class="pwa-install-banner">
-        <div>
-            <strong>Instalar App</strong>
-            <p>Adicione à tela inicial para acesso rápido</p>
-        </div>
-        <button class="btn btn-primary" onclick="instalarPWA()">Instalar</button>
-        <button class="btn btn-secondary" onclick="fecharBannerPWA()">Fechar</button>
-    </div>
 
-    <div class="login-container">
-        <div class="login-box">
-            <div class="logo-container">
-                <img src="/static/images/mrx-logo.png" alt="MRX Systems" class="logo-image">
-                <h1>MRX Systems</h1>
+  <!-- PWA banner (mantido) -->
+  <div class="pwa-install-banner" id="pwaBanner">
+    <div>
+      <strong>Instalar App</strong>
+      <p>Adicione à tela inicial para acesso rápido</p>
+    </div>
+    <button class="btn btn-primary" onclick="instalarPWA()">Instalar</button>
+    <button class="btn btn-secondary" onclick="fecharBannerPWA()">Fechar</button>
+  </div>
+
+  <div class="login-wrap">
+
+    <!-- ── Brand panel ── -->
+    <aside class="brand" role="complementary" aria-label="Marca MRX">
+      <div class="brand-inner">
+
+        <div class="brand-logo">
+          <img src="/static/images/mrx-logo.png" alt="Logo MRX do Brasil">
+          <div>
+            <div class="brand-name">MRX Systems</div>
+            <div class="brand-sub">MRX do Brasil</div>
+          </div>
+        </div>
+
+        <div class="brand-mid">
+          <div class="bars" aria-hidden="true">
+            <div class="bar" style="width:40px;background:#2FA765"></div>
+            <div class="bar" style="width:20px;background:#F2C230"></div>
+            <div class="bar" style="width:10px;background:#3E6FD8"></div>
+          </div>
+
+          <h2 class="brand-title">Tecnologia que trabalha para quem faz a&nbsp;MRX acontecer.</h2>
+
+          <p class="brand-p">
+            Gestão inteligente de recursos com tecnologia de ponta — em um só lugar, para toda a equipe.
+          </p>
+        </div>
+
+        <footer class="brand-foot">
+          <span>©&nbsp;<span id="ano"></span>&nbsp;MRX do Brasil</span>
+          <span class="brand-foot-sep">·</span>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+               stroke="#A9BBB0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="12" height="8" rx="2"/>
+            <path d="M5 7V5a3 3 0 0 1 6 0v2"/>
+          </svg>
+          <span>Conexão protegida</span>
+        </footer>
+      </div>
+
+      <svg class="deco" aria-hidden="true" viewBox="0 0 400 400" fill="none">
+        <circle cx="400" cy="400" r="60"  stroke="#7FD1A4" stroke-width="1" opacity=".18"/>
+        <circle cx="400" cy="400" r="110" stroke="#7FD1A4" stroke-width="1" opacity=".18"/>
+        <circle cx="400" cy="400" r="165" stroke="#7FD1A4" stroke-width="1" opacity=".18"/>
+        <circle cx="400" cy="400" r="220" stroke="#7FD1A4" stroke-width="1" opacity=".18"/>
+        <circle cx="400" cy="400" r="280" stroke="#7FD1A4" stroke-width="1" opacity=".18"/>
+        <circle cx="400" cy="400" r="345" stroke="#7FD1A4" stroke-width="1" opacity=".18"/>
+      </svg>
+    </aside>
+
+    <!-- ── Form panel ── -->
+    <main class="form-panel">
+      <div class="form-box">
+
+        <div class="form-header">
+          <div id="saudacao" aria-live="polite"></div>
+          <h1 class="form-title">Acesse sua conta</h1>
+          <p class="form-desc">Entre com seu e-mail corporativo para continuar.</p>
+        </div>
+
+        <!-- Erro de login -->
+        <div id="erroLogin" class="err-box" role="alert" hidden>
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+               stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <circle cx="8" cy="8" r="6.5"/>
+            <path d="M8 5v3.5M8 11v.4"/>
+          </svg>
+          <span id="erroMsg"></span>
+        </div>
+
+        <form id="loginForm" novalidate>
+          <div class="fields">
+
+            <!-- E-mail -->
+            <div class="field">
+              <label for="email">E-mail</label>
+              <div class="input-wrap">
+                <span class="i-icon">
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+                       stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="1" y="3.5" width="14" height="9" rx="2"/>
+                    <path d="m1.5 4 6.5 4.5L14.5 4"/>
+                  </svg>
+                </span>
+                <input type="email" id="email" name="email"
+                       autocomplete="username" required
+                       placeholder="nome@mrxdobrasil.com.br">
+              </div>
             </div>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" autocomplete="email" required>
-                </div>
-                <div class="form-group">
-                    <label for="senha">Senha</label>
-                    <input type="password" id="senha" autocomplete="current-password" required>
-                </div>
-                <button type="submit" class="btn btn-primary btn-login">Entrar</button>
-            </form>
-            <p class="login-subtitle">
-                Gestão inteligente de recursos com tecnologia de ponta
-            </p>
-        </div>
-    </div>
 
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script src="/static/js/app.js"></script>
-    <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const email = document.getElementById('email').value;
-            const senha = document.getElementById('senha').value;
-            
-            try {
-                const user = await login(email, senha);
-                
-                console.log('Login bem-sucedido:', user);
-                console.log('Tela inicial:', user.tela_inicial);
-                console.log('Perfil:', user.perfil);
-                
-                if (user.tela_inicial) {
-                    window.location.href = user.tela_inicial;
-                } else if (user.tipo === 'admin') {
-                    window.location.href = '/dashboard.html';
-                } else if (user.perfil === 'Auditoria / BI') {
-                    window.location.href = '/dashboard.html';
-                } else {
-                    window.location.href = '/dashboard.html';
-                }
-            } catch (error) {
-                showAlert(error.message);
-            }
-        });
+            <!-- Senha -->
+            <div class="field">
+              <div class="lbl-row">
+                <label for="senha">Senha</label>
+                <button type="button" class="forgot-link" id="esqueciBtn"
+                        aria-expanded="false" aria-controls="esqueciMsg">
+                  Esqueceu a senha?
+                </button>
+              </div>
+              <div class="input-wrap">
+                <span class="i-icon">
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+                       stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="7" width="12" height="8" rx="2"/>
+                    <path d="M5 7V5a3 3 0 0 1 6 0v2"/>
+                  </svg>
+                </span>
+                <input type="password" id="senha" name="senha"
+                       autocomplete="current-password" required
+                       placeholder="••••••••">
+                <button type="button" class="eye-btn" id="toggleSenha"
+                        aria-label="Mostrar senha" aria-pressed="false">
+                  <svg id="eyeOn" width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+                       stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 8c1.5-3.5 4-5 7-5s5.5 1.5 7 5c-1.5 3.5-4 5-7 5S2.5 11.5 1 8Z"/>
+                    <circle cx="8" cy="8" r="2"/>
+                  </svg>
+                  <svg id="eyeOff" width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+                       stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" hidden>
+                    <path d="M2 2 14 14M6.5 6.5A2 2 0 0 0 9.5 9.5M4 4C2.1 5.4 1 7 1 8c1.5 3.5 4 5 7 5a7 7 0 0 0 3-.7M12.5 12.5C14.1 11.1 15 9.5 15 8c-1.5-3.5-4-5-7-5a7 7 0 0 0-2.5.5"/>
+                  </svg>
+                </button>
+              </div>
 
-        if (getToken()) {
-            getCurrentUser().then(user => {
-                if (user) {
-                    if (user.tela_inicial) {
-                        window.location.href = user.tela_inicial;
-                    } else if (user.tipo === 'admin') {
-                        window.location.href = '/dashboard.html';
-                    } else if (user.perfil === 'Auditoria / BI') {
-                        window.location.href = '/dashboard.html';
-                    } else {
-                        window.location.href = '/dashboard.html';
-                    }
-                }
-            });
+              <div id="esqueciMsg" class="forgot-msg" aria-live="polite" hidden>
+                <span class="fm-icon">
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+                       stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                    <circle cx="8" cy="8" r="6.5"/>
+                    <path d="M8 7v3.5M8 5.5v.3"/>
+                  </svg>
+                </span>
+                <span>Para redefinir sua senha, entre em contato com o administrador do sistema.</span>
+                <button type="button" class="fm-close" id="fecharEsqueci" aria-label="Fechar">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="m4 4 8 8M12 4 4 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+          </div><!-- /fields -->
+
+          <div class="check-row" style="margin-top:4px">
+            <input type="checkbox" id="manterConectado" name="manterConectado">
+            <label for="manterConectado">Manter conectado neste dispositivo</label>
+          </div>
+
+          <button type="submit" class="btn-submit" id="btnEntrar" style="margin-top:8px">
+            <span id="btnTxt">Entrar</span>
+            <svg id="btnArrow" width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 8h10M9 4l4 4-4 4"/>
+            </svg>
+            <span id="btnSpin" class="spinner" hidden aria-hidden="true"></span>
+          </button>
+
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="/static/js/app.js"></script>
+  <script>
+    (function () {
+
+      // Ano
+      document.getElementById('ano').textContent = new Date().getFullYear();
+
+      // Saudação dinâmica
+      function atualizarSaudacao() {
+        const h = new Date().getHours();
+        document.getElementById('saudacao').textContent =
+          h >= 5 && h < 12 ? 'Bom dia!' : h >= 12 && h < 18 ? 'Boa tarde!' : 'Boa noite!';
+      }
+      atualizarSaudacao();
+      setInterval(atualizarSaudacao, 60_000);
+
+      // Olho da senha
+      const senhaInput = document.getElementById('senha');
+      const eyeBtn = document.getElementById('toggleSenha');
+      eyeBtn.addEventListener('click', () => {
+        const show = senhaInput.type === 'password';
+        senhaInput.type = show ? 'text' : 'password';
+        document.getElementById('eyeOn').hidden  =  show;
+        document.getElementById('eyeOff').hidden = !show;
+        eyeBtn.setAttribute('aria-pressed', String(show));
+        eyeBtn.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha');
+      });
+
+      // Esqueceu a senha
+      const esqueciBtn = document.getElementById('esqueciBtn');
+      const esqueciMsg = document.getElementById('esqueciMsg');
+      const fecharEsqueci = document.getElementById('fecharEsqueci');
+      esqueciBtn.addEventListener('click', () => {
+        const open = !esqueciMsg.hidden;
+        esqueciMsg.hidden = open;
+        esqueciBtn.setAttribute('aria-expanded', String(!open));
+      });
+      fecharEsqueci.addEventListener('click', () => {
+        esqueciMsg.hidden = true;
+        esqueciBtn.setAttribute('aria-expanded', 'false');
+        esqueciBtn.focus();
+      });
+
+      // Exibe erro inline (substitui showAlert para esta página)
+      function mostrarErro(msg) {
+        document.getElementById('erroMsg').textContent = msg;
+        document.getElementById('erroLogin').hidden = false;
+      }
+
+      // Loading state
+      const btn = document.getElementById('btnEntrar');
+      const btnTxt = document.getElementById('btnTxt');
+      const btnArrow = document.getElementById('btnArrow');
+      const btnSpin = document.getElementById('btnSpin');
+
+      function setLoading(on) {
+        btn.disabled = on;
+        btnTxt.textContent = on ? 'Entrando...' : 'Entrar';
+        btnArrow.hidden = on;
+        btnSpin.hidden = !on;
+      }
+
+      // Submit
+      document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        document.getElementById('erroLogin').hidden = true;
+
+        const email = document.getElementById('email').value;
+        const senha = document.getElementById('senha').value;
+
+        setLoading(true);
+        try {
+          const user = await login(email, senha);
+          if (user.tela_inicial) {
+            window.location.href = user.tela_inicial;
+          } else {
+            window.location.href = '/dashboard.html';
+          }
+        } catch (error) {
+          setLoading(false);
+          mostrarErro(error.message);
         }
-    </script>
+      });
+
+      // Já está logado → redirecionar
+      if (typeof getToken === 'function' && getToken()) {
+        getCurrentUser().then(user => {
+          if (user) {
+            window.location.href = user.tela_inicial || '/dashboard.html';
+          }
+        });
+      }
+
+    })();
+  </script>
 </body>
 </html>
