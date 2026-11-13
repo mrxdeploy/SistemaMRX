@@ -53,12 +53,19 @@
             </div>
 
             <div class="card mb-3">
-                <div class="flex gap-2" style="flex-wrap: wrap;">
-                    <button class="btn btn-primary btn-small" onclick="filtrarStatus('')">Todos</button>
-                    <button class="btn btn-warning btn-small" onclick="filtrarStatus('pendente')">Pendentes</button>
-                    <button class="btn btn-success btn-small" onclick="filtrarStatus('aprovada')">Aprovadas</button>
-                    <button class="btn btn-danger btn-small" onclick="filtrarStatus('rejeitada')">Rejeitadas</button>
+                <div class="flex gap-2" style="flex-wrap: wrap;" id="solStatusBtns">
+                    <button class="btn btn-primary btn-small" data-status="" onclick="filtrarStatus('')">Todos</button>
+                    <button class="btn btn-warning btn-small" data-status="pendente" onclick="filtrarStatus('pendente')">Pendentes</button>
+                    <button class="btn btn-success btn-small" data-status="aprovada" onclick="filtrarStatus('aprovada')">Aprovadas</button>
+                    <button class="btn btn-danger btn-small" data-status="rejeitada" onclick="filtrarStatus('rejeitada')">Rejeitadas</button>
                 </div>
+                <div class="filtro-periodo-row">
+                    <i class="fas fa-calendar-alt" style="color:#6b7280;font-size:14px;"></i>
+                    <select id="filtroPeriodoSol" onchange="aplicarFiltroPeriodoSol()" class="filtro-periodo-select">
+                        <option value="">Todos os períodos</option>
+                    </select>
+                </div>
+                <div id="resumoSolicitacoes" class="resumo-filtros"></div>
             </div>
 
             <div id="listaSolicitacoes" class="solicitacoes-grid">
@@ -76,13 +83,19 @@
             </div>
 
             <div class="card mb-3">
-                <div class="flex gap-2" style="flex-wrap: wrap;">
-                    <button class="btn btn-primary btn-small" onclick="filtrarOCStatus('')">Todos</button>
-                    <button class="btn btn-warning btn-small" onclick="filtrarOCStatus('em_analise')">Em
-                        Análise</button>
-                    <button class="btn btn-success btn-small" onclick="filtrarOCStatus('aprovada')">Aprovadas</button>
-                    <button class="btn btn-danger btn-small" onclick="filtrarOCStatus('rejeitada')">Rejeitadas</button>
+                <div class="flex gap-2" style="flex-wrap: wrap;" id="ocStatusBtns">
+                    <button class="btn btn-primary btn-small" data-status="" onclick="filtrarOCStatus('')">Todos</button>
+                    <button class="btn btn-warning btn-small" data-status="em_analise" onclick="filtrarOCStatus('em_analise')">Em Análise</button>
+                    <button class="btn btn-success btn-small" data-status="aprovada" onclick="filtrarOCStatus('aprovada')">Aprovadas</button>
+                    <button class="btn btn-danger btn-small" data-status="rejeitada" onclick="filtrarOCStatus('rejeitada')">Rejeitadas</button>
                 </div>
+                <div class="filtro-periodo-row">
+                    <i class="fas fa-calendar-alt" style="color:#6b7280;font-size:14px;"></i>
+                    <select id="filtroPeriodoOC" onchange="aplicarFiltroPeriodoOC()" class="filtro-periodo-select">
+                        <option value="">Todos os períodos</option>
+                    </select>
+                </div>
+                <div id="resumoOCs" class="resumo-filtros"></div>
             </div>
 
             <div id="listaOCs" class="ocs-grid">
@@ -165,6 +178,36 @@
 
             .tab-content.active {
                 display: block;
+            }
+
+            /* Filtro de período */
+            .filtro-periodo-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-top: 10px;
+                flex-wrap: wrap;
+            }
+            .filtro-periodo-select {
+                flex: 1;
+                min-width: 170px;
+                max-width: 260px;
+                padding: 7px 12px;
+                border: 1px solid #d1d5db;
+                border-radius: 20px;
+                font-size: 13px;
+                color: #374151;
+                background: #f9fafb;
+                cursor: pointer;
+                outline: none;
+                transition: border-color .2s;
+            }
+            .filtro-periodo-select:focus { border-color: var(--primary-color); background: #fff; }
+            .resumo-filtros {
+                margin-top: 8px;
+                font-size: 12px;
+                color: #6b7280;
+                min-height: 16px;
             }
 
             /* Grid responsivo para Solicitações */
@@ -685,6 +728,28 @@
         let itensSolicitacao = [];
         let todosFornecedores = [];
         let _acFornecedor = null;
+
+        // Dados em memória + estado dos filtros avançados
+        let todasSolicitacoes = [];
+        let todasOCs = [];
+        let filtroStatusSol = '';
+        let filtroPeriodoSol = '';
+        let filtroStatusOC = '';
+        let filtroPeriodoOC = '';
+        const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        function _extrairPeriodo(ds) {
+            if (!ds) return null;
+            const d = new Date(ds.replace(' ','T'));
+            if (isNaN(d.getTime())) return null;
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        }
+        function _labelPeriodo(yyyymm) {
+            const [y,m] = yyyymm.split('-');
+            return `${MESES_PT[parseInt(m)-1]} ${y}`;
+        }
+        function _fmtValor(v) {
+            return 'R$ ' + (v||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+        }
         let todosTiposLote = [];
         let precosFornecedorSelecionado = {};
         // Controle do modo de edição
@@ -934,12 +999,10 @@
             }
         }
 
-        async function carregarSolicitacoes(status = '') {
+        async function carregarSolicitacoes(statusInicial = '') {
+            if (statusInicial) filtroStatusSol = statusInicial;
             try {
-                let url = '/solicitacoes';
-                if (status) url += `?status=${status}`;
-
-                const response = await fetchAPI(url);
+                const response = await fetchAPI('/solicitacoes');
                 const container = document.getElementById('listaSolicitacoes');
 
                 if (!response) {
@@ -962,20 +1025,55 @@
                     `;
                     return;
                 }
-                const solicitacoes = await response.json();
 
-                if (solicitacoes.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-file-alt"></i>
-                            <h3>Nenhum pedido de compra encontrado</h3>
-                            <p>Os pedidos de compra criados aparecerão aqui</p>
-                        </div>
-                    `;
-                    return;
-                }
+                todasSolicitacoes = await response.json();
 
-                container.innerHTML = solicitacoes.map(s => {
+                // Montar opções de período a partir das datas reais
+                const periodos = [...new Set(todasSolicitacoes.map(s => _extrairPeriodo(s.data_envio)).filter(Boolean))].sort().reverse();
+                const sel = document.getElementById('filtroPeriodoSol');
+                sel.innerHTML = '<option value="">Todos os períodos</option>' +
+                    periodos.map(p => `<option value="${p}">${_labelPeriodo(p)}</option>`).join('');
+                if (filtroPeriodoSol) sel.value = filtroPeriodoSol;
+
+                renderSolicitacoes();
+            } catch (error) {
+                console.error('Erro ao carregar pedidos de compra:', error);
+                document.getElementById('listaSolicitacoes').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                        <h3 style="color: #ef4444;">Erro ao carregar pedidos de compra</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderSolicitacoes() {
+            const container = document.getElementById('listaSolicitacoes');
+            let dados = todasSolicitacoes;
+            if (filtroStatusSol) dados = dados.filter(s => s.status === filtroStatusSol || (filtroStatusSol === 'aprovada' && s.status === 'aprovada_adm'));
+            if (filtroPeriodoSol) dados = dados.filter(s => _extrairPeriodo(s.data_envio) === filtroPeriodoSol);
+
+            // Resumo
+            const totalValor = dados.reduce((a, s) => a + (s.total_valor || 0), 0);
+            const totalPeso = dados.reduce((a, s) => a + (s.total_peso_kg || 0), 0);
+            const resumo = document.getElementById('resumoSolicitacoes');
+            if (resumo) resumo.textContent = dados.length
+                ? `${dados.length} pedido${dados.length !== 1 ? 's' : ''} • ${_fmtValor(totalValor)} • ${totalPeso.toFixed(2).replace('.',',')} kg`
+                : '';
+
+            if (dados.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-file-alt"></i>
+                        <h3>Nenhum pedido de compra encontrado</h3>
+                        <p>Tente outro filtro de status ou período</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = dados.map(s => {
                     const statusClass = s.status === 'aprovada' ? 'badge-aprovada' :
                         s.status === 'rejeitada' ? 'badge-rejeitada' :
                             'badge-pendente';
@@ -1050,21 +1148,17 @@
                         </div>
                     `;
                 }).join('');
-            } catch (error) {
-                console.error('Erro ao carregar pedidos de compra:', error);
-                const container = document.getElementById('listaSolicitacoes');
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
-                        <h3 style="color: #ef4444;">Erro ao carregar pedidos de compra</h3>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
         }
 
         function filtrarStatus(status) {
-            carregarSolicitacoes(status);
+            filtroStatusSol = status;
+            if (!todasSolicitacoes.length) { carregarSolicitacoes(); return; }
+            renderSolicitacoes();
+        }
+
+        function aplicarFiltroPeriodoSol() {
+            filtroPeriodoSol = document.getElementById('filtroPeriodoSol').value;
+            renderSolicitacoes();
         }
 
         async function deletarSolicitacao(id) {
@@ -2265,19 +2359,14 @@
             }
         }
 
-        async function carregarOCs(status = '') {
+        async function carregarOCs(statusInicial = '') {
+            if (statusInicial) filtroStatusOC = statusInicial;
             try {
-                console.log(' Carregando OCs...');
-                // Timestamp para evitar cache do navegador e garantir dados atualizados
-                let url = '/ordens-compra';
-                if (status) url += `?status=${status}&_t=${Date.now()}`;
-                else url += `?_t=${Date.now()}`;
-
+                const url = `/ordens-compra?_t=${Date.now()}`;
                 const response = await fetchAPI(url);
                 const container = document.getElementById('listaOCs');
 
                 if (!response) {
-                    console.error(' Sem resposta do servidor');
                     container.innerHTML = `
                         <div class="empty-state">
                             <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
@@ -2289,7 +2378,6 @@
                 }
 
                 if (!response.ok) {
-                    console.error(' Erro HTTP:', response.status);
                     container.innerHTML = `
                         <div class="empty-state">
                             <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
@@ -2300,24 +2388,55 @@
                     return;
                 }
 
-                const ocs = await response.json();
-                console.log(` ${ocs.length} OC(s) carregada(s)`);
+                todasOCs = await response.json();
 
-                if (ocs.length === 0) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-shopping-cart"></i>
-                            <h3>Nenhuma ordem de compra encontrada</h3>
-                            <p>As ordens de compra aparecerão aqui</p>
-                        </div>
-                    `;
-                    return;
-                }
+                // Montar opções de período
+                const periodos = [...new Set(todasOCs.map(oc => _extrairPeriodo(oc.criado_em)).filter(Boolean))].sort().reverse();
+                const sel = document.getElementById('filtroPeriodoOC');
+                sel.innerHTML = '<option value="">Todos os períodos</option>' +
+                    periodos.map(p => `<option value="${p}">${_labelPeriodo(p)}</option>`).join('');
+                if (filtroPeriodoOC) sel.value = filtroPeriodoOC;
 
-                container.innerHTML = ocs.map(oc => {
+                renderOCs();
+            } catch (error) {
+                console.error('Erro ao carregar OCs:', error);
+                document.getElementById('listaOCs').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
+                        <h3 style="color: #ef4444;">Erro ao carregar ordens de compra</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderOCs() {
+            const container = document.getElementById('listaOCs');
+            let dados = todasOCs;
+            if (filtroStatusOC) dados = dados.filter(oc => oc.status === filtroStatusOC);
+            if (filtroPeriodoOC) dados = dados.filter(oc => _extrairPeriodo(oc.criado_em) === filtroPeriodoOC);
+
+            // Resumo
+            const totalValor = dados.reduce((a, oc) => a + (oc.valor_total || 0), 0);
+            const resumo = document.getElementById('resumoOCs');
+            if (resumo) resumo.textContent = dados.length
+                ? `${dados.length} ordem${dados.length !== 1 ? 's' : ''} • ${_fmtValor(totalValor)}`
+                : '';
+
+            if (dados.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-shopping-cart"></i>
+                        <h3>Nenhuma ordem de compra encontrada</h3>
+                        <p>Tente outro filtro de status ou período</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = dados.map(oc => {
                     const statusClass = oc.status === 'aprovada' ? 'badge-aprovada' :
-                        oc.status === 'rejeitada' ? 'badge-rejeitada' :
-                            oc.status === 'em_analise' ? 'badge-pendente' : 'badge-pendente';
+                        oc.status === 'rejeitada' ? 'badge-rejeitada' : 'badge-pendente';
 
                     const statusLabel = oc.status === 'aprovada' ? 'APROVADA' :
                         oc.status === 'rejeitada' ? 'REJEITADA' :
@@ -2358,32 +2477,28 @@
 
                             <div class="card-actions">
                                 ${podeAprovar && oc.status === 'em_analise' ?
-                            `<button class="btn btn-success" onclick="abrirModalAprovarOC(${oc.id})">
+                                    `<button class="btn btn-success" onclick="abrirModalAprovarOC(${oc.id})">
                                         <i class="fas fa-check-circle"></i> Aprovar/Reprovar
                                     </button>` :
-                            `<button class="btn btn-secondary" onclick="verDetalhesOC(${oc.id})">
+                                    `<button class="btn btn-secondary" onclick="verDetalhesOC(${oc.id})">
                                         <i class="fas fa-eye"></i> Ver Detalhes
                                     </button>`
-                        }
+                                }
                             </div>
                         </div>
                     `;
                 }).join('');
-            } catch (error) {
-                console.error('Erro ao carregar OCs:', error);
-                const container = document.getElementById('listaOCs');
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i>
-                        <h3 style="color: #ef4444;">Erro ao carregar ordens de compra</h3>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
         }
 
         function filtrarOCStatus(status) {
-            carregarOCs(status);
+            filtroStatusOC = status;
+            if (!todasOCs.length) { carregarOCs(); return; }
+            renderOCs();
+        }
+
+        function aplicarFiltroPeriodoOC() {
+            filtroPeriodoOC = document.getElementById('filtroPeriodoOC').value;
+            renderOCs();
         }
 
         async function gerarOC(solicitacaoId) {
