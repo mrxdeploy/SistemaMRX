@@ -2478,6 +2478,14 @@ def _estornar_item_estoque_geral(item):
             if sublote.status == 'processado':
                 sublote.status = 'em_estoque'
 
+            # Restaurar peso no lote pai
+            if sublote.lote_pai_id:
+                pai = Lote.query.get(sublote.lote_pai_id)
+                if pai:
+                    novo_pai_peso = float(pai.peso_liquido or pai.peso_total_kg or 0) + peso_consumido
+                    pai.peso_liquido = round(novo_pai_peso, 4)
+                    pai.peso_total_kg = round(novo_pai_peso, 4)
+
             logger.info(f'✅ Estorno: sublote {sublote_id} restaurado +{peso_consumido:.3f}kg, +R${valor_consumido:.2f}')
 
         return True
@@ -2823,6 +2831,13 @@ def adicionar_materiais_bag_estoque_geral():
                     valor_total_original = float(sublote.valor_total or 0)
                     if valor_total_original > 0 and peso_sublote > 0:
                         sublote.valor_total = round((novo_peso / peso_sublote) * valor_total_original, 2)
+
+                # Propagar dedução ao lote pai para manter peso_materia_prima correto
+                if sublote.lote_pai_id and sublote.lote_pai:
+                    pai = sublote.lote_pai
+                    novo_pai_peso = max(0.0, float(pai.peso_liquido or pai.peso_total_kg or 0) - peso_consumir)
+                    pai.peso_liquido = round(novo_pai_peso, 4)
+                    pai.peso_total_kg = round(novo_pai_peso, 4)
 
                 peso_restante -= peso_consumir
 
