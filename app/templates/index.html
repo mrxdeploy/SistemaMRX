@@ -416,6 +416,9 @@
       }
     }
 
+    /* Garante que [hidden] funcione mesmo com regras do style.css */
+    [hidden] { display: none !important; }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition: none !important; }
     }
@@ -472,6 +475,10 @@
           <span>Conexão protegida</span>
         </footer>
       </div>
+
+      <!-- Hexagonal honeycomb background -->
+      <canvas id="hexCanvas" aria-hidden="true"
+              style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.18"></canvas>
 
       <svg class="deco" aria-hidden="true" viewBox="0 0 400 400" fill="none">
         <circle cx="400" cy="400" r="60"  stroke="#7FD1A4" stroke-width="1" opacity=".18"/>
@@ -599,6 +606,59 @@
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script src="/static/js/app.js"></script>
   <script>
+    // Override showAlert do app.js → exibe erro inline no formulário
+    window.showAlert = function (msg) {
+      if (!msg) return;
+      document.getElementById('erroMsg').textContent = msg;
+      document.getElementById('erroLogin').hidden = false;
+    };
+
+    // Colmeias (hex grid) no painel da marca
+    (function () {
+      function desenharColmeias() {
+        const canvas = document.getElementById('hexCanvas');
+        if (!canvas) return;
+        const W = canvas.offsetWidth;
+        const H = canvas.offsetHeight;
+        if (!W || !H) return;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width  = W * dpr;
+        canvas.height = H * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.strokeStyle = '#7FD1A4';
+        ctx.lineWidth = 1;
+
+        const R = 28;
+        const rw = R * Math.sqrt(3); // largura entre centros (mesma linha)
+        const rh = R * 1.5;          // altura entre linhas
+
+        const cols = Math.ceil(W / rw) + 2;
+        const rows = Math.ceil(H / rh) + 2;
+
+        for (let row = -1; row < rows; row++) {
+          for (let col = -1; col < cols; col++) {
+            const cx = col * rw + (row % 2 === 0 ? 0 : rw / 2);
+            const cy = row * rh;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+              const angle = (Math.PI / 3) * i - Math.PI / 6;
+              const x = cx + R * Math.cos(angle);
+              const y = cy + R * Math.sin(angle);
+              if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+          }
+        }
+      }
+
+      window.addEventListener('load', function () {
+        desenharColmeias();
+        window.addEventListener('resize', desenharColmeias);
+      });
+    })();
+
     (function () {
 
       // Ano
