@@ -373,6 +373,7 @@
             <div class="card stat-card">
                 <div class="stat-number" style="color: #FFD700;" id="statPesoTotal">0 kg</div>
                 <div class="stat-label">Peso Total</div>
+                <div class="stat-sub" id="statPesoEmBags" style="font-size:11px;color:#8FA597;margin-top:2px"></div>
             </div>
         </div>
 
@@ -741,7 +742,10 @@
                     document.getElementById('statLotesAtivos').textContent = data.lotes_ativos || 0;
                     document.getElementById('statEmProducao').textContent = data.em_producao || 0;
                     document.getElementById('statBagsEstoque').textContent = data.bags_estoque || 0;
-                    document.getElementById('statPesoTotal').textContent = `${fmtKg(data.peso_total, 2)} kg`;
+                    document.getElementById('statPesoTotal').textContent = `${fmtKg(data.peso_materia_prima ?? data.peso_total, 2)} kg`;
+                    if (data.peso_em_bags > 0) {
+                        document.getElementById('statPesoEmBags').textContent = `+ ${fmtKg(data.peso_em_bags, 2)} kg em bags`;
+                    }
                 }
             } catch (error) {
                 console.error('Erro ao carregar dashboard:', error);
