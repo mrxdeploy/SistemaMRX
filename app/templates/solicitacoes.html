@@ -750,6 +750,29 @@
         function _fmtValor(v) {
             return 'R$ ' + (v||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
         }
+
+        function _calcFaixaLocal(p1, p2, p3, preco) {
+            if (preco == null || (p1 == null && p2 == null && p3 == null))
+                return {faixa: 'SEM_TABELA', label: '—', cor: '#6b7280'};
+            const v = parseFloat(preco);
+            if (p1 != null && v <= p1) return {faixa: 'P1', label: 'P1', cor: '#10b981'};
+            if (p2 != null && v <= p2) return {faixa: 'P2', label: 'P2', cor: '#f59e0b'};
+            if (p3 != null && v <= p3) return {faixa: 'P3', label: 'P3', cor: '#dc2626'};
+            return {faixa: 'P3+', label: 'P3+', cor: '#7c3aed'};
+        }
+
+        function _renderFaixaBadge(fp, compact = false) {
+            if (!fp || fp.faixa === 'SEM_TABELA') return '';
+            const tooltipParts = [];
+            if (fp.p1 != null) tooltipParts.push(`P1: R$ ${fp.p1.toFixed(2)}`);
+            if (fp.p2 != null) tooltipParts.push(`P2: R$ ${fp.p2.toFixed(2)}`);
+            if (fp.p3 != null) tooltipParts.push(`P3: R$ ${fp.p3.toFixed(2)}`);
+            const tooltip = tooltipParts.join(' · ');
+            const size = compact ? '11px' : '12px';
+            const pad = compact ? '2px 5px' : '3px 7px';
+            return `<span title="${tooltip}" style="display:inline-flex;align-items:center;background:${fp.cor}20;color:${fp.cor};border:1px solid ${fp.cor}50;border-radius:10px;font-size:${size};font-weight:700;padding:${pad};margin-left:5px;cursor:help;">${fp.label}</span>`;
+        }
+
         let todosTiposLote = [];
         let precosFornecedorSelecionado = {};
         // Controle do modo de edição
@@ -974,7 +997,8 @@
                         precosFornecedorSelecionado[material.id] = {
                             preco_por_kg: material.preco_unitario,
                             codigo: material.codigo,
-                            nome: material.nome
+                            nome: material.nome,
+                            precos_tabela: material.precos_tabela || {p1: null, p2: null, p3: null}
                         };
                     });
 
@@ -1413,21 +1437,27 @@
                             </label>
                         </div>
                         
-                        ${item.preco_customizado ? `
+                        ${item.preco_customizado ? (() => {
+                            const refPrecos = item.material_id && precosFornecedorSelecionado[item.material_id] ? precosFornecedorSelecionado[item.material_id] : null;
+                            const pt = refPrecos ? refPrecos.precos_tabela : null;
+                            const fp = pt && item.preco_oferecido ? _calcFaixaLocal(pt.p1, pt.p2, pt.p3, item.preco_oferecido) : null;
+                            const badgeHtml = fp ? _renderFaixaBadge(fp, true) : '';
+                            return `
                             <div class="form-group" style="margin-bottom: 0; margin-top: 0.75rem;">
-                                <label>Preço Oferecido (R$/kg) *</label>
-                                <input type="number" step="0.01" min="0.01" value="${item.preco_oferecido || ''}" 
+                                <label>Preço Oferecido (R$/kg) *${badgeHtml}</label>
+                                <input type="number" step="0.01" min="0.01" value="${item.preco_oferecido || ''}"
                                     onchange="atualizarItemCampo(${item.id}, 'preco_oferecido', parseFloat(this.value))"
                                     placeholder="Digite o preço oferecido (mínimo R$ 0,01)"
                                     style="background: white;"
                                     required>
                                 <small style="color: #666; display: block; margin-top: 0.25rem;">
-                                    ${item.material_id && precosFornecedorSelecionado[item.material_id] ? `
-                                        Preço da tabela: R$ ${precosFornecedorSelecionado[item.material_id].preco_por_kg.toFixed(2)}/kg
+                                    ${refPrecos ? `
+                                        Tabela: R$ ${refPrecos.preco_por_kg.toFixed(2)}/kg
+                                        ${pt && pt.p1 != null ? ` · P1: R$${pt.p1.toFixed(2)} · P2: R$${pt.p2 != null ? pt.p2.toFixed(2) : '—'} · P3: R$${pt.p3 != null ? pt.p3.toFixed(2) : '—'}` : ''}
                                     ` : 'Selecione um material para ver o preço da tabela'}
                                 </small>
-                            </div>
-                        ` : `
+                            </div>`;
+                        })() : `
                             <small style="color: #666;">Marque para oferecer um preço diferente do padrão da tabela</small>
                         `}
                     </div>
@@ -1981,19 +2011,24 @@
                 let tableBody = [];
 
                 if (showFullDetails) {
-                    tableHead = [['Material', 'Código', 'Classif.', 'Peso', 'Preço/kg', 'Total', 'Lote']];
-                    tableBody = solicitacaoAtual.itens.map(item => [
-                        item.material_nome || item.tipo_lote_nome || 'N/A',
-                        item.material_codigo || "-",
-                        item.classificacao ? item.classificacao.toUpperCase() : "-",
-                        `${item.peso_kg} kg`,
-                        `R$ ${item.preco_por_kg_snapshot ? item.preco_por_kg_snapshot.toFixed(2) : '0.00'}`,
-                        `R$ ${item.valor_calculado.toFixed(2)}`,
-                        item.lote_numero || "-"
-                    ]);
+                    tableHead = [['Material', 'Código', 'Classif.', 'Peso', 'Preço/kg', 'Faixa', 'Total', 'Lote']];
+                    tableBody = solicitacaoAtual.itens.map(item => {
+                        const preco = item.preco_customizado && item.preco_oferecido
+                            ? item.preco_oferecido
+                            : (item.preco_por_kg_snapshot || 0);
+                        const faixaLabel = item.faixa_preco ? item.faixa_preco.label : '—';
+                        return [
+                            item.material_nome || item.tipo_lote_nome || 'N/A',
+                            item.material_codigo || "-",
+                            item.classificacao ? item.classificacao.toUpperCase() : "-",
+                            `${item.peso_kg} kg`,
+                            `R$ ${preco.toFixed(2)}`,
+                            faixaLabel,
+                            `R$ ${item.valor_calculado.toFixed(2)}`,
+                            item.lote_numero || "-"
+                        ];
+                    });
                 } else {
-                    // Remove Classificação e Lote para usuários comuns (ou conforme necessidade)
-                    // Na especificação: "ao usar qualquer outro perfil e exportar a classificação é ocultada"
                     tableHead = [['Material', 'Código', 'Peso', 'Preço/kg', 'Total']];
                     tableBody = solicitacaoAtual.itens.map(item => [
                         item.material_nome || item.tipo_lote_nome || 'N/A',
@@ -2012,8 +2047,9 @@
                     headStyles: { fillColor: primaryColor, textColor: 255, fontStyle: 'bold' },
                     styles: { fontSize: 9, cellPadding: 3 },
                     columnStyles: showFullDetails ? {
-                        5: { fontStyle: 'bold', halign: 'right' },
-                        3: { halign: 'center' }
+                        6: { fontStyle: 'bold', halign: 'right' },
+                        3: { halign: 'center' },
+                        5: { halign: 'center' }
                     } : {
                         4: { fontStyle: 'bold', halign: 'right' },
                         2: { halign: 'center' }
@@ -2144,7 +2180,29 @@
 
                 // Lista de Itens Estilizada
                 if (solicitacaoAtual.itens && solicitacaoAtual.itens.length > 0) {
-                    html += `<h3 style="margin: 0 0 1rem 0; color: var(--gray-800); border-bottom: 2px solid var(--gray-200); padding-bottom: 0.5rem;">Itens do Pedido (${solicitacaoAtual.itens.length})</h3>`;
+                    // Mini-resumo de faixas (só admin/gestor)
+                    let miniResumoHtml = '';
+                    if (isAdminOrGestor) {
+                        const contFaixas = {P1: 0, P2: 0, P3: 0, 'P3+': 0};
+                        solicitacaoAtual.itens.forEach(it => {
+                            const f = it.faixa_preco && it.faixa_preco.faixa;
+                            if (f && contFaixas[f] !== undefined) contFaixas[f]++;
+                        });
+                        const partesFaixas = [];
+                        const coresFaixas = {P1:'#10b981', P2:'#f59e0b', P3:'#dc2626', 'P3+':'#7c3aed'};
+                        ['P1','P2','P3','P3+'].forEach(k => {
+                            if (contFaixas[k] > 0) partesFaixas.push(
+                                `<span style="color:${coresFaixas[k]};font-weight:600;">${contFaixas[k]}&nbsp;em&nbsp;${k}</span>`
+                            );
+                        });
+                        if (partesFaixas.length > 0) {
+                            miniResumoHtml = `<div style="font-size:0.82rem;margin-bottom:0.75rem;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;">
+                                <i class="fas fa-tag" style="color:var(--gray-400);font-size:12px;"></i>
+                                ${partesFaixas.join('<span style="color:var(--gray-300);">·</span>')}
+                            </div>`;
+                        }
+                    }
+                    html += `<h3 style="margin: 0 0 0.5rem 0; color: var(--gray-800); border-bottom: 2px solid var(--gray-200); padding-bottom: 0.5rem;">Itens do Pedido (${solicitacaoAtual.itens.length})</h3>${miniResumoHtml}`;
 
                     html += `<div style="display: grid; gap: 1rem;">`;
 
@@ -2198,14 +2256,22 @@
                                     
                                     <div>
                                         <div style="font-size: 0.75rem; color: var(--gray-500); text-transform: uppercase;">Preço Unit.</div>
-                                        ${temPrecoCustomizado ? `
-                                             <div style="font-weight: bold; color: #f59e0b; font-size: 1.1rem;">
+                                        ${temPrecoCustomizado ? (() => {
+                                            const fp = item.faixa_preco;
+                                            const badge = isAdminOrGestor ? _renderFaixaBadge(fp) : '';
+                                            return `<div style="font-weight: bold; color: #f59e0b; font-size: 1.1rem; display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
                                                 R$ ${item.preco_oferecido.toFixed(2)}
-                                                <i class="fas fa-exclamation-circle" title="Preço Customizado" style="font-size: 0.8rem; margin-left: 4px;"></i>
-                                             </div>
-                                        ` : `
-                                             <div style="font-weight: bold; color: var(--gray-800); font-size: 1.1rem;">R$ ${item.preco_por_kg_snapshot ? item.preco_por_kg_snapshot.toFixed(2) : '0.00'}</div>
-                                        `}
+                                                <i class="fas fa-exclamation-circle" title="Preço Customizado" style="font-size: 0.8rem;"></i>
+                                                ${badge}
+                                            </div>`;
+                                        })() : (() => {
+                                            const fp = item.faixa_preco;
+                                            const badge = isAdminOrGestor ? _renderFaixaBadge(fp) : '';
+                                            return `<div style="font-weight: bold; color: var(--gray-800); font-size: 1.1rem; display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+                                                R$ ${item.preco_por_kg_snapshot ? item.preco_por_kg_snapshot.toFixed(2) : '0.00'}
+                                                ${badge}
+                                            </div>`;
+                                        })()}
                                     </div>
                                     
                                     <div>

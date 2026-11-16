@@ -8,6 +8,7 @@ from app import socketio
 from datetime import datetime
 from app.utils.datetime_br import now_brasilia
 from sqlalchemy import inspect as sa_inspect
+from app.services.faixa_preco import enriquecer_item_com_faixa
 
 logger = logging.getLogger(__name__)
 
@@ -188,15 +189,18 @@ def listar_materiais_fornecedor(fornecedor_id):
         if not precos_fornecedor:
             return jsonify({'erro': 'Fornecedor não possui materiais com preços configurados'}), 400
         
+        from app.services.faixa_preco import buscar_precos_tabela_material
         materiais = []
         for preco in precos_fornecedor:
+            precos_tabela = buscar_precos_tabela_material(preco.material_id)
             material_dict = {
                 'id': preco.material_id,
                 'codigo': preco.material.codigo,
                 'nome': preco.material.nome,
                 'classificacao': preco.material.classificacao,
                 'descricao': preco.material.descricao,
-                'preco_unitario': float(preco.preco_fornecedor) if preco.preco_fornecedor else 0.0
+                'preco_unitario': float(preco.preco_fornecedor) if preco.preco_fornecedor else 0.0,
+                'precos_tabela': precos_tabela,
             }
             materiais.append(material_dict)
         
@@ -356,7 +360,10 @@ def obter_solicitacao(id):
             return jsonify({'erro': 'Solicitação não encontrada'}), 404
 
         sol_dict = solicitacao.to_dict()
-        sol_dict['itens'] = [item.to_dict() for item in solicitacao.itens]
+        sol_dict['itens'] = [
+            enriquecer_item_com_faixa(item.to_dict())
+            for item in solicitacao.itens
+        ]
 
         return jsonify(sol_dict), 200
 
