@@ -2662,6 +2662,102 @@ def listar_estoque_geral():
         return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
+@bp.route('/orphan-lotes', methods=['GET'])
+@jwt_required()
+def listar_lotes_orfaos():
+    """
+    GET /api/estoque-ativo/orphan-lotes?dry_run=true&apply=false
+
+    Lista todos os lotes/sublotes ativos cujo vínculo com a compra original foi perdido:
+      - solicitacao_origem_id aponta para uma Solicitação inexistente (ou é NULL e oc_id
+        aponta para uma OC inexistente)
+      - lote_pai_id aponta para um lote que não existe mais (sublote órfão de pai deletado)
+
+    Usado para auditoria e para a correção dos dados já afetados.
+    Nunca altera dados (dry_run sempre respeitado na listagem).
+    """
+    usuario_id = get_jwt_identity()
+    usuario = Usuario.query.get(usuario_id)
+    if not usuario or usuario.tipo not in ('admin', 'gestor'):
+        return jsonify({'erro': 'Acesso negado — requer admin ou gestor'}), 403
+
+    try:
+        STATUSES_ATIVOS = [
+            'em_estoque', 'disponivel', 'aprovado',
+            'CRIADO_SEPARACAO', 'criado_separacao',
+            'PROCESSADO', 'processado',
+            'AGUARDANDO_SEPARACAO', 'EM_SEPARACAO'
+        ]
+
+        # 1. Sublotes cujo lote pai foi deletado
+        sublotes_pai_deletado = Lote.query.filter(
+            Lote.status.in_(STATUSES_ATIVOS),
+            Lote.lote_pai_id.isnot(None),
+            Lote.bloqueado == False,
+            ~Lote.query.session.query(Lote.id).filter(
+                Lote.id == db.literal_column('lotes.lote_pai_id')
+            ).exists()
+        ).all()
+
+        # 2. Lotes pai cujo solicitacao_origem_id aponta para Solicitação inexistente
+        lotes_sol_deletada = Lote.query.filter(
+            Lote.status.in_(STATUSES_ATIVOS),
+            Lote.lote_pai_id.is_(None),
+            Lote.solicitacao_origem_id.isnot(None),
+            Lote.bloqueado == False,
+            ~db.session.query(Solicitacao.id).filter(
+                Solicitacao.id == Lote.solicitacao_origem_id
+            ).exists()
+        ).all()
+
+        # 3. Lotes pai sem solicitacao_origem_id mas com oc_id que não existe mais
+        lotes_oc_deletada = Lote.query.filter(
+            Lote.status.in_(STATUSES_ATIVOS),
+            Lote.lote_pai_id.is_(None),
+            Lote.solicitacao_origem_id.is_(None),
+            Lote.oc_id.isnot(None),
+            Lote.bloqueado == False,
+            ~db.session.query(OrdemCompra.id).filter(
+                OrdemCompra.id == Lote.oc_id
+            ).exists()
+        ).all()
+
+        def _serializar(lote, motivo):
+            nome_material = _extrair_nome_material(lote)
+            peso = float(lote.peso_liquido or lote.peso_total_kg or 0)
+            return {
+                'numero_lote': lote.numero_lote,
+                'motivo': motivo,
+                'fornecedor': lote.fornecedor.nome if lote.fornecedor else 'N/A',
+                'material': nome_material,
+                'peso_kg': round(peso, 3),
+                'status': lote.status,
+                'lote_pai_id': lote.lote_pai_id,
+                'solicitacao_origem_id': lote.solicitacao_origem_id,
+                'oc_id': lote.oc_id,
+                'data_criacao': lote.data_criacao.isoformat() if lote.data_criacao else None,
+            }
+
+        orfaos = (
+            [_serializar(l, 'pai_deletado') for l in sublotes_pai_deletado] +
+            [_serializar(l, 'solicitacao_deletada') for l in lotes_sol_deletada] +
+            [_serializar(l, 'oc_deletada') for l in lotes_oc_deletada]
+        )
+
+        peso_total_orfao = sum(o['peso_kg'] for o in orfaos)
+
+        return jsonify({
+            'dry_run': True,
+            'total_orfaos': len(orfaos),
+            'peso_total_kg': round(peso_total_orfao, 3),
+            'orfaos': orfaos
+        })
+
+    except Exception as e:
+        logger.error(f'❌ Erro ao listar lotes órfãos: {e}', exc_info=True)
+        return jsonify({'erro': str(e)}), 500
+
+
 @bp.route('/bags/adicionar-materiais-geral', methods=['POST'])
 @jwt_required()
 def adicionar_materiais_bag_estoque_geral():

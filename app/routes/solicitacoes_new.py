@@ -1225,27 +1225,109 @@ def deletar_solicitacao(id):
         if not solicitacao:
             return jsonify({'erro': 'Solicitação não encontrada'}), 404
 
-        # Permissão especial para Admin ou Gestor
-        # Verifica tanto o tipo quanto o nome do perfil para garantir cobertura
         is_admin = usuario.tipo == 'admin' or (usuario.perfil and usuario.perfil.nome == 'Administrador')
         is_gestor = usuario.perfil and usuario.perfil.nome == 'Gestor'
-        
+
         if is_admin or is_gestor:
-            # Admins e Gestores podem deletar qualquer uma em qualquer status
             logger.debug(f"DEBUG: Exclusão administrativa permitida para {usuario.nome} (Status: {solicitacao.status})")
         else:
-            # Funcionários comuns só deletam as suas e se estiverem pendentes
             if solicitacao.funcionario_id != usuario_id:
                 return jsonify({'erro': 'Acesso negado'}), 403
-            
             if solicitacao.status != 'pendente':
                 return jsonify({'erro': 'Apenas solicitações pendentes podem ser deletadas'}), 400
+
+        # --- Coleta todos os lotes vinculados a esta solicitação ---
+        # Inclui lotes com solicitacao_origem_id direto E lotes via OC vinculada
+        oc = solicitacao.ordem_compra  # pode ser None se ainda pendente
+        oc_id = oc.id if oc else None
+
+        lotes_vinculados = Lote.query.filter(
+            db.or_(
+                Lote.solicitacao_origem_id == solicitacao.id,
+                Lote.oc_id == oc_id if oc_id else db.false()
+            )
+        ).all()
+
+        # Para cada lote pai, incluir também os sublotes
+        todos_lotes = list(lotes_vinculados)
+        for lote in lotes_vinculados:
+            sublotes = Lote.query.filter_by(lote_pai_id=lote.id).all()
+            todos_lotes.extend(sublotes)
+
+        # --- Verificar se algum lote/sublote já foi consumido ---
+        STATUSES_CONSUMIDO = ['em_producao', 'expedido', 'enviado_refinaria']
+        for lote in todos_lotes:
+            peso_original = float(lote.peso_total_kg or 0)
+            peso_atual = float(lote.peso_liquido or lote.peso_total_kg or 0)
+
+            # Status indica consumo/expedição
+            if lote.status in STATUSES_CONSUMIDO:
+                return jsonify({
+                    'erro': (
+                        f'Compra possui lote {lote.numero_lote} com status "{lote.status}". '
+                        f'Estorne ou conclua o processo antes de excluir.'
+                    )
+                }), 409
+
+            # Peso foi parcialmente deduzido (consumo via bag/FIFO)
+            if peso_original > 0.001 and peso_atual < peso_original * 0.999:
+                kg_usado = round(peso_original - peso_atual, 3)
+                return jsonify({
+                    'erro': (
+                        f'Compra possui lote {lote.numero_lote} com {kg_usado} kg '
+                        f'já utilizados em bag/produção. Estorne antes de excluir.'
+                    )
+                }), 409
+
+            # Lote referenciado em ItemSeparadoProducao
+            from app.models import ItemSeparadoProducao
+            tem_itens = db.session.query(ItemSeparadoProducao.id).filter(
+                ItemSeparadoProducao.entrada_estoque_id == lote.id
+            ).first()
+            if tem_itens:
+                return jsonify({
+                    'erro': (
+                        f'Compra possui lote {lote.numero_lote} referenciado em itens de produção. '
+                        f'Estorne antes de excluir.'
+                    )
+                }), 409
+
+        # --- Dentro de uma única transação: inativar lotes e sublotes, depois deletar solicitação ---
+        STATUSES_INATIVOS = [
+            'em_estoque', 'disponivel', 'aprovado',
+            'CRIADO_SEPARACAO', 'criado_separacao',
+            'PROCESSADO', 'processado',
+            'AGUARDANDO_SEPARACAO', 'EM_SEPARACAO'
+        ]
+        lotes_inativados = []
+        for lote in todos_lotes:
+            if lote.status in STATUSES_INATIVOS:
+                lote.status = 'cancelado'
+                lote.bloqueado = True
+                lote.auditoria = (lote.auditoria or []) + [{
+                    'acao': 'INATIVADO_POR_EXCLUSAO_SOLICITACAO',
+                    'solicitacao_id': solicitacao.id,
+                    'usuario_id': usuario_id,
+                    'usuario_nome': usuario.nome,
+                    'timestamp': now_brasilia().isoformat(),
+                    'peso_inativado': float(lote.peso_liquido or lote.peso_total_kg or 0),
+                }]
+                lotes_inativados.append(lote.numero_lote)
 
         db.session.delete(solicitacao)
         db.session.commit()
 
-        return jsonify({'mensagem': 'Solicitação deletada com sucesso'}), 200
+        logger.info(
+            f'✅ Solicitação #{id} deletada por {usuario.nome}. '
+            f'Lotes inativados: {lotes_inativados}'
+        )
+
+        return jsonify({
+            'mensagem': 'Solicitação deletada com sucesso',
+            'lotes_inativados': lotes_inativados
+        }), 200
 
     except Exception as e:
         db.session.rollback()
+        logger.error(f'❌ Erro ao deletar solicitação #{id}: {e}', exc_info=True)
         return jsonify({'erro': f'Erro ao deletar solicitação: {str(e)}'}), 500
