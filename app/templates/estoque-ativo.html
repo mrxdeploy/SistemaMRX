@@ -354,7 +354,7 @@
 
         <div class="banner-vibrante" id="bannerStatusBag" style="display: none;">
             <i class="fas fa-info-circle"></i>
-            <span id="bannerStatusBagText">Visualizando Bags</span>
+            <span id="bannerStatusBagText">Visualizando Lotes</span>
         </div>
 
         <div class="stats-grid" id="dashboardStats">
@@ -368,7 +368,7 @@
             </div>
             <div class="card stat-card">
                 <div class="stat-number" style="color: var(--info-color);" id="statBagsEstoque">0</div>
-                <div class="stat-label">Bags no Estoque</div>
+                <div class="stat-label">Lotes no Estoque</div>
             </div>
             <div class="card stat-card">
                 <div class="stat-number" style="color: #FFD700;" id="statPesoTotal">0 kg</div>
@@ -385,13 +385,13 @@
                 <i class="fas fa-boxes"></i> Lotes
             </button>
             <button class="tab-btn" onclick="abrirTab('bags')">
-                <i class="fas fa-box"></i> Bags
+                <i class="fas fa-box"></i> Lotes
             </button>
             <button class="tab-btn" onclick="abrirTab('separacao')">
                 <i class="fas fa-cogs"></i> Em Separação
             </button>
             <button class="tab-btn" onclick="abrirTab('total')" data-perfil="Administrador, Gestor, Conferente / Estoque, Separação, Financeiro, Auditoria / BI, Comprador (PJ)">
-                <i class="fas fa-calculator"></i> Total Bags
+                <i class="fas fa-calculator"></i> Total Lotes
             </button>
             <button class="tab-btn" onclick="abrirTab('compra')" id="tabBtnCompra" data-perfil="Administrador, Gestor">
                 <i class="fas fa-shopping-cart"></i> Total Compra
@@ -401,7 +401,7 @@
         <!-- Tab Estoque Geral - Visão Consolidada com Preço Médio -->
         <div id="tabGeral" class="tab-content">
             <button class="btn-selecionar-bag" id="btnSelecionarBagGeral" onclick="toggleModoSelecaoGeral()">
-                <i class="fas fa-hand-pointer"></i> Montar Bag (Preço Médio)
+                <i class="fas fa-hand-pointer"></i> Montar Lote (Preço Médio)
             </button>
             <div class="card" style="margin-bottom: 1rem;">
                 <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: end;">
@@ -428,13 +428,13 @@
         <div class="barra-selecao-fixa" id="barraSelecaoGeral">
             <i class="fas fa-box"></i>
             <span id="contagemSelecaoGeral">0 materiais selecionados</span>
-            <button class="btn-enviar-bag" onclick="abrirModalBagGeral()"><i class="fas fa-paper-plane"></i> Enviar para Bag</button>
+            <button class="btn-enviar-bag" onclick="abrirModalBagGeral()"><i class="fas fa-paper-plane"></i> Enviar para Lote</button>
         </div>
 
         <div id="tabLotes" class="tab-content">
             <!-- Botão Selecionar para Bag -->
             <button class="btn-selecionar-bag" id="btnSelecionarBag" onclick="toggleModoSelecao()">
-                <i class="fas fa-hand-pointer"></i> Selecionar para Bag
+                <i class="fas fa-hand-pointer"></i> Selecionar para Lote
             </button>
             <div class="card" style="margin-bottom: 1rem;">
                 <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
@@ -475,7 +475,7 @@
                     </div>
                     <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
                         <label>Buscar</label>
-                        <input type="text" id="buscaBag" placeholder="Código do bag..." onkeyup="filtrarBags()">
+                        <input type="text" id="buscaBag" placeholder="Código do lote..." onkeyup="filtrarBags()">
                     </div>
                 </div>
             </div>
@@ -487,7 +487,7 @@
             <div class="card" style="margin-bottom: 1rem;">
                 <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: end;">
                     <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
-                        <label><i class="fas fa-search"></i> Buscar na Tabela de Bags</label>
+                        <label><i class="fas fa-search"></i> Buscar na Tabela de Lotes</label>
                         <input type="text" id="buscaTotalBags" placeholder="Material, classificação, fornecedor..." onkeyup="filtrarTotalBags()">
                     </div>
                     <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
@@ -571,7 +571,7 @@
     <div class="modal-producao" id="modalBag">
         <div class="modal-producao-content">
             <div class="modal-producao-header" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
-                <h2><i class="fas fa-box"></i> Enviar para Bag</h2>
+                <h2><i class="fas fa-box"></i> Enviar para Lote</h2>
                 <button onclick="fecharModalBag()" style="background:none;border:none;color:white;font-size:1.5rem;cursor:pointer;">&times;</button>
             </div>
             <div class="modal-producao-body" id="bagBody">Carregando...</div>
@@ -582,7 +582,7 @@
     <div class="modal-producao" id="modalVerBag">
         <div class="modal-producao-content">
             <div class="modal-producao-header" style="background: linear-gradient(135deg, #0891b2, #0e7490);">
-                <h2><i class="fas fa-eye"></i> Detalhes do Bag</h2>
+                <h2><i class="fas fa-eye"></i> Detalhes do Lote</h2>
                 <button onclick="document.getElementById('modalVerBag').classList.remove('active')" style="background:none;border:none;color:white;font-size:1.5rem;cursor:pointer;">&times;</button>
             </div>
             <div class="modal-producao-body" id="verBagBody">Carregando...</div>
@@ -593,7 +593,7 @@
     <div class="modal-producao" id="modalBagGeral">
         <div class="modal-producao-content">
             <div class="modal-producao-header" style="background: linear-gradient(135deg, #059669, #047857);">
-                <h2><i class="fas fa-balance-scale"></i> Enviar para Bag (Preço Médio)</h2>
+                <h2><i class="fas fa-balance-scale"></i> Enviar para Lote (Preço Médio)</h2>
                 <button onclick="fecharModalBagGeral()" style="background:none;border:none;color:white;font-size:1.5rem;cursor:pointer;">&times;</button>
             </div>
             <div class="modal-producao-body" id="bagGeralBody">Carregando...</div>
@@ -744,7 +744,7 @@
                     document.getElementById('statBagsEstoque').textContent = data.bags_estoque || 0;
                     document.getElementById('statPesoTotal').textContent = `${fmtKg(data.peso_materia_prima ?? data.peso_total, 2)} kg`;
                     if (data.peso_em_bags > 0) {
-                        document.getElementById('statPesoEmBags').textContent = `+ ${fmtKg(data.peso_em_bags, 2)} kg em bags`;
+                        document.getElementById('statPesoEmBags').textContent = `+ ${fmtKg(data.peso_em_bags, 2)} kg em lotes`;
                     }
                 }
             } catch (error) {
@@ -891,8 +891,8 @@
                                             <span class="badge ${getBadgeClassLote(sublote.status)}" style="font-size: 0.65rem;">${getStatusLabelLote(sublote.status)}</span>
                                             ${!modoSelecao && isEmEstoque ? `
                                                 <div style="display: flex; gap: 0.3rem; flex-wrap: wrap; justify-content: flex-end; margin-top: 0.25rem;">
-                                                    <button onclick="abrirModalBagComSublote(${sublote.id}); event.stopPropagation();" class="btn btn-sm" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 0.25rem;" title="Adicionar diretamente a um Bag">
-                                                        <i class="fas fa-box"></i> Enviar p/ Bag
+                                                    <button onclick="abrirModalBagComSublote(${sublote.id}); event.stopPropagation();" class="btn btn-sm" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; display: flex; align-items: center; gap: 0.25rem;" title="Adicionar diretamente a um Lote">
+                                                        <i class="fas fa-box"></i> Enviar p/ Lote
                                                     </button>
                                                     <button onclick="navegarParaGeral('${escapeHtml(nomeMat)}'); event.stopPropagation();" class="btn btn-sm" style="background: white; border: 1px solid var(--gray-300); color: var(--gray-700); padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.72rem; white-space: nowrap; display: flex; align-items: center; gap: 0.25rem;" title="Ver estoque consolidado no Estoque Geral">
                                                         <i class="fas fa-cubes"></i> No Geral
@@ -959,7 +959,7 @@
                 }
             } catch (error) {
                 console.error('Erro ao carregar bags:', error);
-                document.getElementById('listaBags').innerHTML = '<div class="card" style="text-align: center; color: var(--danger-color);">Erro ao carregar bags</div>';
+                document.getElementById('listaBags').innerHTML = '<div class="card" style="text-align: center; color: var(--danger-color);">Erro ao carregar lotes</div>';
             }
         }
 
@@ -1104,7 +1104,7 @@
             // Renderizar Cards
             const grid = document.getElementById('resumoGrid');
             if(!dados || dados.length === 0) {
-                grid.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--gray-500);"><i class="fas fa-boxes" style="font-size:2rem; margin-bottom:0.5rem; opacity:0.4;"></i><p style="margin:0; font-weight:600;">Nenhum item encontrado nos Bags ativos.</p></div>';
+                grid.innerHTML = '<div class="card" style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--gray-500);"><i class="fas fa-boxes" style="font-size:2rem; margin-bottom:0.5rem; opacity:0.4;"></i><p style="margin:0; font-weight:600;">Nenhum item encontrado nos Lotes ativos.</p></div>';
                 document.getElementById('tabelaResumoBody').innerHTML = `<tr><td colspan="${showPrices ? 6 : 4}" style="text-align:center; padding: 2rem; color: var(--gray-500);">Nenhum registro para os filtros selecionados</td></tr>`;
                 return;
             }
@@ -1118,7 +1118,7 @@
                         </div>
                         <div class="stat-label" style="font-weight: bold; color: var(--gray-700);">${cat.categoria_label}</div>
                         <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
-                            ${cat.itens.length} materiais nos bags
+                            ${cat.itens.length} materiais nos lotes
                         </div>
                         ${showPrices && cat.media_geral > 0 ? `
                             <div style="font-size: 0.85rem; color: #8b5cf6; margin-top: 0.5rem; font-weight: bold;">
@@ -1241,7 +1241,7 @@
         function renderizarBags(bags) {
             const container = document.getElementById('listaBags');
             if (!bags || bags.length === 0) {
-                container.innerHTML = '<div class="card" style="text-align: center; color: var(--gray-500);"><i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 0.5rem;"></i><br>Nenhum bag encontrado no estoque</div>';
+                container.innerHTML = '<div class="card" style="text-align: center; color: var(--gray-500);"><i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 0.5rem;"></i><br>Nenhum lote encontrado no estoque</div>';
                 return;
             }
             
@@ -1335,7 +1335,7 @@
                         <div style="margin-top: 0.75rem;">
                             <span class="expand-indicator" id="expand-bag-${bag.id}" onclick="toggleItensBag(${bag.id}, event)">
                                 <i class="fas fa-chevron-down"></i>
-                                <span>${bag.itens.length} item(ns) no bag</span>
+                                <span>${bag.itens.length} item(ns) no lote</span>
                             </span>
                         </div>
                         <div class="itens-bag-container" id="itens-bag-${bag.id}">
@@ -1389,21 +1389,21 @@
                             Criado em ${formatarData(bag.data_criacao)}
                         </span>
                         <div style="display: flex; gap: 0.5rem;">
-                            <button onclick="excluirBagAction(${bag.id})" class="btn btn-sm" style="background: #ef4444; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Excluir bag e estornar todos os materiais ao estoque">
+                            <button onclick="excluirBagAction(${bag.id})" class="btn btn-sm" style="background: #ef4444; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Excluir lote e estornar todos os materiais ao estoque">
                                 <i class="fas fa-trash"></i> Excluir
                             </button>
                             ${bag.status === 'aberto' ? `
-                                <button onclick="fecharBagAction(${bag.id})" class="btn btn-sm" style="background: #f59e0b; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Finalizar bag e gerar ordem de exportação">
-                                    <i class="fas fa-check-circle"></i> Finalizar Bag
+                                <button onclick="fecharBagAction(${bag.id})" class="btn btn-sm" style="background: #f59e0b; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Finalizar lote e gerar ordem de exportação">
+                                    <i class="fas fa-check-circle"></i> Finalizar Lote
                                 </button>
                             ` : ''}
                             ${['cheio', 'devolvido_estoque'].includes(bag.status) ? `
-                                <button onclick="reabrirBagAction(${bag.id})" class="btn btn-sm" style="background: #10b981; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Reabrir bag para edição">
-                                    <i class="fas fa-lock-open"></i> Reabrir Bag
+                                <button onclick="reabrirBagAction(${bag.id})" class="btn btn-sm" style="background: #10b981; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Reabrir lote para edição">
+                                    <i class="fas fa-lock-open"></i> Reabrir Lote
                                 </button>
                             ` : ''}
-                            <button onclick="abrirVerBag(${bag.id})" class="btn btn-sm" style="background: #0891b2; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Ver detalhes do bag">
-                                <i class="fas fa-eye"></i> Ver Bag
+                            <button onclick="abrirVerBag(${bag.id})" class="btn btn-sm" style="background: #0891b2; color: white; padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.8rem;" title="Ver detalhes do lote">
+                                <i class="fas fa-eye"></i> Ver Lote
                             </button>
                         </div>
                     </div>
@@ -1476,10 +1476,10 @@
             
             if (status === 'aberto') {
                 banner.classList.add('banner-aberto');
-                bannerText.innerHTML = '<i class="fas fa-lock-open"></i> Visualizando Bags em Aberto';
+                bannerText.innerHTML = '<i class="fas fa-lock-open"></i> Visualizando Lotes em Aberto';
             } else if (status === 'cheio') {
                 banner.classList.add('banner-cheio');
-                bannerText.innerHTML = '<i class="fas fa-lock"></i> Visualizando Bags Cheios';
+                bannerText.innerHTML = '<i class="fas fa-lock"></i> Visualizando Lotes Cheios';
             } else {
                 banner.style.display = 'none';
             }
@@ -2107,7 +2107,7 @@
                 btn.innerHTML = '<i class="fas fa-times"></i> Cancelar Seleção (0)';
                 btn.classList.add('selecionando');
             } else {
-                btn.innerHTML = '<i class="fas fa-hand-pointer"></i> Selecionar para Bag';
+                btn.innerHTML = '<i class="fas fa-hand-pointer"></i> Selecionar para Lote';
                 btn.classList.remove('selecionando');
                 barra.classList.remove('active');
             }
@@ -2164,19 +2164,19 @@
 
             document.getElementById('bagBody').innerHTML = `
                 <div style="margin-bottom:1.5rem;">
-                    <h4 style="margin:0 0 0.75rem;"><i class="fas fa-box"></i> Escolher Bag</h4>
+                    <h4 style="margin:0 0 0.75rem;"><i class="fas fa-box"></i> Escolher Lote</h4>
                     <div style="display:flex;gap:0.75rem;align-items:center;">
                         <select id="selectBagExistente" style="flex:1;padding:0.6rem;border:1px solid var(--gray-300);border-radius:8px;" onchange="document.getElementById('novoBagNome').disabled = this.value !== 'novo'">
-                            <option value="novo">✨ Criar Novo Bag</option>
+                            <option value="novo">✨ Criar Novo Lote</option>
                             ${bagsOptions}
                         </select>
-                        <input type="text" id="novoBagNome" placeholder="Nome do bag (opcional)" style="flex:1;padding:0.6rem;border:1px solid var(--gray-300);border-radius:8px;">
+                        <input type="text" id="novoBagNome" placeholder="Nome do lote (opcional)" style="flex:1;padding:0.6rem;border:1px solid var(--gray-300);border-radius:8px;">
                     </div>
                 </div>
                 <h4 style="margin:0 0 0.75rem;"><i class="fas fa-list"></i> Materiais Selecionados (${matIds.length})</h4>
                 <div style="max-height:300px;overflow-y:auto;">${matHtml}</div>
                 <button id="btnEnviarBag" onclick="enviarMaterialParaBag()" class="btn" style="width:100%;margin-top:1.5rem;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;padding:1rem;border-radius:12px;font-size:1.1rem;font-weight:bold;">
-                    <i class="fas fa-paper-plane"></i> Enviar para Bag
+                    <i class="fas fa-paper-plane"></i> Enviar para Lote
                 </button>
             `;
         }
@@ -2196,9 +2196,9 @@
                         body: JSON.stringify({nome: nome})
                     });
                     const data = await resp.json();
-                    if (!data.sucesso) { showNotification(data.erro || 'Erro ao criar bag', 'error'); setActionBusy('enviarBag', false); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar para Bag'; } return; }
+                    if (!data.sucesso) { showNotification(data.erro || 'Erro ao criar lote', 'error'); setActionBusy('enviarBag', false); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar para Lote'; } return; }
                     bagId = data.bag.id;
-                } catch(e) { showNotification('Erro ao criar bag', 'error'); setActionBusy('enviarBag', false); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar para Bag'; } return; }
+                } catch(e) { showNotification('Erro ao criar lote', 'error'); setActionBusy('enviarBag', false); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar para Lote'; } return; }
             }
             const materiais = Array.from(materiaisSelecionados).map(id => {
                 const pesoInput = document.getElementById(`bagPeso_${id}`);
@@ -2216,8 +2216,8 @@
                     toggleModoSelecao();
                     await sincronizarTodasTelas();
                 } else { showNotification(data.erro || 'Erro', 'error'); }
-            } catch(e) { showNotification('Erro ao enviar para bag', 'error'); }
-            finally { setActionBusy('enviarBag', false); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar para Bag'; } }
+            } catch(e) { showNotification('Erro ao enviar para lote', 'error'); }
+            finally { setActionBusy('enviarBag', false); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Enviar para Lote'; } }
         }
 
         function fecharModalBag() { document.getElementById('modalBag').classList.remove('active'); }
@@ -2229,9 +2229,9 @@
         async function fecharBagAction(bagId) {
             if (isActionBusy('fecharBag_' + bagId)) return;
             const ok = await confirmarAcao(
-                'Finalizar Bag',
-                'Fechar este bag? Após o fechamento não será possível adicionar ou remover materiais. ' +
-                'O bag receberá um número de ordem de exportação sequencial e ficará pronto para envio à refinaria.'
+                'Finalizar Lote',
+                'Fechar este lote? Após o fechamento não será possível adicionar ou remover materiais. ' +
+                'O lote receberá um número de ordem de exportação sequencial e ficará pronto para envio à refinaria.'
             );
             if (!ok) return;
             setActionBusy('fecharBag_' + bagId, true);
@@ -2247,14 +2247,14 @@
                     const ordemMsg = resumo.ordem_exportacao ? ` | Ordem: ${resumo.ordem_exportacao}` : '';
                     const pesoMsg = resumo.peso_total_kg != null ? ` | Peso: ${fmtKg(resumo.peso_total_kg)} kg` : '';
                     const itensMsg = resumo.quantidade_itens != null ? ` | ${resumo.quantidade_itens} item(ns)` : '';
-                    showNotification(`Bag finalizado com sucesso!${ordemMsg}${pesoMsg}${itensMsg}`, 'success');
+                    showNotification(`Lote finalizado com sucesso!${ordemMsg}${pesoMsg}${itensMsg}`, 'success');
                     await sincronizarTodasTelas();
                 } else {
-                    showNotification(data.erro || 'Erro ao finalizar bag.', 'error');
+                    showNotification(data.erro || 'Erro ao finalizar lote.', 'error');
                 }
             } catch(e) {
                 console.error('Erro ao fechar bag:', e);
-                showNotification('Falha de comunicação ao finalizar bag. Verifique a conexão.', 'error');
+                showNotification('Falha de comunicação ao finalizar lote. Verifique a conexão.', 'error');
             } finally {
                 setActionBusy('fecharBag_' + bagId, false);
             }
@@ -2263,8 +2263,8 @@
         async function reabrirBagAction(bagId) {
             if (isActionBusy('reabrirBag_' + bagId)) return;
             const ok = await confirmarAcao(
-                'Reabrir Bag',
-                'Reabrir este bag? O código de rastreio e a ordem de exportação serão removidos. ' +
+                'Reabrir Lote',
+                'Reabrir este lote? O código de rastreio e a ordem de exportação serão removidos. ' +
                 'Você poderá adicionar ou remover materiais novamente.'
             );
             if (!ok) return;
@@ -2277,14 +2277,14 @@
                 });
                 const data = await resp.json();
                 if (data.sucesso) {
-                    showNotification('Bag reaberto com sucesso! Agora você pode modificá-lo.', 'success');
+                    showNotification('Lote reaberto com sucesso! Agora você pode modificá-lo.', 'success');
                     await sincronizarTodasTelas();
                 } else {
-                    showNotification(data.erro || 'Erro ao reabrir bag.', 'error');
+                    showNotification(data.erro || 'Erro ao reabrir lote.', 'error');
                 }
             } catch(e) {
                 console.error('Erro ao reabrir bag:', e);
-                showNotification('Falha de comunicação ao reabrir bag.', 'error');
+                showNotification('Falha de comunicação ao reabrir lote.', 'error');
             } finally {
                 setActionBusy('reabrirBag_' + bagId, false);
             }
@@ -2293,8 +2293,8 @@
         async function excluirBagAction(bagId) {
             if (isActionBusy('excluirBag_' + bagId)) return;
             const ok = await confirmarAcao(
-                'Excluir Bag Permanentemente',
-                'ATENÇÃO: Esta ação é irreversível. Deseja excluir completamente este bag?\n\n' +
+                'Excluir Lote Permanentemente',
+                'ATENÇÃO: Esta ação é irreversível. Deseja excluir completamente este lote?\n\n' +
                 'Todos os materiais dentro dele serão devolvidos ao Estoque Ativo com estorno ' +
                 'exato de peso e valor (preço médio restaurado por mapa de consumo FIFO).'
             );
@@ -3070,16 +3070,16 @@
                     </label>
                     <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
                         <select id="selectBagGeralDestino" style="flex:1; min-width:200px; padding:0.65rem; border:1px solid var(--gray-300); border-radius:8px; font-size:0.95rem;" onchange="document.getElementById('novoBagGeralNome').disabled = this.value !== 'novo'">
-                            <option value="novo">✨ Criar Novo Bag Automaticamente</option>
+                            <option value="novo">✨ Criar Novo Lote Automaticamente</option>
                             ${bagsOptions}
                         </select>
-                        <input type="text" id="novoBagGeralNome" placeholder="Nome/obs do bag (opcional)" style="flex:1; min-width:180px; padding:0.65rem; border:1px solid var(--gray-300); border-radius:8px; font-size:0.95rem;">
+                        <input type="text" id="novoBagGeralNome" placeholder="Nome/obs do lote (opcional)" style="flex:1; min-width:180px; padding:0.65rem; border:1px solid var(--gray-300); border-radius:8px; font-size:0.95rem;">
                     </div>
                 </div>
 
                 <!-- Lista de Materiais com Digitação de Quantidade (Req. 2.2) -->
                 <h4 style="margin:1rem 0 0.5rem; color:var(--gray-800); font-size:1rem; display:flex; justify-content:space-between; align-items:center;">
-                    <span><i class="fas fa-list-check"></i> Materiais para Inclusão no Bag (${materiaisGeralSelecionados.length})</span>
+                    <span><i class="fas fa-list-check"></i> Materiais para Inclusão no Lote (${materiaisGeralSelecionados.length})</span>
                     <span style="font-size:0.75rem; font-weight:normal; color:var(--gray-500);">Baixa com Preço Médio</span>
                 </h4>
                 <div style="max-height:350px; overflow-y:auto; padding-right:4px;">
@@ -3093,7 +3093,7 @@
                 </div>
 
                 <button id="btnConfirmarEnviarBagGeral" onclick="enviarMaterialParaBagGeral()" class="btn" style="width:100%; margin-top:1.25rem; background:linear-gradient(135deg, #059669, #047857); color:white; padding:0.9rem; border-radius:12px; font-size:1.05rem; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:0.5rem; box-shadow:0 4px 12px rgba(5,150,105,0.3);">
-                    <i class="fas fa-paper-plane"></i> Confirmar Baixa e Enviar para Bag
+                    <i class="fas fa-paper-plane"></i> Confirmar Baixa e Enviar para Lote
                 </button>
             `;
         }
