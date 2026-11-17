@@ -487,4 +487,20 @@ def create_app():
             db.session.commit()
             print(f"✓ Adicionadas {len(nomes_faltantes)} classificações HIGH GRADE faltantes")
 
+        # Classificações que precisam existir em categorias não-HIGH_GRADE
+        classificacoes_low_grade = ['SUCATA PLACA MARROM']
+        for nome in classificacoes_low_grade:
+            cg = ClassificacaoGrade.query.filter(
+                db.func.lower(ClassificacaoGrade.nome) == nome.lower()
+            ).first()
+            if cg:
+                if cg.categoria != 'LOW_GRADE':
+                    cg.categoria = 'LOW_GRADE'
+                    db.session.commit()
+                    print(f"✓ ClassificacaoGrade '{nome}': categoria corrigida para LOW_GRADE")
+            else:
+                db.session.add(ClassificacaoGrade(nome=nome, categoria='LOW_GRADE', ativo=True))
+                db.session.commit()
+                print(f"✓ ClassificacaoGrade '{nome}' criada com categoria LOW_GRADE")
+
     return app

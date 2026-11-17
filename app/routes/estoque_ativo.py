@@ -749,10 +749,20 @@ def obter_resumo_estoque():
             BagProducao.status.in_(bags_ativos)
         ).all()
         
+        # Cache ClassificacaoGrade por nome para resolver categoria correta pelo nome do material
+        # (a classificacao_grade_id salva no ItemSeparadoProducao pode ser genérica — PASSO 4 usa .first() por categoria)
+        _cg_por_nome = {
+            cg.nome.lower(): cg
+            for cg in ClassificacaoGrade.query.filter_by(ativo=True).all()
+        }
+
         # Estruturar resposta
         dados = {}
         for item, classif, lote_filho, lote_pai in resultados:
-            cat_key = classif.categoria or 'OUTROS'
+            # Busca classificação correta pelo nome do material (resolve erro de categoria em itens legados)
+            cg_correto = _cg_por_nome.get((item.nome_item or '').lower())
+            cat_key = (cg_correto.categoria if cg_correto else classif.categoria) or 'OUTROS'
+            nome_classif = (cg_correto.nome if cg_correto else classif.nome) or ''
             if cat_key not in dados:
                 dados[cat_key] = {
                     'categoria': cat_key,
@@ -797,7 +807,7 @@ def obter_resumo_estoque():
             item_data = {
                 'id': item.id,
                 'nome': item.nome_item,
-                'classificacao': classif.nome,
+                'classificacao': nome_classif or classif.nome,
                 'fornecedor': fornecedor_nome,
                 'is_estoque_geral': is_estoque_geral,
                 'fornecedores_consumidos': fornecedores_consumidos,
@@ -1597,9 +1607,18 @@ def adicionar_materiais_bag():
             
             # Determinar classificação correta do item baseada no sublote
             item_classificacao_id = bag.classificacao_grade_id  # fallback
-            
-            # Prioridade 1: classificacao_predominante do sublote
-            if sublote.classificacao_predominante:
+
+            # Prioridade 0: buscar pelo nome do material (mais preciso que busca por categoria)
+            if nome_material and nome_material != 'Material':
+                classif_por_nome = ClassificacaoGrade.query.filter(
+                    func.lower(ClassificacaoGrade.nome) == func.lower(nome_material),
+                    ClassificacaoGrade.ativo == True
+                ).first()
+                if classif_por_nome:
+                    item_classificacao_id = classif_por_nome.id
+
+            # Prioridade 1: classificacao_predominante do sublote (fallback por categoria)
+            if item_classificacao_id == bag.classificacao_grade_id and sublote.classificacao_predominante:
                 classif_match = ClassificacaoGrade.query.filter(
                     func.lower(ClassificacaoGrade.categoria) == sublote.classificacao_predominante.lower(),
                     ClassificacaoGrade.ativo == True
@@ -2939,7 +2958,14 @@ def adicionar_materiais_bag_estoque_geral():
 
             # ---- PASSO 4: Determinar classificação para o item do bag ----
             item_classificacao_id = bag.classificacao_grade_id  # fallback
-            if categoria:
+            # Prioridade: buscar pelo nome do material (mais preciso)
+            classif_por_nome = ClassificacaoGrade.query.filter(
+                func.lower(ClassificacaoGrade.nome) == func.lower(material_nome),
+                ClassificacaoGrade.ativo == True
+            ).first()
+            if classif_por_nome:
+                item_classificacao_id = classif_por_nome.id
+            elif categoria:
                 classif_match = ClassificacaoGrade.query.filter(
                     func.lower(ClassificacaoGrade.categoria) == categoria.lower(),
                     ClassificacaoGrade.ativo == True
