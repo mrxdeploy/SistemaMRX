@@ -487,6 +487,21 @@ def create_app():
             db.session.commit()
             print(f"✓ Adicionadas {len(nomes_faltantes)} classificações HIGH GRADE faltantes")
 
+        # Migration: total_volumes em bags_producao
+        try:
+            from sqlalchemy import text
+            with db.engine.connect() as conn:
+                r = conn.execute(text("""
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_name = 'bags_producao' AND column_name = 'total_volumes'
+                """))
+                if r.fetchone() is None:
+                    conn.execute(text("ALTER TABLE bags_producao ADD COLUMN total_volumes INTEGER"))
+                    conn.commit()
+                    print("✓ Added bags_producao.total_volumes")
+        except Exception as e:
+            print(f"Migration total_volumes: {e}")
+
         # Classificações que precisam existir em categorias não-HIGH_GRADE
         classificacoes_low_grade = ['SUCATA PLACA MARROM']
         for nome in classificacoes_low_grade:

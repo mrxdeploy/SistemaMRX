@@ -382,7 +382,7 @@
                 <i class="fas fa-cubes"></i> Estoque Geral
             </button>
             <button class="tab-btn" onclick="abrirTab('lotes')">
-                <i class="fas fa-boxes"></i> Lotes
+                <i class="fas fa-boxes"></i> Compras
             </button>
             <button class="tab-btn" onclick="abrirTab('bags')">
                 <i class="fas fa-box"></i> Lotes
@@ -1317,9 +1317,18 @@
                         </div>
                         <span class="badge ${getBagBadgeClass(bag.status)}">${getBagStatusLabel(bag.status)}</span>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem; margin-top: 1rem; font-size: 0.875rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; margin-top: 1rem; font-size: 0.875rem;">
                         <div><strong>Peso Total:</strong> ${fmtKg(bag.peso_acumulado, 2)} kg</div>
                         <div><strong>Itens:</strong> ${bag.quantidade_itens || 0}</div>
+                        ${bag.valor_total_bag > 0 ? `<div><strong>Valor Total:</strong> <span style="color:#059669;">R$ ${bag.valor_total_bag.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}</span></div>` : ''}
+                        ${bag.preco_medio_bag > 0 ? `<div><strong>Preço Médio:</strong> <span style="color:#7c3aed;">R$ ${bag.preco_medio_bag.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2})}/kg</span></div>` : ''}
+                        <div style="display:flex; align-items:center; gap:0.4rem;">
+                            <strong>Volumes:</strong>
+                            <input type="number" min="0" value="${bag.total_volumes != null ? bag.total_volumes : ''}" placeholder="—"
+                                style="width:60px; padding:0.15rem 0.3rem; border:1px solid var(--gray-300); border-radius:4px; font-size:0.85rem; background:var(--gray-50); color:var(--gray-800);"
+                                onclick="event.stopPropagation()"
+                                onchange="salvarVolumesLote(${bag.id}, this.value)">
+                        </div>
                     </div>
                     ${bag.status === 'cheio' && bag.ordem_exportacao ? `
                     <div style="margin-top: 0.75rem; padding: 0.75rem; background: var(--gray-50); border: 1px dashed var(--gray-300); border-radius: 8px; text-align: center;">
@@ -2318,6 +2327,21 @@
                 showNotification('Falha de comunicação ao excluir bag.', 'error');
             } finally {
                 setActionBusy('excluirBag_' + bagId, false);
+            }
+        }
+
+        async function salvarVolumesLote(bagId, valor) {
+            try {
+                const resp = await fetchAPI(`/estoque-ativo/bags/${bagId}/volumes`, {
+                    method: 'PATCH',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({total_volumes: valor === '' ? null : parseInt(valor)})
+                });
+                const data = await resp.json();
+                if (!data.ok) showNotification(data.erro || 'Erro ao salvar volumes.', 'error');
+            } catch(e) {
+                console.error('Erro ao salvar volumes:', e);
+                showNotification('Falha ao salvar volumes.', 'error');
             }
         }
 

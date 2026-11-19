@@ -2341,6 +2341,9 @@ class BagProducao(db.Model):  # type: ignore
     categoria_manual = db.Column(db.String(100), nullable=True)
     categorias_mistas = db.Column(db.Boolean, default=False, nullable=False)
 
+    # Total de volumes físicos do lote (caixas/sacolas/paletes)
+    total_volumes = db.Column(db.Integer, nullable=True)
+
     # Relacionamentos
     classificacao_grade = db.relationship('ClassificacaoGrade', backref='bags')
     criado_por = db.relationship('Usuario', foreign_keys=[criado_por_id], backref='bags_criados')
@@ -2406,6 +2409,7 @@ class BagProducao(db.Model):  # type: ignore
             'ordem_exportacao': self.ordem_exportacao,
             'responsavel_id': self.responsavel_id,
             'responsavel_nome': self.responsavel.nome if self.responsavel else None,
+            'total_volumes': self.total_volumes,
             'criado_por_id': self.criado_por_id,
             'criado_por_nome': self.criado_por.nome if self.criado_por else None,
             'data_criacao': self.data_criacao.isoformat() if self.data_criacao else None,

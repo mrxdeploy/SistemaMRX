@@ -617,6 +617,24 @@ def listar_bags_estoque():
             
             bag_dict['itens'] = itens_data
             bag_dict['origem_lotes'] = tem_lotes_origem
+
+            # Calcular valor total e preço médio do bag a partir dos itens
+            total_valor_bag = 0.0
+            for it in itens:
+                v = float(it.valor_estimado or it.custo_proporcional or 0)
+                if v <= 0 and it.observacoes and it.observacoes.startswith('ESTOQUE_GERAL:'):
+                    try:
+                        meta = json.loads(it.observacoes.replace('ESTOQUE_GERAL:', '', 1))
+                        pm = float(meta.get('pm_kg', 0))
+                        if pm > 0:
+                            v = round(pm * float(it.peso_kg or 0), 2)
+                    except Exception:
+                        pass
+                total_valor_bag += v
+            peso_bag = float(bag.peso_acumulado or 0)
+            bag_dict['valor_total_bag'] = round(total_valor_bag, 2)
+            bag_dict['preco_medio_bag'] = round(total_valor_bag / peso_bag, 2) if peso_bag > 0 else 0.0
+
             bag_dict['itens_por_classificacao'] = sorted(
                 itens_por_classificacao.values(),
                 key=lambda x: x['peso_total_kg'],
@@ -1512,6 +1530,27 @@ def criar_bag():
         db.session.rollback()
         logger.error(f'Erro ao criar bag: {str(e)}')
         logger.error(f'Erro interno: {e}', exc_info=True)
+        return jsonify({'erro': 'Erro interno no servidor'}), 500
+
+
+@bp.route('/bags/<int:bag_id>/volumes', methods=['PATCH'])
+@jwt_required()
+def atualizar_volumes_bag(bag_id):
+    """Atualiza o total de volumes físicos do bag"""
+    try:
+        bag = BagProducao.query.get_or_404(bag_id)
+        data = request.get_json()
+        total_volumes = data.get('total_volumes')
+        if total_volumes is not None:
+            try:
+                bag.total_volumes = int(total_volumes) if total_volumes != '' else None
+            except (ValueError, TypeError):
+                return jsonify({'erro': 'total_volumes deve ser um número inteiro'}), 400
+        db.session.commit()
+        return jsonify({'ok': True, 'total_volumes': bag.total_volumes})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Erro ao atualizar volumes do bag {bag_id}: {str(e)}')
         return jsonify({'erro': 'Erro interno no servidor'}), 500
 
 
